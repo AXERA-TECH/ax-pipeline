@@ -2,7 +2,12 @@
 
 ### 阅读文档
 
-仔细阅读 [AXera Pulsar 工具链指导手册](https://pulsar-docs.readthedocs.io/zh_CN/latest/index.html)，学习如何将自定义的 onnx 模型，转换成 AX620 中所用的 Joint 模型。
+仔细阅读 [AXera Pulsar 工具链指导手册](https://pulsar-docs.readthedocs.io/zh_CN/latest/index.html)，学习如何将自定义的 onnx 模型，转换成 AX620 中所用的 Joint 模型。需要注意的是， 因为 ax-pipeline 的AI推理是使用NV12的像素格式，所以手册提及的 ```dst_input_tensors``` ，需要设置成
+```
+dst_input_tensors {
+    color_space: TENSOR_COLOR_SPACE_NV12
+}
+```
 
 ### 插入后处理代码
   

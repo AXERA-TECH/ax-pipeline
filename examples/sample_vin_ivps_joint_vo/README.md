@@ -5,7 +5,7 @@
 ![](../../docs/sample_vin_ivps_joint_vo.png)
 
 ## 快速体验
-注意：如果在 cmake 构建编译任务时添加了 ```-DYOLOV5_FACE=1``` 参数，请将以下步骤中的：
+注意：如果用户希望体验人脸检测功能，请将以下步骤中的：
 - ```yolov5s_sub_nv12_11``` 替换成 ```yolov5s_face_nv12_11```
 - ```yolov5s.json``` 替换成 ```yolov5s_face.json```
 
