@@ -24,16 +24,6 @@
 
 #define SAMPLE_VO_DEV0 0
 
-typedef struct axSAMPLE_VO_CHN_THREAD_PARAM
-{
-    pthread_t ThreadID;
-
-    AX_U32 u32ThreadForceStop;
-
-    AX_U32 u32LayerID;
-    AX_U32 u32ChnID;
-    AX_POOL u32UserPoolId;
-} SAMPLE_VO_CHN_THREAD_PARAM_S;
 
 SAMPLE_VO_CONFIG_S stVoConf = {
     /* for device */

@@ -18,45 +18,8 @@
  * Author: ZHEQIUSHUI
  */
 
-#include "ax_venc_api.h"
 #include "../sample_vin_ivps_joint_venc_rtsp_vo.h"
 
-typedef struct _stVencGetStreamParam
-{
-    AX_S32 VeChn;
-    AX_BOOL bThreadStart;
-    AX_PAYLOAD_TYPE_E ePayloadType;
-} VENC_GETSTREAM_PARAM_T;
-
-typedef struct _stRCInfo
-{
-    SAMPLE_VENC_RC_E eRCType;
-    AX_U32 nMinQp;
-    AX_U32 nMaxQp;
-    AX_U32 nMinIQp;
-    AX_U32 nMaxIQp;
-    AX_S32 nIntraQpDelta;
-} RC_INFO_T;
-
-typedef struct _stVideoConfig
-{
-    AX_PAYLOAD_TYPE_E ePayloadType;
-    AX_U32 nGOP;
-    AX_U32 nSrcFrameRate;
-    AX_U32 nDstFrameRate;
-    AX_U32 nStride;
-    AX_S32 nInWidth;
-    AX_S32 nInHeight;
-    AX_S32 nOutWidth;
-    AX_S32 nOutHeight;
-    AX_S32 nOffsetCropX;
-    AX_S32 nOffsetCropY;
-    AX_S32 nOffsetCropW;
-    AX_S32 nOffsetCropH;
-    AX_IMG_FORMAT_E eImgFormat;
-    RC_INFO_T stRCInfo;
-    AX_S32 nBitrate;
-} VIDEO_CONFIG_T;
 
 VENC_GETSTREAM_PARAM_T gGetStreamPara[SAMPLE_VENC_CHN_NUM];
 pthread_t gGetStreamPid[SAMPLE_VENC_CHN_NUM];

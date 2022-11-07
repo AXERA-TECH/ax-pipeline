@@ -22,18 +22,6 @@
 #include "../../sample_run_joint/sample_run_joint.h"
 #include "../../utilities/osd_utils.h"
 
-typedef struct
-{
-    IVPS_GRP nGroup;
-    AX_IVPS_FILTER nFilter;
-    AX_U32 nChnWidth;
-    AX_U32 nChnHeight;
-    AX_U32 nRgnNum;
-    AX_IVPS_RGN_LAYER_E eLayer;
-} RGN_GROUP_CFG_T;
-
-sample_run_joint_results pResult_disp;
-
 AX_U32 OSD_Grp[SAMPLE_REGION_COUNT] = {0, 2};
 
 AX_VOID StartOverlay(AX_VOID)
@@ -57,7 +45,7 @@ AX_VOID StartOverlay(AX_VOID)
             }
 
             g_arrRgnThreadParam[nRgnIndex].hChnRgn = hChnRgn;
-            g_arrRgnThreadParam[nRgnIndex].nGroup = i;
+            g_arrRgnThreadParam[nRgnIndex].nGroupIdx = i;
             g_arrRgnThreadParam[nRgnIndex].nFilter = nFilter;
             nRgnIndex++;
 
@@ -115,7 +103,7 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
 
     IVPS_REGION_PARAM_PTR pThreadParam = (IVPS_REGION_PARAM_PTR)pArg;
     AX_IVPS_FILTER nFilter = pThreadParam->nFilter;
-    IVPS_GRP nIvpsGrp = pThreadParam->nGroup;
+    IVPS_GRP nIvpsGrp = pThreadParam->nGroupIdx;
 
     AX_U8 nCfgIndex = nIvpsGrp;
 
@@ -153,7 +141,7 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
 #pragma omp parallel for num_threads(2)
         for (AX_U8 i = 0; i < tDisp.nNum; ++i)
         {
-            if (i < pResult_disp.size)
+            if (i < g_result_disp.size)
             {
                 // bbox
                 {
@@ -163,10 +151,10 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
                     AX_U32 nChnWidth = tGrpCfg->nChnWidth;
                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
 
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(pResult_disp.objects[i].x * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(pResult_disp.objects[i].y * nChnHeight) + (nCfgIndex == 0 ? 0 : 32);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(pResult_disp.objects[i].w * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(pResult_disp.objects[i].h * nChnHeight);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(g_result_disp.objects[i].x * nChnWidth);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(g_result_disp.objects[i].y * nChnHeight) + (nCfgIndex == 0 ? 0 : 32);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(g_result_disp.objects[i].w * nChnWidth);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(g_result_disp.objects[i].h * nChnHeight);
                     tDisp.arrDisp[i].uDisp.tPolygon.bSolid = AX_FALSE;
                     tDisp.arrDisp[i].uDisp.tPolygon.bCornerRect = AX_FALSE;
                     tDisp.arrDisp[i].uDisp.tPolygon.nLineWidth = 2;
@@ -181,7 +169,7 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
                     AX_U32 nChnWidth = tGrpCfg->nChnWidth;
                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
                     osd_utils_img out;
-                    putText(pResult_disp.objects[i].objname, nCfgIndex == 0 ? 2.0 : 0.6, nCfgIndex == 0 ? 2 : 1, &list_baseimgs[i], &out);
+                    putText(g_result_disp.objects[i].objname, nCfgIndex == 0 ? 2.0 : 0.6, nCfgIndex == 0 ? 2 : 1, &list_baseimgs[i], &out);
 
                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.bEnable = AX_TRUE;
                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
@@ -233,76 +221,79 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
         {OSD_Grp[1], 0x11, SAMPLE_MINOR_STREAM_WIDTH, SAMPLE_MINOR_STREAM_HEIGHT, 1, AX_IVPS_RGN_LAYER_COVER},
     };
 
-    IVPS_REGION_PARAM_PTR pThreadParam = (IVPS_REGION_PARAM_PTR)pArg;
-    AX_IVPS_FILTER nFilter = pThreadParam->nFilter;
-    IVPS_GRP nIvpsGrp = pThreadParam->nGroup;
+    IVPS_REGION_PARAM_T *g_arrRgnThreadParam = pArg;
 
-    AX_U8 nCfgIndex = nIvpsGrp;
-
-    ALOGN("[%d][0x%02x] +++", nIvpsGrp, nFilter);
-
-    osd_utils_img img_overlay;
-    img_overlay.channel = 4;
-    img_overlay.data = malloc(tRgnGroupConfig[nCfgIndex].nChnWidth * tRgnGroupConfig[nCfgIndex].nChnHeight * 4);
-    img_overlay.width = tRgnGroupConfig[nCfgIndex].nChnWidth;
-    img_overlay.height = tRgnGroupConfig[nCfgIndex].nChnHeight;
+    osd_utils_img img_overlay[SAMPLE_REGION_COUNT];
+    for (int i = 0; i < SAMPLE_REGION_COUNT; i++)
+    {
+        ALOGN("[%d][0x%02x] +++", g_arrRgnThreadParam[i].nGroupIdx, g_arrRgnThreadParam[i].nFilter);
+        g_arrRgnThreadParam[i].bExit = AX_FALSE;
+        img_overlay[i].channel = 4;
+        img_overlay[i].data = malloc(tRgnGroupConfig[i].nChnWidth * tRgnGroupConfig[i].nChnHeight * 4);
+        img_overlay[i].width = tRgnGroupConfig[i].nChnWidth;
+        img_overlay[i].height = tRgnGroupConfig[i].nChnHeight;
+    }
 
     AX_S32 ret = 0;
-    pThreadParam->bExit = AX_FALSE;
-    while (!pThreadParam->bExit && !gLoopExit)
+    AX_IVPS_RGN_DISP_GROUP_S tDisp;
+    while (!g_arrRgnThreadParam[0].bExit && !g_arrRgnThreadParam[1].bExit && !gLoopExit)
     {
-        RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[nCfgIndex];
-        if (0 == tGrpCfg->nRgnNum)
-        {
-            break;
-        }
         pthread_mutex_lock(&g_result_mutex);
-
-        memset(img_overlay.data, 0, tRgnGroupConfig[nCfgIndex].nChnWidth * tRgnGroupConfig[nCfgIndex].nChnHeight * 4);
-        drawObjs(&img_overlay, nCfgIndex == 0 ? 2.0 : 0.6, nCfgIndex == 0 ? 2.0 : 1.0, &pResult_disp, 0, nCfgIndex == 0 ? 0 : 32);
-
-        AX_IVPS_RGN_DISP_GROUP_S tDisp;
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-
-        tDisp.nNum = tGrpCfg->nRgnNum;
-        tDisp.tChnAttr.nAlpha = 1024;
-        tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-        tDisp.tChnAttr.nZindex = nIvpsGrp + 1;
-        tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-        tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-        tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-        tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-        tDisp.arrDisp[0].bShow = AX_TRUE;
-        tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-        tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-        tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-        tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-        tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-        tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-        tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-        tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = tRgnGroupConfig[nCfgIndex].nChnWidth;
-        tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = tRgnGroupConfig[nCfgIndex].nChnHeight;
-        tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-        tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = 0;
-        tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-        tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-        ret = AX_IVPS_RGN_Update(pThreadParam->hChnRgn, &tDisp);
-        if (0 != ret)
+        for (int i = 0; i < SAMPLE_REGION_COUNT; i++)
         {
-            ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", nIvpsGrp, nFilter, ret, pThreadParam->hChnRgn);
-        }
+            RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[i];
+            if (0 == tGrpCfg->nRgnNum)
+            {
+                break;
+            }
 
+            memset(img_overlay[i].data, 0, tRgnGroupConfig[i].nChnWidth * tRgnGroupConfig[i].nChnHeight * 4);
+            drawObjs(&img_overlay[i], i == 0 ? 2.0 : 0.6, i == 0 ? 2.0 : 1.0, &g_result_disp, 0, 0);
+
+            memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
+
+            tDisp.nNum = tGrpCfg->nRgnNum;
+            tDisp.tChnAttr.nAlpha = 1024;
+            tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
+            tDisp.tChnAttr.nZindex = i + 1;
+            tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
+            tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
+            tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
+            tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
+
+            tDisp.arrDisp[0].bShow = AX_TRUE;
+            tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
+
+            tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
+            tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
+            tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
+            tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
+            tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
+            tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
+            tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = tRgnGroupConfig[i].nChnWidth;
+            tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = tRgnGroupConfig[i].nChnHeight;
+            tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
+            tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = i == 0 ? 0 : 32;
+            tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
+            tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay[i].data;
+
+            ret = AX_IVPS_RGN_Update(g_arrRgnThreadParam[i].hChnRgn, &tDisp);
+            if (0 != ret)
+            {
+                ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", i, g_arrRgnThreadParam[i].nFilter, ret, g_arrRgnThreadParam[i].hChnRgn);
+            }
+        }
         pthread_mutex_unlock(&g_result_mutex);
-        usleep(30000);
+
+        usleep(10000);
     }
 
     releaseImg(&img_overlay);
-    // free(rgba_data);
 
-    ALOGN("[%d][0x%02x] ---", nIvpsGrp, nFilter);
+    for (int i = 0; i < SAMPLE_REGION_COUNT; i++)
+    {
+        ALOGN("[%d][0x%02x] ---", g_arrRgnThreadParam[i].nGroupIdx, g_arrRgnThreadParam[i].nFilter);
+    }
 
     return (AX_VOID *)0;
 }

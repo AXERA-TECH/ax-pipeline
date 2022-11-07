@@ -105,13 +105,15 @@ static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Hdr[] = {
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
-pthread_mutex_t g_result_mutex;
+
 
 CAMERA_T gCams[MAX_CAMERAS] = {0};
 
 volatile AX_S32 gLoopExit = 0;
 static AX_S32 g_isp_force_loop_exit = 0;
 
+pthread_mutex_t g_result_mutex;
+sample_run_joint_results g_result_disp;
 void *gJointHandle = NULL;
 AX_BOOL b_runjoint = AX_FALSE;
 
@@ -156,19 +158,11 @@ AX_S32 IVPS_ThreadStart(AX_VOID *p)
 
     pthread_detach(tid);
 
-    /* Start region thread */
-    for (AX_U8 i = 0; i < SAMPLE_REGION_COUNT; i++)
+    if (0 != pthread_create(&tid, NULL, RgnThreadFunc_V2, g_arrRgnThreadParam))
     {
-        if (AX_IVPS_INVALID_REGION_HANDLE != g_arrRgnThreadParam[i].hChnRgn)
-        {
-            if (0 != pthread_create(&tid, NULL, RgnThreadFunc_V2, (AX_VOID *)&g_arrRgnThreadParam[i]))
-            {
-                return -1;
-            }
-
-            pthread_detach(tid);
-        }
+        return -1;
     }
+    pthread_detach(tid);
 
     return 0;
 }
@@ -267,7 +261,7 @@ int main(int argc, char *argv[])
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     SAMPLE_SNS_TYPE_E eSnsType = GALAXYCORE_GC4653;
     COMMON_VENC_CASE_E eVencType = VENC_CASE_H264;
-    char model_path[256] = "./yolov5s_sub_nv12_11.joint";
+    char model_path[256];
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
 
@@ -289,6 +283,7 @@ int main(int argc, char *argv[])
             int ret = sample_parse_yolov5_param(optarg);
             if (ret != 0)
             {
+                ALOGE("sample_parse_yolov5_param failed");
                 isExit = 1;
             }
             break;

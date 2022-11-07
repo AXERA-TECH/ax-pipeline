@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     SAMPLE_SNS_TYPE_E eSnsType = OMNIVISION_OS04A10;
     AX_S32 s32Ret = 0;
-    char model_path[256] = "./yolov5s_sub_nv12_11.joint";
+    char model_path[256];
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
@@ -389,6 +389,7 @@ int main(int argc, char *argv[])
             int ret = sample_parse_yolov5_param(optarg);
             if (ret != 0)
             {
+                ALOGE("sample_parse_yolov5_param failed");
                 isExit = 1;
             }
             break;

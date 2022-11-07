@@ -25,14 +25,8 @@
 #include "pthread.h"
 #include "sys/prctl.h"
 
-extern volatile AX_S32 gLoopExit;
-extern void *gJointHandle;
-
-extern int SAMPLE_MAJOR_STREAM_WIDTH;
-extern int SAMPLE_MAJOR_STREAM_HEIGHT;
-
-extern pthread_mutex_t g_result_mutex;
-extern sample_run_joint_results pResult_disp;
+#include "../../common/sample_def.h"
+#include "../../utilities/sample_log.h"
 
 AX_VOID *GetFrameThread(AX_VOID *pArg)
 {
@@ -41,6 +35,8 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
     AX_S32 nMilliSec = 200;
 
     prctl(PR_SET_NAME, "SAMPLE_IVPS_GET");
+
+    ALOGN("SAMPLE_RUN_JOINT +++");
 
     while (!gLoopExit)
     {
@@ -81,14 +77,14 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
 
             if (0 == ret)
             {
-                memcpy(&pResult_disp, &pResult, sizeof(sample_run_joint_results));
+                memcpy(&g_result_disp, &pResult, sizeof(sample_run_joint_results));
 
-                for (AX_U8 i = 0; i < pResult_disp.size && i < SAMPLE_MAX_BBOX_COUNT; i++)
+                for (AX_U8 i = 0; i < g_result_disp.size && i < SAMPLE_MAX_BBOX_COUNT; i++)
                 {
-                    pResult_disp.objects[i].x /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    pResult_disp.objects[i].y /= SAMPLE_MAJOR_STREAM_HEIGHT;
-                    pResult_disp.objects[i].w /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    pResult_disp.objects[i].h /= SAMPLE_MAJOR_STREAM_HEIGHT;
+                    g_result_disp.objects[i].x /= SAMPLE_MAJOR_STREAM_WIDTH;
+                    g_result_disp.objects[i].y /= SAMPLE_MAJOR_STREAM_HEIGHT;
+                    g_result_disp.objects[i].w /= SAMPLE_MAJOR_STREAM_WIDTH;
+                    g_result_disp.objects[i].h /= SAMPLE_MAJOR_STREAM_HEIGHT;
                 }
             }
             pthread_mutex_unlock(&g_result_mutex);
@@ -96,12 +92,12 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         else
         {
             pthread_mutex_lock(&g_result_mutex);
-            memset(&pResult_disp, 0, sizeof(sample_run_joint_results));
+            g_result_disp.size = 0;
             pthread_mutex_unlock(&g_result_mutex);
         }
 
         ret = AX_IVPS_ReleaseChnFrame(IvpsGrp, IvpsChn, &tVideoFrame);
     }
-
+    ALOGN("SAMPLE_RUN_JOINT ---");
     return (AX_VOID *)0;
 }
