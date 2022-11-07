@@ -118,17 +118,6 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
     IVPS_GRP nIvpsGrp = pThreadParam->nGroup;
 
     AX_U8 nCfgIndex = nIvpsGrp;
-    // for (AX_U32 i = 0; i < SAMPLE_REGION_COUNT; ++i) {
-    //     if (nIvpsGrp == tRgnGroupConfig[i].nGroup && nFilter == tRgnGroupConfig[i].nFilter) {
-    //         nCfgIndex = i;
-    //         break;
-    //     }
-    // }
-
-    // if (-1 == nCfgIndex) {
-    //     ALOGE("Can not find OSD configuration for group %d, filter 0x%x", nIvpsGrp, nFilter);
-    //     return (AX_VOID *)0;
-    // }
 
     ALOGN("[%d][0x%02x] +++", nIvpsGrp, nFilter);
 
@@ -193,9 +182,6 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
                     osd_utils_img out;
                     putText(pResult_disp.objects[i].objname, nCfgIndex == 0 ? 2.0 : 1.0, nCfgIndex == 0 ? 2 : 1, &list_baseimgs[i], &out);
-
-                    // int width,height;
-                    // genARGB_v2(pResult_disp.objects[i].objname, nCfgIndex==0?2.0:1.0, &width, &height, list_rgba_data[i]);
 
                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.bEnable = AX_TRUE;
                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
@@ -314,7 +300,6 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
     }
 
     releaseImg(&img_overlay);
-    // free(rgba_data);
 
     ALOGN("[%d][0x%02x] ---", nIvpsGrp, nFilter);
 

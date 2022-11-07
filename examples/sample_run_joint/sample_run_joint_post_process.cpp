@@ -134,23 +134,6 @@ void sample_run_joint_post_process(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutpu
         auto ptr = (float *)info.pVirAddr;
         int32_t stride = (1 << i) * 8;
 
-        // #ifdef YOLOV5_FACE
-        //         if (output.pShape[3] != (YOLOV5_CLASS_NUM + 10 + 5) * 3)
-        //         {
-        //             ALOGE("[YOLOV5_FACE] - (YOLOV5_CLASS_NUM + 10 + 5) * 3 should equal %d,but YOLOV5_CLASS_NUM got %d\n", output.pShape[3], YOLOV5_CLASS_NUM);
-        //         }
-        // #else
-        //         if (output.pShape[3] != (YOLOV5_CLASS_NUM + 5) * 3)
-        //         {
-        //             ALOGE("[YOLOV5] - (YOLOV5_CLASS_NUM + 5) * 3 should equal %d,but YOLOV5_CLASS_NUM got %d\n", output.pShape[3], YOLOV5_CLASS_NUM);
-        //         }
-        // #endif
-
-        // #ifdef YOLOV5_FACE
-        //         generate_proposals_yolov5_face(stride, ptr, YOLOV5_PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, YOLOV5_ANCHORS.data(), prob_threshold_unsigmoid);
-        // #else
-        //         generate_proposals_yolov5(stride, ptr, YOLOV5_PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, YOLOV5_ANCHORS.data(), prob_threshold_unsigmoid, YOLOV5_CLASS_NUM);
-        // #endif
         if (output.pShape[3] == (YOLOV5_CLASS_NUM + 5) * 3)
         {
             generate_proposals_yolov5(stride, ptr, YOLOV5_PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, YOLOV5_ANCHORS.data(), prob_threshold_unsigmoid, YOLOV5_CLASS_NUM);
