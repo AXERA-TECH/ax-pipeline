@@ -105,7 +105,7 @@ static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Hdr[] = {
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
-
+AX_S32 s_sample_framerate = 25;
 
 CAMERA_T gCams[MAX_CAMERAS] = {0};
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp begin\n\n");
+    ALOGN("sample begin\n\n");
 
     while ((ch = getopt(argc, argv, "p:m:c:e:v:r:h")) != -1)
     {
@@ -578,6 +578,6 @@ EXIT_2:
 EXIT_1:
     COMMON_SYS_DeInit();
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp end\n");
+    ALOGN("sample end\n");
     return 0;
 }

@@ -113,7 +113,7 @@ typedef struct axSAMPLE_VO_CHN_THREAD_PARAM
     AX_POOL u32UserPoolId;
 } SAMPLE_VO_CHN_THREAD_PARAM_S;
 
-static AX_S32 s_sample_framerate = 25;
+extern AX_S32 s_sample_framerate; //25fps
 
 extern volatile AX_S32 gLoopExit;
 

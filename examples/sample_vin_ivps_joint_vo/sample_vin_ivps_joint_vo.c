@@ -105,7 +105,7 @@ static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Hdr[] = {
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
-
+AX_S32 s_sample_framerate = 25;
 
 CAMERA_T gCams[MAX_CAMERAS] = {0};
 
@@ -243,10 +243,6 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t\t1: SDR\n");
     printf("\t\t2: HDR 2DOL\n");
 
-    printf("\t-v: Video Encode Type, default is h264\n");
-    printf("\t\t0: h264\n");
-    printf("\t\t1: h265\n");
-
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
     exit(0);
@@ -260,14 +256,13 @@ int main(int argc, char *argv[])
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     SAMPLE_SNS_TYPE_E eSnsType = GALAXYCORE_GC4653;
-    COMMON_VENC_CASE_E eVencType = VENC_CASE_H264;
     char model_path[256];
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp begin\n\n");
+    ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:c:e:v:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:m:c:e:r:h")) != -1)
     {
         switch (ch)
         {
@@ -291,13 +286,6 @@ int main(int argc, char *argv[])
         case 'e':
             eHdrMode = (AX_SNS_HDR_MODE_E)atoi(optarg);
             break;
-        case 'v':
-            eVencType = (COMMON_VENC_CASE_E)atoi(optarg);
-            if (eVencType != VENC_CASE_H264 && eVencType != VENC_CASE_H265)
-            {
-                isExit = 1;
-            }
-            break;
         case 'r':
             s_sample_framerate = (AX_S32)atoi(optarg);
             if (s_sample_framerate <= 0)
@@ -320,7 +308,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    ALOGN("eSysCase=%d,eHdrMode=%d,eVencType=%d\n", eSysCase, eHdrMode, eVencType);
+    ALOGN("eSysCase=%d,eHdrMode=%d\n", eSysCase, eHdrMode);
 
     if (eSysCase == SYS_CASE_SINGLE_OS04A10)
     {
@@ -573,6 +561,6 @@ EXIT_2:
 EXIT_1:
     COMMON_SYS_DeInit();
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp end\n");
+    ALOGN("sample end\n");
     return 0;
 }

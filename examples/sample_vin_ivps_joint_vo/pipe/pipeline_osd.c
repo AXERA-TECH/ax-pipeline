@@ -217,7 +217,7 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
     prctl(PR_SET_NAME, "SAMPLE_IVPS_RGN");
 
     RGN_GROUP_CFG_T tRgnGroupConfig[SAMPLE_REGION_COUNT] = {
-        {OSD_Grp[0], 0x11, SAMPLE_MINOR_STREAM_WIDTH, SAMPLE_MINOR_STREAM_HEIGHT, AX_IVPS_REGION_MAX_DISP_NUM, AX_IVPS_RGN_LAYER_COVER},
+        {OSD_Grp[0], 0x11, SAMPLE_MINOR_STREAM_WIDTH, SAMPLE_MINOR_STREAM_HEIGHT, 1, AX_IVPS_RGN_LAYER_COVER},
     };
 
     IVPS_REGION_PARAM_T *g_arrRgnThreadParam = pArg;
@@ -232,23 +232,21 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
 
     AX_S32 ret = 0;
     AX_IVPS_RGN_DISP_GROUP_S tDisp;
+    sample_run_joint_results local_result_disp;
     g_arrRgnThreadParam->bExit = AX_FALSE;
     while (!g_arrRgnThreadParam->bExit && !gLoopExit)
     {
-        RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[0];
-        if (0 == tGrpCfg->nRgnNum)
-        {
-            break;
-        }
         pthread_mutex_lock(&g_result_mutex);
+        local_result_disp.size = g_result_disp.size;
+        memcpy(&local_result_disp.objects[0], &g_result_disp.objects[0], local_result_disp.size * sizeof(sample_run_joint_object));
+        pthread_mutex_unlock(&g_result_mutex);
 
         memset(img_overlay.data, 0, tRgnGroupConfig[0].nChnWidth * tRgnGroupConfig[0].nChnHeight * 4);
-        drawObjs(&img_overlay, 0.6, 1.0, &g_result_disp, 0,  0);
+        drawObjs(&img_overlay, 0.6, 1.0, &local_result_disp, 0,  0);
 
-        
         memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
 
-        tDisp.nNum = tGrpCfg->nRgnNum;
+        tDisp.nNum = tRgnGroupConfig[0].nRgnNum;
         tDisp.tChnAttr.nAlpha = 1024;
         tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
         tDisp.tChnAttr.nZindex = 1;
@@ -278,9 +276,6 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
         {
             ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", g_arrRgnThreadParam->nGroupIdx, g_arrRgnThreadParam->nFilter, ret, g_arrRgnThreadParam->hChnRgn);
         }
-
-        pthread_mutex_unlock(&g_result_mutex);
-        usleep(30000);
     }
 
     releaseImg(&img_overlay);

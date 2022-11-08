@@ -236,23 +236,21 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
 
     AX_S32 ret = 0;
     AX_IVPS_RGN_DISP_GROUP_S tDisp;
+    sample_run_joint_results local_result_disp;
     while (!g_arrRgnThreadParam[0].bExit && !g_arrRgnThreadParam[1].bExit && !gLoopExit)
     {
         pthread_mutex_lock(&g_result_mutex);
+        local_result_disp.size = g_result_disp.size;
+        memcpy(&local_result_disp.objects[0], &g_result_disp.objects[0], local_result_disp.size * sizeof(sample_run_joint_object));
+        pthread_mutex_unlock(&g_result_mutex);
         for (int i = 0; i < SAMPLE_REGION_COUNT; i++)
         {
-            RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[i];
-            if (0 == tGrpCfg->nRgnNum)
-            {
-                break;
-            }
-
             memset(img_overlay[i].data, 0, tRgnGroupConfig[i].nChnWidth * tRgnGroupConfig[i].nChnHeight * 4);
-            drawObjs(&img_overlay[i], i == 0 ? 2.0 : 0.6, i == 0 ? 2.0 : 1.0, &g_result_disp, 0, 0);
+            drawObjs(&img_overlay[i], i == 0 ? 2.0 : 0.6, i == 0 ? 2.0 : 1.0, &local_result_disp, 0, 0);
 
             memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
 
-            tDisp.nNum = tGrpCfg->nRgnNum;
+            tDisp.nNum = tRgnGroupConfig[i].nRgnNum;
             tDisp.tChnAttr.nAlpha = 1024;
             tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
             tDisp.tChnAttr.nZindex = i + 1;
@@ -283,9 +281,6 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
                 ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", i, g_arrRgnThreadParam[i].nFilter, ret, g_arrRgnThreadParam[i].hChnRgn);
             }
         }
-        pthread_mutex_unlock(&g_result_mutex);
-
-        usleep(10000);
     }
 
     releaseImg(&img_overlay);
