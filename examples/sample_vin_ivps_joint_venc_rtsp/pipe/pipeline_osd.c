@@ -281,7 +281,6 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
                 ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", i, g_arrRgnThreadParam[i].nFilter, ret, g_arrRgnThreadParam[i].hChnRgn);
             }
         }
-        // usleep(10000);
     }
 
     releaseImg(&img_overlay);

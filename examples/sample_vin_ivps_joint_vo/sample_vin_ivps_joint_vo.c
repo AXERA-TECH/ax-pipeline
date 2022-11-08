@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp begin\n\n");
+    ALOGN("sample begin\n\n");
 
     while ((ch = getopt(argc, argv, "p:m:c:e:r:h")) != -1)
     {
@@ -561,6 +561,6 @@ EXIT_2:
 EXIT_1:
     COMMON_SYS_DeInit();
 
-    ALOGN("sample_vin_ivps_joint_venc_rtsp end\n");
+    ALOGN("sample end\n");
     return 0;
 }
