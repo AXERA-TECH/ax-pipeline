@@ -105,7 +105,7 @@ static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Hdr[] = {
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
-
+AX_S32 s_sample_framerate = 25;
 
 CAMERA_T gCams[MAX_CAMERAS] = {0};
 
