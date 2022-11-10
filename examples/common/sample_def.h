@@ -8,7 +8,7 @@
 #include "common_codec/common_venc.h"
 
 #include "../sample_run_joint/sample_run_joint.h"
-
+#include "../rtsp/inc/rtsp.h"
 #define RED 0xFF0000
 #define PINK 0xFFC0CB
 #define GREEN 0x00FF00
@@ -70,6 +70,7 @@ typedef struct _stVencGetStreamParam
     AX_S32 VeChn;
     AX_BOOL bThreadStart;
     AX_PAYLOAD_TYPE_E ePayloadType;
+    rtsp_session_handle rSessionHandle;
 } VENC_GETSTREAM_PARAM_T;
 
 typedef struct _stRCInfo
@@ -127,5 +128,8 @@ extern int SAMPLE_ALGO_WIDTH;  // 640
 extern int SAMPLE_ALGO_HEIGHT; // 640
 extern int SAMPLE_MAJOR_STREAM_WIDTH;
 extern int SAMPLE_MAJOR_STREAM_HEIGHT;
+
+#define RTSP_PORT 8554
+#define RTSP_END_POINT "axstream"
 
 #endif

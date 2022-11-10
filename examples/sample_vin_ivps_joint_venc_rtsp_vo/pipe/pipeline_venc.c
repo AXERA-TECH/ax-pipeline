@@ -20,7 +20,6 @@
 
 #include "../sample_vin_ivps_joint_venc_rtsp_vo.h"
 
-
 VENC_GETSTREAM_PARAM_T gGetStreamPara[SAMPLE_VENC_CHN_NUM];
 pthread_t gGetStreamPid[SAMPLE_VENC_CHN_NUM];
 
@@ -51,8 +50,10 @@ static void *VencGetStreamProc(void *arg)
         {
             totalGetStream++;
 
-            AX_Rtsp_SendNalu(pstPara->VeChn, stStream.stPack.pu8Addr, stStream.stPack.u32Len,
-                             stStream.stPack.u64PTS, (VENC_INTRA_FRAME == stStream.stPack.enCodingType) ? AX_TRUE : AX_FALSE);
+            if (rDemoHandle)
+            {
+                rtsp_sever_tx_video(rDemoHandle, pstPara->rSessionHandle, stStream.stPack.pu8Addr, stStream.stPack.u32Len, stStream.stPack.u64PTS);
+            }
 
             s32Ret = AX_VENC_ReleaseStream(pstPara->VeChn, &stStream);
             if (AX_SUCCESS != s32Ret)
@@ -64,6 +65,7 @@ static void *VencGetStreamProc(void *arg)
     }
 
 EXIT:
+    rtsp_del_session(pstPara->rSessionHandle);
     ALOGN("VencChn %d: Total get %u encoded frames. getStream Exit!\n", pstPara->VeChn, totalGetStream);
     return NULL;
 }
@@ -263,6 +265,11 @@ AX_S32 SampleVencInit(COMMON_VENC_CASE_E eVencType)
         gGetStreamPara[VencChn].VeChn = gVencChnMapping[VencChn];
         gGetStreamPara[VencChn].bThreadStart = AX_TRUE;
         gGetStreamPara[VencChn].ePayloadType = config.ePayloadType;
+        char rtsp_path[64], ipaddr[64];
+        sprintf(rtsp_path, "/axstream%d", VencChn);
+        gGetStreamPara[VencChn].rSessionHandle = create_rtsp_session(rDemoHandle, rtsp_path, eVencType);
+        get_ip("eth0", ipaddr);
+        ALOGI("                                      rtsp url >>>>>> rtsp://%s:%d%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path);
         pthread_create(&gGetStreamPid[VencChn], NULL, VencGetStreamProc, (void *)&gGetStreamPara[VencChn]);
     }
 

@@ -43,6 +43,5 @@ add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
 add_subdirectory(examples/sample_vin_ivps_joint_vo)
 add_subdirectory(examples/sample_vin_joint)
 
-install (FILES ${CMAKE_SOURCE_DIR}/examples/rtsp/lib/libax_rtsp.so DESTINATION bin)
 file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/sample_run_joint/config/*")
 install (FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
