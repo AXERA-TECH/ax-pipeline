@@ -269,7 +269,7 @@ AX_S32 SampleVencInit(COMMON_VENC_CASE_E eVencType)
         char rtsp_path[64], ipaddr[64];
         sprintf(rtsp_path, "/%s%d", RTSP_END_POINT, VencChn);
         gGetStreamPara[VencChn].rSessionHandle = create_rtsp_session(rDemoHandle, rtsp_path, eVencType);
-        get_ip("eth0", ipaddr);
+        get_ip_auto(ipaddr);
         ALOGI("                                      rtsp url >>>>>> rtsp://%s:%d%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path);
         pthread_create(&gGetStreamPid[VencChn], NULL, VencGetStreamProc, (void *)&gGetStreamPara[VencChn]);
     }
