@@ -35,7 +35,6 @@
 #include "ax_isp_api.h"
 
 #include "common_vin.h"
-#include "AXRtspWrapper.h"
 #include "../utilities/sample_log.h"
 
 #include "../common/sample_def.h"
@@ -47,7 +46,7 @@
 #define SAMPLE_RECT_BOX_COUNT (16) // <=16
 
 
-
+extern rtsp_demo_handle rDemoHandle;
 extern const AX_S32 gVencChnMapping[SAMPLE_VENC_CHN_NUM];
 
 extern IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];

@@ -1,11 +1,13 @@
-file(GLOB SRC_LIST "*.c" "pipe/*.c" "../utilities/*.cpp")
+file(GLOB SRC_LIST "*.c" "pipe/*.c" "../utilities/*.cpp" "../utilities/*.c")
 file(GLOB SRC_LIST_COMMON "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 file(GLOB SRC_LIST_SAMPLE_RUN_JOINT "../sample_run_joint/*.cpp")
+file(GLOB SRC_LIST_RTSP "../rtsp/src/*.c")
 
 add_executable(sample_vin_ivps_joint_venc_rtsp_vo 
                 ${SRC_LIST}
                 ${SRC_LIST_COMMON}
                 ${SRC_LIST_SAMPLE_RUN_JOINT}
+                ${SRC_LIST_RTSP}
                 )
 
 # opencv
@@ -35,8 +37,6 @@ target_link_directories (sample_vin_ivps_joint_venc_rtsp_vo PRIVATE ${BSP_MSP_DI
 
 # rtsp
 target_include_directories (sample_vin_ivps_joint_venc_rtsp_vo PRIVATE ../rtsp/inc)
-target_link_directories (sample_vin_ivps_joint_venc_rtsp_vo PRIVATE ../rtsp/lib)
-target_link_libraries (sample_vin_ivps_joint_venc_rtsp_vo PRIVATE ax_rtsp ssl crypto)
 
 
 install (TARGETS sample_vin_ivps_joint_venc_rtsp_vo DESTINATION bin)

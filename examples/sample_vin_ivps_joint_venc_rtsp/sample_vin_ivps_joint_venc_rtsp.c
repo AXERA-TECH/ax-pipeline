@@ -113,6 +113,7 @@ volatile AX_S32 gLoopExit = 0;
 static AX_S32 g_isp_force_loop_exit = 0;
 
 const AX_S32 gVencChnMapping[SAMPLE_VENC_CHN_NUM] = {0, 2};
+rtsp_demo_handle rDemoHandle = NULL;
 
 sample_run_joint_results g_result_disp;
 pthread_mutex_t g_result_mutex;
@@ -496,8 +497,8 @@ int main(int argc, char *argv[])
         ALOGE("COMMON_CAM_Init failed,s32Ret:0x%x\n", s32Ret);
         goto EXIT_2;
     }
-
-    AX_Rtsp_Start((AX_S32 *)gVencChnMapping, SAMPLE_VENC_CHN_NUM, eVencType == VENC_CASE_H264 ? AX_TRUE : AX_FALSE);
+    
+    rDemoHandle = rtsp_new_demo(RTSP_PORT);
 
     for (i = 0; i < tCommonArgs.nCamCnt; i++)
     {
@@ -552,7 +553,7 @@ EXIT_4:
         COMMON_CAM_Close(&gCams[i]);
     }
 
-    AX_Rtsp_Stop();
+    rtsp_del_demo(rDemoHandle);
 
 EXIT_3:
     COMMON_CAM_Deinit();
