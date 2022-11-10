@@ -23,3 +23,25 @@ int get_ip(char *devname, char *ipaddr)
 	}
 	return -1;
 }
+
+int get_ip_auto(char *ipaddr)
+{
+	int ret = get_ip("eth0", ipaddr);
+	if (ret == 0)
+	{
+		return ret;
+	}
+
+	ret = get_ip("wlan0", ipaddr);
+	if (ret == 0)
+	{
+		return ret;
+	}
+
+	ret = get_ip("usb0", ipaddr);
+	if (ret == 0)
+	{
+		return ret;
+	}
+	return ret;
+}
