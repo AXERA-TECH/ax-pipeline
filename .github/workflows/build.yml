@@ -31,16 +31,16 @@ jobs:
           mkdir -p ./3rdparty
           wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
           unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip -d ./3rdparty
-          wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-          tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
 
       # Runs a set of commands using the runners shell
       - name: build
         run: |
           mkdir build
-          export PATH=$PATH:../gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
-          arm-linux-gnueabihf-gcc -v
           cd build
+          wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+          tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+          export PATH=$PATH:gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
+          arm-linux-gnueabihf-gcc -v
           cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
           make -j8
           make install
