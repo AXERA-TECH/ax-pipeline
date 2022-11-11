@@ -27,14 +27,13 @@ jobs:
 
       - name: prepare 3rdparty
         run: |
-          mkdir 3rdparty
-          cd 3rdparty
+          git submodule update --init
+          mkdir -p ./3rdparty
           wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
-          unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+          unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip -d ./3rdparty
           wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
           tar -xvf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-          export PATH=$PATH:$PWD/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
-          cd ..
+          export PATH=$PATH:/home/runner/work/ax-pipeline/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
 
       # Runs a set of commands using the runners shell
       - name: build
