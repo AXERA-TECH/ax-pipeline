@@ -33,18 +33,13 @@ jobs:
           unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip -d ./3rdparty
           wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
           tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-          export PATH=$PATH:/home/runner/work/ax-pipeline/ax-pipeline/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
-          echo $PATH
-          echo $PWD
-          ls -l
-          ls -l gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
-          ls -l gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin
-          arm-linux-gnueabihf-gcc -v
 
       # Runs a set of commands using the runners shell
       - name: build
         run: |
           mkdir build
+          export PATH=$PATH:../gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
+          arm-linux-gnueabihf-gcc -v
           cd build
           cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
           make -j8
