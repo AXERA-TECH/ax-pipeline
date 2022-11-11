@@ -28,9 +28,7 @@ $ cd ax-pipeline
 ```
 2、下载子模块（主要是 [axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 部分，如果已经单独下载，可直接放到本目录下，并跳过本步骤）
 ```
-
 $ git submodule update --init
-
 ```
 3、创建 3rdparty，下载opencv
 ```
