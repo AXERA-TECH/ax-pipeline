@@ -37,6 +37,8 @@ jobs:
           echo $PATH
           echo $PWD
           ls -l
+          ls -l gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
+          ls -l gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin
           arm-linux-gnueabihf-gcc -v
 
       # Runs a set of commands using the runners shell
