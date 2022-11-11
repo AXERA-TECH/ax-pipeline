@@ -24,6 +24,27 @@
 VENC_GETSTREAM_PARAM_T gGetStreamPara[SAMPLE_VENC_CHN_NUM];
 pthread_t gGetStreamPid[SAMPLE_VENC_CHN_NUM];
 
+static void PrintRtsp(char *rtsp_path)
+{
+    char ipaddr[64];
+    int ret = get_ip("eth0", ipaddr);
+    printf("\n");
+    if (ret == 0)
+    {
+        ALOGI("                                    [eth0]  rtsp url >>>>>> rtsp://%s:%d%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path);
+    }
+    ret = get_ip("wlan0", ipaddr);
+    if (ret == 0)
+    {
+        ALOGI("                                    [wlan0] rtsp url >>>>>> rtsp://%s:%d%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path);
+    }
+    ret = get_ip("usb0", ipaddr);
+    if (ret == 0)
+    {
+        ALOGI("                                    [usb0]  rtsp url >>>>>> rtsp://%s:%d%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path);
+    }
+}
+
 static void *VencGetStreamProc(void *arg)
 {
     AX_S32 s32Ret = -1;
@@ -266,11 +287,10 @@ AX_S32 SampleVencInit(COMMON_VENC_CASE_E eVencType)
         gGetStreamPara[VencChn].VeChn = gVencChnMapping[VencChn];
         gGetStreamPara[VencChn].bThreadStart = AX_TRUE;
         gGetStreamPara[VencChn].ePayloadType = config.ePayloadType;
-        char rtsp_path[64], ipaddr[64];
+        char rtsp_path[64];
         sprintf(rtsp_path, "/%s%d", RTSP_END_POINT, VencChn);
         gGetStreamPara[VencChn].rSessionHandle = create_rtsp_session(rDemoHandle, rtsp_path, eVencType);
-        get_ip_auto(ipaddr);
-        ALOGI("                                      rtsp url >>>>>> rtsp://%s:%d%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path);
+        PrintRtsp(rtsp_path);
         pthread_create(&gGetStreamPid[VencChn], NULL, VencGetStreamProc, (void *)&gGetStreamPara[VencChn]);
     }
 
