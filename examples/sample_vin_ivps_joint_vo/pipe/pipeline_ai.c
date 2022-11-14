@@ -62,7 +62,21 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         AX_NPU_CV_Image tSrcFrame = {0};
         tSrcFrame.nWidth = tVideoFrame.u32Width;
         tSrcFrame.nHeight = tVideoFrame.u32Height;
-        tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
+        switch (tVideoFrame.enImgFormat)
+        {
+        case AX_YUV420_SEMIPLANAR:
+            tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
+            break;
+        case AX_FORMAT_RGB888:
+            tSrcFrame.eDtype = AX_NPU_CV_FDT_RGB;
+            break;
+        case AX_FORMAT_BGR888:
+            tSrcFrame.eDtype = AX_NPU_CV_FDT_BGR;
+            break;
+        default:
+            tSrcFrame.eDtype = AX_NPU_CV_FDT_UNKNOWN;
+            break;
+        }
         tSrcFrame.tStride.nW = (0 == tVideoFrame.u32PicStride[0]) ? tSrcFrame.nWidth : tVideoFrame.u32PicStride[0];
         tSrcFrame.nSize = tVideoFrame.u32FrameSize; // t.tStride.nW * t.nHeight * 3 / 2;
         tSrcFrame.pPhy = tVideoFrame.u64PhyAddr[0];

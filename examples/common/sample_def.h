@@ -126,6 +126,7 @@ extern CAMERA_T gCams[MAX_CAMERAS];
 
 extern int SAMPLE_ALGO_WIDTH;  // 640
 extern int SAMPLE_ALGO_HEIGHT; // 640
+extern int SAMPLE_ALGO_FORMAT;
 extern int SAMPLE_MAJOR_STREAM_WIDTH;
 extern int SAMPLE_MAJOR_STREAM_HEIGHT;
 

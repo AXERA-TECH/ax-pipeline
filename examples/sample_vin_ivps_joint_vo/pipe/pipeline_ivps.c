@@ -208,7 +208,7 @@ int SampleIvpsInit()
                 stPipelineAttr.tFilter[nChn + 1][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth, 64);
                 stPipelineAttr.tFilter[nChn + 1][0].nDstFrameWidth = SAMPLE_ALGO_WIDTH;
                 stPipelineAttr.tFilter[nChn + 1][0].nDstFrameHeight = SAMPLE_ALGO_HEIGHT;
-                stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_YUV420_SEMIPLANAR;
+                stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = SAMPLE_ALGO_FORMAT;
                 stPipelineAttr.tFilter[nChn + 1][0].eEngine = AX_IVPS_ENGINE_TDP;
                 stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
                 // letterbox filling image

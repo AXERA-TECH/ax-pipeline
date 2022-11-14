@@ -119,6 +119,7 @@ AX_BOOL b_runjoint = AX_FALSE;
 
 int SAMPLE_ALGO_WIDTH = 640;  // 640
 int SAMPLE_ALGO_HEIGHT = 640; // 640
+int SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR;
 int SAMPLE_MAJOR_STREAM_WIDTH;
 int SAMPLE_MAJOR_STREAM_HEIGHT;
 
@@ -467,7 +468,7 @@ int main(int argc, char *argv[])
      */
     if (b_runjoint == AX_TRUE)
     {
-        s32Ret = sample_run_joint_init(model_path, &gJointHandle, &SAMPLE_ALGO_WIDTH, &SAMPLE_ALGO_HEIGHT);
+        s32Ret = sample_run_joint_init(model_path, &gJointHandle, &SAMPLE_ALGO_WIDTH, &SAMPLE_ALGO_HEIGHT, &SAMPLE_ALGO_FORMAT);
         if (0 != s32Ret)
         {
             ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);

@@ -47,8 +47,8 @@ typedef struct
     AX_JOINT_IO_T joint_io_arr;
     AX_JOINT_IO_SETTING_T joint_io_setting;
 
-    AX_NPU_CV_Image pDstNV12;
-
+    AX_NPU_CV_Image algo_input;
+    AX_JOINT_COLOR_SPACE_T SAMPLE_ALOG_FORMAT;
     int SAMPLE_ALGO_WIDTH = 0;
     int SAMPLE_ALGO_HEIGHT = 0;
 } handle_t;
@@ -65,7 +65,7 @@ AX_S32 alloc_joint_buffer(const AX_JOINT_IOMETA_T *pMeta, AX_JOINT_IO_BUFFER_T *
     return AX_ERR_NPU_JOINT_SUCCESS;
 }
 
-AX_S32 prepare_io(AX_NPU_CV_Image *pDstNV12, AX_JOINT_IO_T &io, const AX_JOINT_IO_INFO_T *io_info, const uint32_t &batch)
+AX_S32 prepare_io(AX_NPU_CV_Image *algo_input, AX_JOINT_IO_T &io, const AX_JOINT_IO_INFO_T *io_info, const uint32_t &batch)
 {
     memset(&io, 0, sizeof(io));
 
@@ -89,18 +89,18 @@ AX_S32 prepare_io(AX_NPU_CV_Image *pDstNV12, AX_JOINT_IO_T &io, const AX_JOINT_I
         }
 
         auto actual_data_size = pMeta->nSize / pMeta->pShape[0] * batch;
-        if (pDstNV12->nSize != actual_data_size)
+        if (algo_input->nSize != actual_data_size)
         {
             fprintf(stderr,
                     "[ERR]: The buffer size is not equal to model input(%s) size(%u vs %u).\n",
                     io_info->pInputs[0].pName,
-                    (uint32_t)pDstNV12->nSize,
+                    (uint32_t)algo_input->nSize,
                     actual_data_size);
             return -1;
         }
-        pBuf->phyAddr = (AX_ADDR)pDstNV12->pPhy;
-        pBuf->pVirAddr = (AX_VOID *)pDstNV12->pVir;
-        pBuf->nSize = (AX_U32)pDstNV12->nSize;
+        pBuf->phyAddr = (AX_ADDR)algo_input->pPhy;
+        pBuf->pVirAddr = (AX_VOID *)algo_input->pVir;
+        pBuf->nSize = (AX_U32)algo_input->nSize;
     }
 
     // deal with output
@@ -140,7 +140,7 @@ int npu_crop_resize(const AX_NPU_CV_Image *input_image, AX_NPU_CV_Image *output_
     return 0;
 }
 
-int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int *algo_height)
+int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int *algo_height, int *algo_colorformat)
 {
     if (!model_file)
     {
@@ -214,11 +214,37 @@ int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int
 
     memset(&handle->joint_io_arr, 0, sizeof(handle->joint_io_arr));
     memset(&handle->joint_io_setting, 0, sizeof(handle->joint_io_setting));
-    memset(&handle->pDstNV12, 0, sizeof(handle->pDstNV12));
+    memset(&handle->algo_input, 0, sizeof(handle->algo_input));
 
     auto io_info = AX_JOINT_GetIOInfo(handle->joint_handle);
-    handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
     handle->SAMPLE_ALGO_WIDTH = io_info->pInputs->pShape[2];
+    handle->SAMPLE_ALOG_FORMAT = io_info->pInputs->pExtraMeta->eColorSpace;
+
+    if (algo_colorformat)
+    {
+        switch (handle->SAMPLE_ALOG_FORMAT)
+        {
+        case AX_JOINT_CS_NV12:
+            *algo_colorformat = (int)AX_YUV420_SEMIPLANAR;
+            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
+            ALOGI("NV12 MODEL");
+            break;
+        case AX_JOINT_CS_RGB:
+            *algo_colorformat = (int)AX_FORMAT_RGB888;
+            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
+            ALOGI("RGB MODEL");
+            break;
+        case AX_JOINT_CS_BGR:
+            *algo_colorformat = (int)AX_FORMAT_BGR888;
+            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
+            ALOGI("BGR MODEL");
+            break;
+        default:
+            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+            return deinit_joint();
+        }
+    }
+
     if (algo_width)
     {
         *algo_width = handle->SAMPLE_ALGO_WIDTH;
@@ -228,19 +254,37 @@ int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int
         *algo_height = handle->SAMPLE_ALGO_HEIGHT;
     }
 
-    handle->pDstNV12.nWidth = handle->SAMPLE_ALGO_WIDTH;
-    handle->pDstNV12.nHeight = handle->SAMPLE_ALGO_HEIGHT;
-    handle->pDstNV12.tStride.nW = handle->SAMPLE_ALGO_WIDTH;
-    handle->pDstNV12.eDtype = AX_NPU_CV_FDT_NV12;
-    handle->pDstNV12.nSize = handle->pDstNV12.nWidth * handle->pDstNV12.nHeight * 1.5;
-    ret = AX_SYS_MemAlloc((AX_U64 *)&handle->pDstNV12.pPhy, (void **)&handle->pDstNV12.pVir, handle->pDstNV12.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
+    handle->algo_input.nWidth = handle->SAMPLE_ALGO_WIDTH;
+    handle->algo_input.nHeight = handle->SAMPLE_ALGO_HEIGHT;
+    handle->algo_input.tStride.nW = handle->SAMPLE_ALGO_WIDTH;
+    // handle->algo_input.eDtype = AX_NPU_CV_FDT_NV12;
+    switch (handle->SAMPLE_ALOG_FORMAT)
+    {
+    case AX_JOINT_CS_NV12:
+        handle->algo_input.eDtype = AX_NPU_CV_FDT_NV12;
+        handle->algo_input.nSize = handle->algo_input.nWidth * handle->algo_input.nHeight * 1.5;
+        break;
+    case AX_JOINT_CS_RGB:
+        handle->algo_input.eDtype = AX_NPU_CV_FDT_RGB;
+        handle->algo_input.nSize = handle->algo_input.nWidth * handle->algo_input.nHeight * 3;
+        break;
+    case AX_JOINT_CS_BGR:
+        handle->algo_input.eDtype = AX_NPU_CV_FDT_BGR;
+        handle->algo_input.nSize = handle->algo_input.nWidth * handle->algo_input.nHeight * 3;
+        break;
+    default:
+        ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+        return deinit_joint();
+    }
+
+    ret = AX_SYS_MemAlloc((AX_U64 *)&handle->algo_input.pPhy, (void **)&handle->algo_input.pVir, handle->algo_input.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
     if (ret != AX_ERR_NPU_JOINT_SUCCESS)
     {
         ALOGE("error alloc image sys mem %x", ret);
-        return -1;
+        return deinit_joint();
     }
 
-    ret = prepare_io(&handle->pDstNV12, handle->joint_io_arr, io_info, 1);
+    ret = prepare_io(&handle->algo_input, handle->joint_io_arr, io_info, 1);
     if (AX_ERR_NPU_JOINT_SUCCESS != ret)
     {
         fprintf(stderr, "Fill input failed.\n");
@@ -280,14 +324,14 @@ int sample_run_joint_release(void *yhandle)
             AX_JOINT_Adv_Deinit();
         };
         DestroyJoint();
-        AX_SYS_MemFree((AX_U64)handle->pDstNV12.pPhy, (void *)handle->pDstNV12.pVir);
+        AX_SYS_MemFree((AX_U64)handle->algo_input.pPhy, (void *)handle->algo_input.pVir);
 
         delete handle;
     }
     return 0;
 }
 
-int sample_run_joint_inference(void *yhandle, const void *_pstFrame,  int src_width, int src_height, sample_run_joint_results *pResults)
+int sample_run_joint_inference(void *yhandle, const void *_pstFrame, int src_width, int src_height, sample_run_joint_results *pResults)
 {
     handle_t *handle = (handle_t *)yhandle;
 
@@ -304,14 +348,15 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame,  int src_wi
     }
     AX_NPU_CV_Image *pstFrame = (AX_NPU_CV_Image *)_pstFrame;
     // check eImgType
-    if (AX_NPU_CV_FDT_NV12 != pstFrame->eDtype)
+    if (handle->algo_input.eDtype != pstFrame->eDtype)
     {
-        ALOGE("Only support NV12");
+        ALOGE("color format must same,got (user input)%d:(model input)%d", pstFrame->eDtype, handle->algo_input.eDtype);
         return -1;
     }
+
     AX_NPU_SDK_EX_MODEL_TYPE_T ModelType;
     AX_JOINT_GetVNPUMode(handle->joint_handle, &ModelType);
-    npu_crop_resize(pstFrame, &handle->pDstNV12, NULL, ModelType, AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
+    npu_crop_resize(pstFrame, &handle->algo_input, NULL, ModelType, AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
 
     auto ret = AX_JOINT_RunSync(handle->joint_handle, handle->joint_ctx, &handle->joint_io_arr);
 

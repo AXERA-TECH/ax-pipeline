@@ -47,8 +47,9 @@ extern "C"
     /// @param handle 输出的算法handle
     /// @param algo_width 算法的输入宽
     /// @param algo_height 算法的输入高
+    /// @param algo_colorformat 来自 AX_IMG_FORMAT_E ，AX_YUV420_SEMIPLANAR = 1 ，AX_FORMAT_RGB888 = 65 ， AX_FORMAT_BGR888 = 83
     /// @return 
-    int sample_run_joint_init(char *model_file, void **handle, int *algo_width, int *algo_height);
+    int sample_run_joint_init(char *model_file, void **handle, int *algo_width, int *algo_height, int *algo_colorformat);
     /// @brief 推理输入的图像，检测出bbox，并将映射到 src_width/src_height 上，以便 osd 绘制
     /// @param handle 算法handle
     /// @param pstFrame AX_NPU_CV_Image结构体指针
