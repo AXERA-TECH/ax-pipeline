@@ -19,7 +19,7 @@
  */
 
 #include "../sample_vin_ivps_joint_venc_rtsp_vo.h"
-#include "../../sample_run_joint/sample_run_joint.h"
+#include "../../sample_run_joint/sample_run_joint_post_process.h"
 #include "../../utilities/osd_utils.h"
 
 AX_U32 OSD_Grp[SAMPLE_REGION_COUNT] = {0, 2};
@@ -151,10 +151,10 @@ AX_VOID *RgnThreadFunc(AX_VOID *pArg)
                     AX_U32 nChnWidth = tGrpCfg->nChnWidth;
                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
 
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(g_result_disp.objects[i].x * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(g_result_disp.objects[i].y * nChnHeight) + (nCfgIndex == 0 ? 0 : 32);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(g_result_disp.objects[i].w * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(g_result_disp.objects[i].h * nChnHeight);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(g_result_disp.objects[i].bbox.x * nChnWidth);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(g_result_disp.objects[i].bbox.y * nChnHeight) + (nCfgIndex == 0 ? 0 : 32);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(g_result_disp.objects[i].bbox.w * nChnWidth);
+                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(g_result_disp.objects[i].bbox.h * nChnHeight);
                     tDisp.arrDisp[i].uDisp.tPolygon.bSolid = AX_FALSE;
                     tDisp.arrDisp[i].uDisp.tPolygon.bCornerRect = AX_FALSE;
                     tDisp.arrDisp[i].uDisp.tPolygon.nLineWidth = 2;

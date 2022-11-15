@@ -19,7 +19,7 @@
  */
 
 #include "opencv2/opencv.hpp"
-#include "../sample_run_joint/sample_run_joint.h"
+#include "../sample_run_joint/sample_run_joint_post_process.h"
 #include "osd_utils.h"
 
 #include "sstream"
@@ -79,10 +79,10 @@ void drawObjs(osd_utils_img *out, float fontscale, int thickness,sample_run_join
     cv::Mat image(out->height, out->width, CV_8UC4, out->data);
     for (size_t i = 0; i < results->size; i++)
     {
-        cv::Rect rect(results->objects[i].x * out->width + offset_x,
-                      results->objects[i].y * out->height + offset_y,
-                      results->objects[i].w * out->width,
-                      results->objects[i].h * out->height);
+        cv::Rect rect(results->objects[i].bbox.x * out->width + offset_x,
+                      results->objects[i].bbox.y * out->height + offset_y,
+                      results->objects[i].bbox.w * out->width,
+                      results->objects[i].bbox.h * out->height);
 
         cv::rectangle(image, rect, cv::Scalar(255, 0, 0, 255), thickness);
 

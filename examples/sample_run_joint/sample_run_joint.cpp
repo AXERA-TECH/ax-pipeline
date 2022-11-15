@@ -31,9 +31,6 @@
 #include "../utilities/sample_log.h"
 #include <vector>
 
-void sample_run_joint_post_process(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
-                                   int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT);
-
 typedef struct
 {
     AX_JOINT_HANDLE joint_handle;
@@ -140,11 +137,17 @@ int npu_crop_resize(const AX_NPU_CV_Image *input_image, AX_NPU_CV_Image *output_
     return 0;
 }
 
-int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int *algo_height, int *algo_colorformat)
+int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_attr *attr)
 {
     if (!model_file)
     {
         ALOGE("invalid param:model_file is null");
+        return -1;
+    }
+
+    if (!attr)
+    {
+        ALOGE("invalid param:attr is null");
         return -1;
     }
 
@@ -220,38 +223,26 @@ int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int
     handle->SAMPLE_ALGO_WIDTH = io_info->pInputs->pShape[2];
     handle->SAMPLE_ALOG_FORMAT = io_info->pInputs->pExtraMeta->eColorSpace;
 
-    if (algo_colorformat)
+    switch (handle->SAMPLE_ALOG_FORMAT)
     {
-        switch (handle->SAMPLE_ALOG_FORMAT)
-        {
-        case AX_JOINT_CS_NV12:
-            *algo_colorformat = (int)AX_YUV420_SEMIPLANAR;
-            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
-            ALOGI("NV12 MODEL");
-            break;
-        case AX_JOINT_CS_RGB:
-            *algo_colorformat = (int)AX_FORMAT_RGB888;
-            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-            ALOGI("RGB MODEL");
-            break;
-        case AX_JOINT_CS_BGR:
-            *algo_colorformat = (int)AX_FORMAT_BGR888;
-            handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-            ALOGI("BGR MODEL");
-            break;
-        default:
-            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
-            return deinit_joint();
-        }
-    }
-
-    if (algo_width)
-    {
-        *algo_width = handle->SAMPLE_ALGO_WIDTH;
-    }
-    if (algo_height)
-    {
-        *algo_height = handle->SAMPLE_ALGO_HEIGHT;
+    case AX_JOINT_CS_NV12:
+        attr->algo_colorformat = (int)AX_YUV420_SEMIPLANAR;
+        handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
+        ALOGI("NV12 MODEL");
+        break;
+    case AX_JOINT_CS_RGB:
+        attr->algo_colorformat = (int)AX_FORMAT_RGB888;
+        handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
+        ALOGI("RGB MODEL");
+        break;
+    case AX_JOINT_CS_BGR:
+        attr->algo_colorformat = (int)AX_FORMAT_BGR888;
+        handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
+        ALOGI("BGR MODEL");
+        break;
+    default:
+        ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+        return deinit_joint();
     }
 
     handle->algo_input.nWidth = handle->SAMPLE_ALGO_WIDTH;
@@ -292,6 +283,13 @@ int sample_run_joint_init(char *model_file, void **yhandle, int *algo_width, int
         return deinit_joint();
     }
     handle->joint_io_arr.pIoSetting = &handle->joint_io_setting;
+
+    attr->algo_width = handle->SAMPLE_ALGO_WIDTH;
+    attr->algo_height = handle->SAMPLE_ALGO_HEIGHT;
+    attr->nOutputSize = io_info->nOutputSize;
+    attr->pOutputsInfo = io_info->pOutputs;
+    attr->pOutputs = handle->joint_io_arr.pOutputs;
+
     *yhandle = handle;
     return 0;
 }
@@ -331,7 +329,7 @@ int sample_run_joint_release(void *yhandle)
     return 0;
 }
 
-int sample_run_joint_inference(void *yhandle, const void *_pstFrame, int src_width, int src_height, sample_run_joint_results *pResults)
+int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void *crop_resize_box)
 {
     handle_t *handle = (handle_t *)yhandle;
 
@@ -341,11 +339,6 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, int src_wid
         return -1;
     }
 
-    if (!pResults)
-    {
-        ALOGE("invalid param:pResults is null");
-        return -1;
-    }
     AX_NPU_CV_Image *pstFrame = (AX_NPU_CV_Image *)_pstFrame;
     // check eImgType
     if (handle->algo_input.eDtype != pstFrame->eDtype)
@@ -356,13 +349,14 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, int src_wid
 
     AX_NPU_SDK_EX_MODEL_TYPE_T ModelType;
     AX_JOINT_GetVNPUMode(handle->joint_handle, &ModelType);
-    npu_crop_resize(pstFrame, &handle->algo_input, NULL, ModelType, AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
+    npu_crop_resize(pstFrame, &handle->algo_input, (AX_NPU_CV_Box *)crop_resize_box, ModelType,
+                    AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
 
     auto ret = AX_JOINT_RunSync(handle->joint_handle, handle->joint_ctx, &handle->joint_io_arr);
+    if (ret != AX_ERR_NPU_JOINT_SUCCESS)
+    {
+        return -1;
+    }
 
-    // 5. post process
-    auto io_info = AX_JOINT_GetIOInfo(handle->joint_handle);
-    sample_run_joint_post_process(io_info->nOutputSize, io_info->pOutputs, handle->joint_io_arr.pOutputs, pResults,
-                                  handle->SAMPLE_ALGO_WIDTH, handle->SAMPLE_ALGO_HEIGHT, src_width, src_height);
     return 0;
 }

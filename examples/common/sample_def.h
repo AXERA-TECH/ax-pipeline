@@ -7,7 +7,7 @@
 #include "common_sys.h"
 #include "common_codec/common_venc.h"
 
-#include "../sample_run_joint/sample_run_joint.h"
+#include "../sample_run_joint/sample_run_joint_post_process.h"
 #include "../rtsp/inc/rtsp.h"
 #define RED 0xFF0000
 #define PINK 0xFFC0CB
@@ -121,6 +121,7 @@ extern volatile AX_S32 gLoopExit;
 extern pthread_mutex_t g_result_mutex;
 extern sample_run_joint_results g_result_disp;
 extern void *gJointHandle;
+extern sample_run_joint_attr gJointAttr;
 
 extern CAMERA_T gCams[MAX_CAMERAS];
 

@@ -40,7 +40,7 @@
 
 #include "ax_interpreter_external_api.h"
 
-#include "../sample_run_joint/sample_run_joint.h"
+#include "../sample_run_joint/sample_run_joint_post_process.h"
 #include "../utilities/sample_log.h"
 
 typedef enum
@@ -189,6 +189,7 @@ static volatile AX_S32 gLoopExit = 0;
 static AX_S32 g_isp_force_loop_exit = 0;
 
 static void *gJointHandle = NULL;
+sample_run_joint_attr gJointAttr;
 AX_BOOL b_runjoint = AX_FALSE;
 
 int SAMPLE_ALGO_WIDTH = 640;  // 640
@@ -262,13 +263,16 @@ static void *getYuv(void *arg)
         if (gJointHandle)
         {
             static sample_run_joint_results pResult;
-            retval = sample_run_joint_inference(gJointHandle, &tSrcFrame, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, &pResult);
+            retval = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
+
+            sample_run_joint_post_process_yolov5(gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
+                                          SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
 
             if (0 == retval)
             {
                 for (AX_U8 i = 0; i < pResult.size; i++)
                 {
-                    printf("%2d %16s [%4.0f,%4.0f,%4.0f,%4.0f]\n", i, pResult.objects[i].objname, pResult.objects[i].x, pResult.objects[i].y, pResult.objects[i].w, pResult.objects[i].h);
+                    printf("%2d %16s [%4.0f,%4.0f,%4.0f,%4.0f]\n", i, pResult.objects[i].objname, pResult.objects[i].bbox.x, pResult.objects[i].bbox.y, pResult.objects[i].bbox.w, pResult.objects[i].bbox.h);
                 }
             }
         }
@@ -387,10 +391,10 @@ int main(int argc, char *argv[])
             break;
         case 'p':
         {
-            int ret = sample_parse_yolov5_param(optarg);
+            int ret = sample_parse_param_yolov5(optarg);
             if (ret != 0)
             {
-                ALOGE("sample_parse_yolov5_param failed");
+                ALOGE("sample_parse_param_yolov5 failed");
                 isExit = 1;
             }
             break;
@@ -614,13 +618,16 @@ int main(int argc, char *argv[])
 
     if (b_runjoint == AX_TRUE)
     {
-        s32Ret = sample_run_joint_init(model_path, &gJointHandle, &SAMPLE_ALGO_WIDTH, &SAMPLE_ALGO_HEIGHT, &SAMPLE_ALGO_FORMAT);
+        s32Ret = sample_run_joint_init(model_path, &gJointHandle, &gJointAttr);
         if (0 != s32Ret)
         {
             ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
             goto EXIT;
         }
         ALOGN("load model %s success!\n", model_path);
+        SAMPLE_ALGO_FORMAT = gJointAttr.algo_colorformat;
+        SAMPLE_ALGO_HEIGHT = gJointAttr.algo_height;
+        SAMPLE_ALGO_WIDTH = gJointAttr.algo_width;
     }
     else
     {
