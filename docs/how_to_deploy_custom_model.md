@@ -10,7 +10,7 @@ ax-pipeline 的模型推理基本都是比较标准的操作，前处理是不�
 
 用户基本只需要关注后处理部分即可，添加所需变量到结果结构体 ```sample_run_joint_results``` ，并将结果赋值到结果结构体里。
 
-ax-pipeline 定义了一了一个后处理的函数 ```sample_run_joint_post_process``` ，位于 [examples/sample_run_joint/sample_run_joint_post_process.cpp](../examples/sample_run_joint/sample_run_joint_post_process.cpp)
+ax-pipeline 定义了一了一个后处理的头文件 ```sample_run_joint_post_process.h``` ，位于 [examples/sample_run_joint/sample_run_joint_post_process.h](../examples/sample_run_joint/sample_run_joint_post_process.h)
 
 ```
 /// @brief 模型后处理函数
@@ -22,11 +22,11 @@ ax-pipeline 定义了一了一个后处理的函数 ```sample_run_joint_post_pro
 /// @param SAMPLE_ALGO_HEIGHT 算法的输入高
 /// @param SAMPLE_MAJOR_STREAM_WIDTH 相机图像的宽
 /// @param SAMPLE_MAJOR_STREAM_HEIGHT 相机图像的高
-void sample_run_joint_post_process(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
+void sample_run_joint_post_process_yolov5(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
                                    int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT);
 ```
 
-用户可以将 ax-pipeline 自带的后处理代码进行注释，然后定义自己的后处理的函数，完成自己的模型的后处理。
+用户可以在这里定义自己的后处理的函数，完成自己的模型的后处理，后处理函数调用主要在 ```pipeline_ai.c``` 中。
 
 一些常用模型的后处理代码，可以参考 [ax-samples](https://github.com/AXERA-TECH/ax-samples)
 

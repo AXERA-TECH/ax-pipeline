@@ -22,7 +22,7 @@
 #include <string.h>
 #include "fstream"
 
-#include "sample_run_joint.h"
+#include "sample_run_joint_post_process.h"
 #include "detection.hpp"
 
 #include "../utilities/json.hpp"
@@ -70,7 +70,7 @@ void update_val(nlohmann::json &jsondata, const char *key, std::vector<T> *val)
     }
 }
 
-int sample_parse_yolov5_param(char *json_file_path)
+int sample_parse_param_yolov5(char *json_file_path)
 {
     std::ifstream f(json_file_path);
     if (f.fail())
@@ -120,7 +120,7 @@ int sample_parse_yolov5_param(char *json_file_path)
 /// @param SAMPLE_ALGO_HEIGHT 算法的输入高
 /// @param SAMPLE_MAJOR_STREAM_WIDTH 相机图像的宽
 /// @param SAMPLE_MAJOR_STREAM_HEIGHT 相机图像的高
-void sample_run_joint_post_process(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
+void sample_run_joint_post_process_yolov5(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
                                    int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
 {
     std::vector<detection::Object> proposals;
@@ -155,10 +155,10 @@ void sample_run_joint_post_process(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutpu
     for (size_t i = 0; i < pResults->size; i++)
     {
         const detection::Object &obj = objects[i];
-        pResults->objects[i].x = obj.rect.x;
-        pResults->objects[i].y = obj.rect.y;
-        pResults->objects[i].w = obj.rect.width;
-        pResults->objects[i].h = obj.rect.height;
+        pResults->objects[i].bbox.x = obj.rect.x;
+        pResults->objects[i].bbox.y = obj.rect.y;
+        pResults->objects[i].bbox.w = obj.rect.width;
+        pResults->objects[i].bbox.h = obj.rect.height;
         pResults->objects[i].label = obj.label;
         pResults->objects[i].prob = obj.prob;
 

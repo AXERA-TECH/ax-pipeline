@@ -18,7 +18,7 @@
  * Author: ZHEQIUSHUI
  */
 
-#include "../../sample_run_joint/sample_run_joint.h"
+#include "../../sample_run_joint/sample_run_joint_post_process.h"
 #include "ax_ivps_api.h"
 #include "npu_common.h"
 
@@ -85,7 +85,10 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         if (gJointHandle)
         {
             static sample_run_joint_results pResult;
-            ret = sample_run_joint_inference(gJointHandle, &tSrcFrame, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, &pResult);
+            ret = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
+
+            sample_run_joint_post_process_yolov5(gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
+                                          SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
 
             pthread_mutex_lock(&g_result_mutex);
 
@@ -95,10 +98,10 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
 
                 for (AX_U8 i = 0; i < g_result_disp.size && i < SAMPLE_MAX_BBOX_COUNT; i++)
                 {
-                    g_result_disp.objects[i].x /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    g_result_disp.objects[i].y /= SAMPLE_MAJOR_STREAM_HEIGHT;
-                    g_result_disp.objects[i].w /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    g_result_disp.objects[i].h /= SAMPLE_MAJOR_STREAM_HEIGHT;
+                    g_result_disp.objects[i].bbox.x /= SAMPLE_MAJOR_STREAM_WIDTH;
+                    g_result_disp.objects[i].bbox.y /= SAMPLE_MAJOR_STREAM_HEIGHT;
+                    g_result_disp.objects[i].bbox.w /= SAMPLE_MAJOR_STREAM_WIDTH;
+                    g_result_disp.objects[i].bbox.h /= SAMPLE_MAJOR_STREAM_HEIGHT;
                 }
             }
             pthread_mutex_unlock(&g_result_mutex);
