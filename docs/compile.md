@@ -22,41 +22,41 @@ ax-pipeline 的源码编译目前有两种实现路径：
   
 1、git clone 下载源码，进入 ax-pipeline 根目录
 
-```bash
-$ git clone https://github.com/AXERA-TECH/ax-pipeline.git
-$ cd ax-pipeline
+```shell
+git clone https://github.com/AXERA-TECH/ax-pipeline.git
+cd ax-pipeline
 ```
 2、下载子模块（主要是 [axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 部分，如果已经单独下载，可直接放到本目录下，并跳过本步骤）
-```
-$ git submodule update --init
+```shell
+git submodule update --init
 ```
 3、创建 3rdparty，下载opencv
-```
-$ mkdir 3rdparty
-$ cd 3rdparty
-$ wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
-$ unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+```shell
+mkdir 3rdparty
+cd 3rdparty
+wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
 ```
 4、下载并配置交叉编译工具链（如果已经配置并确定可用，这一部分可以跳过）
-```
-$ wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-$ tar -xvf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-$ export PATH=$PATH:$PWD/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
+```shell
+wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+tar -xvf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+export PATH=$PATH:$PWD/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
 ```
 5、创建 build 目录，并创建 cmake 编译任务
-```
-$ cd ..
-$ mkdir build
-$ cd build
-$ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
-$ make -j8
-$ make install
+```shell
+cd ..
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+make -j8
+make install
 ```
 
 6、编译完成后，生成的可执行示例存放在 `ax-pipeline/build/install/bin/` 路径下：
 
-```bash
-ax-pipeline/build$ tree install
+```shell
+ax-pipeline/buildtree$ install
 install
 └── bin
     ├── config

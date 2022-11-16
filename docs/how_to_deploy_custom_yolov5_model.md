@@ -88,4 +88,4 @@ pulsar_conf {
 ```
 
 ### 修改 yolov5 的推理参数
-默认的 [参数文件](examples/sample_run_joint/config/yolov5s.json) 适配的是 yolov5 官方的预训练模型，如果需要修改类别数、类别名、ANCHORS、检测阈值、NMS阈值等参数，请复制该参数文件，并修改自定义的类别数、类别名、ANCHORS、检测阈值、NMS阈值等参数。
+默认的 [参数文件](../examples/sample_run_joint/config/yolov5s.json) 适配的是 yolov5 官方的预训练模型，如果需要修改类别数、类别名、ANCHORS、检测阈值、NMS阈值等参数，请复制该参数文件，并修改自定义的类别数、类别名、ANCHORS、检测阈值、NMS阈值等参数。
