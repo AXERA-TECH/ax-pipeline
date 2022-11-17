@@ -117,6 +117,7 @@ sample_run_joint_results g_result_disp;
 void *gJointHandle = NULL;
 sample_run_joint_attr gJointAttr;
 AX_BOOL b_runjoint = AX_FALSE;
+SAMPLE_RUN_JOINT_MODEL_TYPE gModelType;
 
 int SAMPLE_ALGO_WIDTH = 640;  // 640
 int SAMPLE_ALGO_HEIGHT = 640; // 640
@@ -277,10 +278,16 @@ int main(int argc, char *argv[])
             break;
         case 'p':
         {
-            int ret = sample_parse_param_yolov5(optarg);
+            gModelType = sample_get_model_type(optarg);
+            if (gModelType == MT_UNKNOWN)
+            {
+                ALOGE("UNKNOWN MODEL TYPE");
+                isExit = 1;
+            }
+            int ret = sample_parse_param_det(optarg);
             if (ret != 0)
             {
-                ALOGE("sample_parse_param_yolov5 failed");
+                ALOGE("sample_parse_param_det failed");
                 isExit = 1;
             }
             break;

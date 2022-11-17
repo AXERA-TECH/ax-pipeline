@@ -191,6 +191,7 @@ static AX_S32 g_isp_force_loop_exit = 0;
 static void *gJointHandle = NULL;
 sample_run_joint_attr gJointAttr;
 AX_BOOL b_runjoint = AX_FALSE;
+SAMPLE_RUN_JOINT_MODEL_TYPE gModelType;
 
 int SAMPLE_ALGO_WIDTH = 640;  // 640
 int SAMPLE_ALGO_HEIGHT = 640; // 640
@@ -265,7 +266,7 @@ static void *getYuv(void *arg)
             static sample_run_joint_results pResult;
             retval = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
 
-            sample_run_joint_post_process_yolov5(gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
+            sample_run_joint_post_process_detection(gModelType, gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
                                           SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
 
             if (0 == retval)
@@ -391,10 +392,17 @@ int main(int argc, char *argv[])
             break;
         case 'p':
         {
-            int ret = sample_parse_param_yolov5(optarg);
+            gModelType = sample_get_model_type(optarg);
+            if (gModelType == MT_UNKNOWN)
+            {
+                ALOGE("UNKNOWN MODEL TYPE");
+                isExit = 1;
+            }
+            
+            int ret = sample_parse_param_det(optarg);
             if (ret != 0)
             {
-                ALOGE("sample_parse_param_yolov5 failed");
+                ALOGE("sample_parse_param_det failed");
                 isExit = 1;
             }
             break;

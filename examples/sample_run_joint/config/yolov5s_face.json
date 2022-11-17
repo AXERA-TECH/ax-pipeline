@@ -1,5 +1,6 @@
 {
-    "YOLOV5_ANCHORS": [
+    "MODEL_TYPE":18,
+    "ANCHORS": [
         4,
         5,
         8,
@@ -19,10 +20,10 @@
         335,
         433
     ],
-    "YOLOV5_CLASS_NAMES": [
+    "CLASS_NAMES": [
         "face"
     ],
-    "YOLOV5_CLASS_NUM": 1,
-    "YOLOV5_NMS_THRESHOLD": 0.44999998807907104,
-    "YOLOV5_PROB_THRESHOLD": 0.4000000059604645
+    "CLASS_NUM": 1,
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
 }

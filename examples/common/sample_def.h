@@ -122,6 +122,7 @@ extern pthread_mutex_t g_result_mutex;
 extern sample_run_joint_results g_result_disp;
 extern void *gJointHandle;
 extern sample_run_joint_attr gJointAttr;
+extern SAMPLE_RUN_JOINT_MODEL_TYPE gModelType;
 
 extern CAMERA_T gCams[MAX_CAMERAS];
 

@@ -87,8 +87,8 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
             static sample_run_joint_results pResult;
             ret = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
 
-            sample_run_joint_post_process_yolov5(gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
-                                          SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
+            sample_run_joint_post_process_detection(gModelType, gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
+                                                    SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
 
             pthread_mutex_lock(&g_result_mutex);
 
