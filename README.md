@@ -2,7 +2,7 @@
 **AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
 
 ## 更新日志
-```2022-11-17``` 新增 yolov7-tiny、yolox-s 检测模型，配置文件新增了 ```MODEL_TYPE``` 的 int 属性，设置值对应见枚举 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 或者 [ModelZoo](docs/modelzoo.md)
+```2022-11-17``` 新增 yolov7-tiny、yolox-s 检测模型，配置文件新增了 ```MODEL_TYPE``` 的 int 属性，这个值必须要设置，不然就不跑了，设置值对应见枚举 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 或者 [ModelZoo](docs/modelzoo.md)
 
 ```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理。
 
