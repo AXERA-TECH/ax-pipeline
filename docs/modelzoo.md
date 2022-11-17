@@ -1,7 +1,7 @@
 # 模型支持的列表以及下载地址
 后处理是直接扣的 [ax-samples](https://github.com/AXERA-TECH/ax-samples)，后续可能会添加一些开源的车牌识别、人体姿态的多级模型示例代码，不好合到主线的也可能在分支实现（画饼）。
 
-|模型|[枚举值](../examples/sample_run_joint/sample_run_joint_post_process.h)|下载地址|配置文件(有则表示以及支持)|备注|
+|模型|[枚举值](../examples/sample_run_joint/sample_run_joint_post_process.h)|下载地址|配置文件(有则表示主线已经支持)|备注|
 |-|-|-|-|-|
 |yolov5|17 ```MT_DET_YOLOV5```|[bgr](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s.joint) / [nv12](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s-face.joint)|[yolov5s.json](../examples/sample_run_joint/config/yolov5s.json)|[如何更换自己训练的 yolov5 模型](../docs/how_to_deploy_custom_yolov5_model.md)|
 |yolov5-face|18 ```MT_DET_YOLOV5_FACE```|[bgr](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s.joint) / [nv12](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s_face_nv12_11.joint)|[yolov5s_face.json](../examples/sample_run_joint/config/yolov5s_face.json)|[yolov5-face](https://github.com/deepcam-cn/yolov5-face)|
