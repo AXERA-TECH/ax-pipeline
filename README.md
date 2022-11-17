@@ -2,6 +2,8 @@
 **AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
 
 ## 更新日志
+```2022-11-17``` 新增 yolov7-tiny、yolox-s 检测模型，配置文件新增了 ```MODEL_TYPE``` 的 int 属性，这个值必须要设置，不然就不跑了，设置值对应见枚举 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 或者 [ModelZoo](docs/modelzoo.md)
+
 ```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理。
 
 ```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples]() 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
@@ -17,6 +19,7 @@
 - [如何更换自己训练的 yolov5 模型](docs/how_to_deploy_custom_yolov5_model.md)
 - [如何部署自己的其他模型](docs/how_to_deploy_custom_model.md)
 - [如何调整图像方向](docs/how_to_adjust_image_orientation.md)
+- [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
   
   
 ### 示例

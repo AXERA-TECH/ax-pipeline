@@ -36,6 +36,25 @@ namespace detection
         cv::Point2f landmark[5];
     } Object;
 
+    static int softmax(const float *src, float *dst, int length)
+    {
+        const float max_value = *std::max_element(src, src + length);
+        float denominator{0};
+
+        for (int i = 0; i < length; ++i)
+        {
+            dst[i] = std::exp /*fast_exp*/ (src[i] - max_value);
+            denominator += dst[i];
+        }
+
+        for (int i = 0; i < length; ++i)
+        {
+            dst[i] /= denominator;
+        }
+
+        return 0;
+    }
+
     static inline float sigmoid(float x)
     {
         return static_cast<float>(1.f / (1.f + exp(-x)));
@@ -127,7 +146,7 @@ namespace detection
         }
     }
 
-    void get_out_bbox(std::vector<Object>& proposals, std::vector<Object>& objects, const float nms_threshold, int letterbox_rows, int letterbox_cols, int src_rows, int src_cols)
+    static void get_out_bbox(std::vector<Object> &proposals, std::vector<Object> &objects, const float nms_threshold, int letterbox_rows, int letterbox_cols, int src_rows, int src_cols)
     {
         qsort_descent_inplace(proposals);
         std::vector<int> picked;
@@ -189,8 +208,8 @@ namespace detection
         }
     }
 
-    void generate_proposals_yolov5(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
-                                   int letterbox_cols, int letterbox_rows, const float *anchors, float prob_threshold_unsigmoid, int cls_num)
+    static void generate_proposals_yolov5(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
+                                          int letterbox_cols, int letterbox_rows, const float *anchors, float prob_threshold_unsigmoid, int cls_num)
     {
         int anchor_num = 3;
         int feat_w = letterbox_cols / stride;
@@ -265,9 +284,9 @@ namespace detection
             }
         }
     }
-    
-    void generate_proposals_yolov5_face(int stride, const float* feat, float prob_threshold, std::vector<Object>& objects,
-                                               int letterbox_cols, int letterbox_rows, const float* anchors, float prob_threshold_unsigmoid)
+
+    static void generate_proposals_yolov5_face(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
+                                               int letterbox_cols, int letterbox_rows, const float *anchors, float prob_threshold_unsigmoid)
     {
         int anchor_num = 3;
         int feat_w = letterbox_cols / stride;
@@ -295,7 +314,7 @@ namespace detection
                         continue;
                     }
 
-                    //process cls score
+                    // process cls score
                     int class_index = 0;
                     float class_score = -FLT_MAX;
                     for (int s = 0; s <= cls_num - 1; s++)
@@ -307,7 +326,7 @@ namespace detection
                             class_score = score;
                         }
                     }
-                    //process box score
+                    // process box score
                     float box_score = feature_ptr[4];
                     float final_score = sigmoid(box_score) * sigmoid(class_score);
 
@@ -336,7 +355,7 @@ namespace detection
                         obj.label = class_index;
                         obj.prob = final_score;
 
-                        const float* landmark_ptr = feature_ptr + 5;
+                        const float *landmark_ptr = feature_ptr + 5;
                         for (int l = 0; l < 5; l++)
                         {
                             float lx = landmark_ptr[l * 2 + 0];
@@ -355,4 +374,200 @@ namespace detection
         }
     }
 
+    static void generate_proposals_yolox(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
+                                         int letterbox_cols, int letterbox_rows, int cls_num = 80)
+    {
+        int feat_w = letterbox_cols / stride;
+        int feat_h = letterbox_rows / stride;
+
+        auto feat_ptr = feat;
+
+        for (int h = 0; h <= feat_h - 1; h++)
+        {
+            for (int w = 0; w <= feat_w - 1; w++)
+            {
+                float box_objectness = feat_ptr[4];
+                if (box_objectness < prob_threshold)
+                {
+                    feat_ptr += 85;
+                    continue;
+                }
+
+                // process cls score
+                int class_index = 0;
+                float class_score = -FLT_MAX;
+                for (int s = 0; s <= cls_num - 1; s++)
+                {
+                    float score = feat_ptr[s + 5];
+                    if (score > class_score)
+                    {
+                        class_index = s;
+                        class_score = score;
+                    }
+                }
+
+                float box_prob = box_objectness * class_score;
+
+                if (box_prob > prob_threshold)
+                {
+                    float x_center = (feat_ptr[0] + w) * stride;
+                    float y_center = (feat_ptr[1] + h) * stride;
+                    float w = exp(feat_ptr[2]) * stride;
+                    float h = exp(feat_ptr[3]) * stride;
+                    float x0 = x_center - w * 0.5f;
+                    float y0 = y_center - h * 0.5f;
+
+                    Object obj;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = w;
+                    obj.rect.height = h;
+                    obj.label = class_index;
+                    obj.prob = box_prob;
+
+                    objects.push_back(obj);
+                }
+
+                feat_ptr += 85;
+            }
+        }
+    }
+
+    static void generate_proposals_yolov7(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
+                                          int letterbox_cols, int letterbox_rows, const float *anchors, int cls_num = 80)
+    {
+        int feat_w = letterbox_cols / stride;
+        int feat_h = letterbox_rows / stride;
+
+        auto feat_ptr = feat;
+
+        for (int h = 0; h <= feat_h - 1; h++)
+        {
+            for (int w = 0; w <= feat_w - 1; w++)
+            {
+                for (int a_index = 0; a_index < 3; ++a_index)
+                {
+                    float box_objectness = feat_ptr[4];
+                    if (box_objectness < prob_threshold)
+                    {
+                        feat_ptr += 85;
+                        continue;
+                    }
+
+                    // process cls score
+                    int class_index = 0;
+                    float class_score = -FLT_MAX;
+                    for (int s = 0; s <= cls_num - 1; s++)
+                    {
+                        float score = feat_ptr[s + 5];
+                        if (score > class_score)
+                        {
+                            class_index = s;
+                            class_score = score;
+                        }
+                    }
+
+                    float box_prob = box_objectness * class_score;
+
+                    if (box_prob > prob_threshold)
+                    {
+                        float x_center = (feat_ptr[0] * 2 - 0.5f + (float)w) * (float)stride;
+                        float y_center = (feat_ptr[1] * 2 - 0.5f + (float)h) * (float)stride;
+                        float box_w = (feat_ptr[2] * 2) * (feat_ptr[2] * 2) * anchors[a_index * 2];
+                        float box_h = (feat_ptr[3] * 2) * (feat_ptr[3] * 2) * anchors[a_index * 2 + 1];
+                        float x0 = x_center - box_w * 0.5f;
+                        float y0 = y_center - box_h * 0.5f;
+
+                        Object obj;
+                        obj.rect.x = x0;
+                        obj.rect.y = y0;
+                        obj.rect.width = box_w;
+                        obj.rect.height = box_h;
+                        obj.label = class_index;
+                        obj.prob = box_prob;
+
+                        objects.push_back(obj);
+                    }
+
+                    feat_ptr += 85;
+                }
+            }
+        }
+    }
+
+    static void generate_proposals_nanodet(const float *pred_80_32_nhwc, int stride, const int &model_w, 
+                                           const int &model_h, float prob_threshold, std::vector<Object> &objects, int num_class = 80)
+    {
+        const int num_grid_x = model_w / stride;
+        const int num_grid_y = model_h / stride;
+        // Discrete distribution parameter, see the following resources for more details:
+        // [nanodet-m.yml](https://github.com/RangiLyu/nanodet/blob/main/config/nanodet-m.yml)
+        // [GFL](https://arxiv.org/pdf/2006.04388.pdf)
+        const int reg_max_1 = 8; // 32 / 4;
+        const int channel = num_class + reg_max_1 * 4;
+
+        for (int i = 0; i < num_grid_y; i++)
+        {
+            for (int j = 0; j < num_grid_x; j++)
+            {
+                const int idx = i * num_grid_x + j;
+
+                const float *scores = pred_80_32_nhwc + idx * channel;
+
+                // find label with max score
+                int label = -1;
+                float score = -FLT_MAX;
+                for (int k = 0; k < num_class; k++)
+                {
+                    if (scores[k] > score)
+                    {
+                        label = k;
+                        score = scores[k];
+                    }
+                }
+                score = sigmoid(score);
+
+                if (score >= prob_threshold)
+                {
+                    float pred_ltrb[4];
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float dis = 0.f;
+                        // predicted distance distribution after softmax
+                        float dis_after_sm[8] = {0.};
+                        softmax(scores + num_class + k * reg_max_1, dis_after_sm, 8);
+
+                        // integral on predicted discrete distribution
+                        for (int l = 0; l < reg_max_1; l++)
+                        {
+                            dis += l * dis_after_sm[l];
+                            // printf("%2.6f ", dis_after_sm[l]);
+                        }
+                        // printf("\n");
+
+                        pred_ltrb[k] = dis * stride;
+                    }
+
+                    // predict box center point
+                    float pb_cx = (j + 0.5f) * stride;
+                    float pb_cy = (i + 0.5f) * stride;
+
+                    float x0 = pb_cx - pred_ltrb[0]; // left
+                    float y0 = pb_cy - pred_ltrb[1]; // top
+                    float x1 = pb_cx + pred_ltrb[2]; // right
+                    float y1 = pb_cy + pred_ltrb[3]; // bottom
+
+                    Object obj;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = x1 - x0;
+                    obj.rect.height = y1 - y0;
+                    obj.label = label;
+                    obj.prob = score;
+
+                    objects.push_back(obj);
+                }
+            }
+        }
+    }
 } // namespace detection

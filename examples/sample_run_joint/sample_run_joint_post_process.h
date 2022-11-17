@@ -1,9 +1,36 @@
 #ifndef _SAMPLE_RUN_JOINT_POST_PROCESS_H_
 #define _SAMPLE_RUN_JOINT_POST_PROCESS_H_
 #include "sample_run_joint.h"
-
 #define SAMPLE_MAX_BBOX_COUNT 64
 #define SAMPLE_OBJ_NAME_MAX_LEN 16
+
+typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
+{
+    MT_UNKNOWN = -1,
+
+    // detection
+    MT_DET = 0x10,
+    MT_DET_YOLOV5,
+    MT_DET_YOLOV5_FACE,
+    MT_DET_YOLOV7,
+    MT_DET_YOLOX,
+    MT_DET_NANODET,
+
+    // segmentation
+    MT_SEG = 0x20,
+    MT_SEG_PPHUMSEG,
+
+    // instance segmentation
+    MT_INSEG = 0x30,
+
+    // multi level model
+    MT_MLM = 0x40,
+    MT_MLM_HUMAN_POSE,
+    MT_MLM_HAND_POSE,
+    MT_MLM_FACE_RECOGNITION,
+    MT_MLM_VEHICLE_LICENSE_RECOGNITION,
+
+} SAMPLE_RUN_JOINT_MODEL_TYPE;
 
 typedef struct _sample_run_joint_bbox
 {
@@ -29,17 +56,12 @@ typedef struct _sample_run_joint_results
     sample_run_joint_object objects[SAMPLE_MAX_BBOX_COUNT];
 } sample_run_joint_results;
 
+#include "sample_run_joint_post_process_detection.h"
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-    /// @brief 通过 json 解析 yolov5 所需的参数，如果某些 key 置空，则不更新该参数
-    /// @param json_file_path
-    /// @return
-    int sample_parse_param_yolov5(char *json_file_path);
-    
-    void sample_run_joint_post_process_yolov5(AX_U32 nOutputSize, AX_JOINT_IOMETA_T *pOutputsInfo, AX_JOINT_IO_BUFFER_T *pOutputs, sample_run_joint_results *pResults,
-                                       int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT);
+    int sample_get_model_type(char *json_file_path);
 #ifdef __cplusplus
 }
 #endif
