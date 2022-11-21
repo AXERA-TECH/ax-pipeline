@@ -188,16 +188,26 @@ static volatile AX_S32 gLoopExit = 0;
 
 static AX_S32 g_isp_force_loop_exit = 0;
 
-static void *gJointHandle = NULL;
-sample_run_joint_attr gJointAttr;
-AX_BOOL b_runjoint = AX_FALSE;
-SAMPLE_RUN_JOINT_MODEL_TYPE gModelType;
+pthread_mutex_t g_result_mutex;
+sample_run_joint_results g_result_disp;
 
-int SAMPLE_ALGO_WIDTH = 640;  // 640
-int SAMPLE_ALGO_HEIGHT = 640; // 640
-int SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR;
 int SAMPLE_MAJOR_STREAM_WIDTH;
 int SAMPLE_MAJOR_STREAM_HEIGHT;
+
+sample_run_joint_models gModels = {
+    .bRunJoint = AX_FALSE,
+    .mMajor.JointAttr = {0},
+    .mMinor.JointAttr = {0},
+    .mMajor.JointHandle = NULL,
+    .mMinor.JointHandle = NULL,
+    .mMajor.ModelType = MT_UNKNOWN,
+    .mMinor.ModelType = MT_UNKNOWN,
+    .ModelType_Main = MT_UNKNOWN,
+    .SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR,
+    .SAMPLE_IVPS_ALGO_WIDTH = 960,
+    .SAMPLE_IVPS_ALGO_HEIGHT = 540,
+};
+
 
 void *IspRun(void *args)
 {
@@ -261,19 +271,21 @@ static void *getYuv(void *arg)
         tSrcFrame.pPhy = img_info.tFrameInfo.stVFrame.u64PhyAddr[0];
         tSrcFrame.pVir = (AX_U8 *)pSrcVirAddr;
 
-        if (gJointHandle)
+        if (gModels.bRunJoint)
         {
-            static sample_run_joint_results pResult;
-            retval = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
+            static sample_run_joint_results pResults;
 
-            sample_run_joint_post_process_detection(gModelType, gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
-                                          SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
+            gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
+            gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
+
+            sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &pResults);
 
             if (0 == retval)
             {
-                for (AX_U8 i = 0; i < pResult.size; i++)
+                for (AX_U8 i = 0; i < pResults.nObjSize; i++)
                 {
-                    printf("%2d %16s [%4.0f,%4.0f,%4.0f,%4.0f]\n", i, pResult.objects[i].objname, pResult.objects[i].bbox.x, pResult.objects[i].bbox.y, pResult.objects[i].bbox.w, pResult.objects[i].bbox.h);
+                    printf("%2d %16s [%4.0f,%4.0f,%4.0f,%4.0f]\n", i, pResults.mObjects[i].objname,
+                           pResults.mObjects[i].bbox.x, pResults.mObjects[i].bbox.y, pResults.mObjects[i].bbox.w, pResults.mObjects[i].bbox.h);
                 }
             }
         }
@@ -370,7 +382,6 @@ int main(int argc, char *argv[])
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     SAMPLE_SNS_TYPE_E eSnsType = OMNIVISION_OS04A10;
     AX_S32 s32Ret = 0;
-    char model_path[256];
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigint);
@@ -387,19 +398,12 @@ int main(int argc, char *argv[])
         switch (c)
         {
         case 'm':
-            strcpy(model_path, optarg);
-            b_runjoint = AX_TRUE;
+            strcpy(gModels.MODEL_PATH, optarg);
+            gModels.bRunJoint = AX_TRUE;
             break;
         case 'p':
         {
-            gModelType = sample_get_model_type(optarg);
-            if (gModelType == MT_UNKNOWN)
-            {
-                ALOGE("UNKNOWN MODEL TYPE");
-                isExit = 1;
-            }
-            
-            int ret = sample_parse_param_det(optarg);
+            int ret = sample_run_joint_parse_param(optarg, &gModels);
             if (ret != 0)
             {
                 ALOGE("sample_parse_param_det failed");
@@ -624,23 +628,50 @@ int main(int argc, char *argv[])
         goto EXIT;
     }
 
-    if (b_runjoint == AX_TRUE)
+    if (gModels.bRunJoint == AX_TRUE)
     {
-        s32Ret = sample_run_joint_init(model_path, &gJointHandle, &gJointAttr);
+        s32Ret = sample_run_joint_init(gModels.MODEL_PATH, &gModels.mMajor.JointHandle, &gModels.mMajor.JointAttr);
         if (0 != s32Ret)
         {
             ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
             goto EXIT;
         }
-        ALOGN("load model %s success!\n", model_path);
-        SAMPLE_ALGO_FORMAT = gJointAttr.algo_colorformat;
-        SAMPLE_ALGO_HEIGHT = gJointAttr.algo_height;
-        SAMPLE_ALGO_WIDTH = gJointAttr.algo_width;
+        ALOGN("load model %s success!\n", gModels.MODEL_PATH);
+        gModels.SAMPLE_ALGO_FORMAT = gModels.mMajor.JointAttr.algo_colorformat;
+        gModels.SAMPLE_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_height;
+        gModels.SAMPLE_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_width;
+
+        switch (gModels.ModelType_Main)
+        {
+        case MT_DET_YOLOV5:
+        case MT_DET_YOLOV5_FACE:
+        case MT_DET_YOLOV7:
+        case MT_DET_YOLOX:
+        case MT_DET_NANODET:
+        case MT_INSEG_YOLOV5_MASK:
+        case MT_SEG_PPHUMSEG:
+            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
+            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
+            break;
+        case MT_MLM_HUMAN_POSE:
+            s32Ret = sample_run_joint_init(gModels.MODEL_PATH_L2, &gModels.mMinor.JointHandle, &gModels.mMinor.JointAttr);
+            if (0 != s32Ret)
+            {
+                ALOGE("pose:sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
+                goto EXIT;
+            }
+            // SAMPLE_IVPS_ALGO_WIDTH = SAMPLE_ALGO_WIDTH;
+            // SAMPLE_IVPS_ALGO_HEIGHT = SAMPLE_ALGO_HEIGHT;
+            break;
+        default:
+            break;
+        }
     }
     else
     {
         ALOGN("Not specified model file\n");
     }
+
 
     COMMON_CAM_Init();
 
@@ -686,8 +717,9 @@ int main(int argc, char *argv[])
 
     SysRun();
 
-    sample_run_joint_release(gJointHandle);
 EXIT:
+    sample_run_joint_release(gModels.mMajor.JointHandle);
+    sample_run_joint_release(gModels.mMinor.JointHandle);
     for (i = 0; i < MAX_CAMERAS; i++)
     {
         if (!gCams[i].bOpen)

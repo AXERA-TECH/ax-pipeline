@@ -2,9 +2,15 @@
 **AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
 
 ## 更新日志
+```2022-11-21``` 
+- 新增 pp-human-seg 人像分割、yolov5s-seg 实例分割
+- 新增二级推理模型 hrnet-pose（基于yolov5s检测人体后抠图实现的人体姿态检测），配置文件 ```MODEL_TYPE``` 支持字符串以及int设置，设置值对应见枚举 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 或者 [ModelZoo](docs/modelzoo.md)
+- 新增模型详细内容见 [ModelZoo](docs/modelzoo.md)
+- 配置文件新增 ```MODEL_PATH```，用户可以对其进行设置，参考 [hrnet_pose.json](examples/sample_run_joint/config/hrnet_pose.json)
+
 ```2022-11-17``` 新增 yolov7-tiny、yolox-s 检测模型，配置文件新增了 ```MODEL_TYPE``` 的 int 属性，这个值必须要设置，不然就不跑了，设置值对应见枚举 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 或者 [ModelZoo](docs/modelzoo.md)
 
-```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理。
+```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理
 
 ```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples]() 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
 

@@ -43,7 +43,8 @@ extern "C"
     /// @return
     int putText(char *text, float fontscale, int thickness, osd_utils_img *base, osd_utils_img *out);
     void releaseImg(osd_utils_img *img);
-    void drawObjs(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y);
+    void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y);
+    int freeObjs(sample_run_joint_results *results);
 #ifdef __cplusplus
 }
 #endif
