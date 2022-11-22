@@ -200,6 +200,7 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
             pResults->mPPHumSeg.mask[j] = (ptr[j] < ptr[j + SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE]) ? 255 : 0;
         }
     }
+    break;
     case MT_MLM_HUMAN_POSE:
     {
         // ret = sample_run_joint_inference(pModels->JointHandle_MAJOR, pstFrame, NULL);

@@ -26,7 +26,7 @@
 - [如何部署自己的其他模型](docs/how_to_deploy_custom_model.md)
 - [如何调整图像方向](docs/how_to_adjust_image_orientation.md)
 - [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
-  
+- [配置文件说明](docs/config_file.md)
   
 ### 示例
 - [sample_vin_joint](examples/sample_vin_joint)
@@ -41,6 +41,7 @@ https://user-images.githubusercontent.com/46700201/199662116-9f5748bd-8565-43ed-
 
 https://user-images.githubusercontent.com/46700201/203208967-4a6039f0-416e-4d5d-8c8f-f5acdc9d5787.mp4
 
+https://user-images.githubusercontent.com/46700201/203263149-c7c33bee-3253-410c-9adf-77b982695f1e.mp4
 
 ## 技术讨论
 - Github issues
