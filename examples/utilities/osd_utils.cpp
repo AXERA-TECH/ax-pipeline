@@ -79,12 +79,6 @@ static inline void draw_pose_result(cv::Mat &img, sample_run_joint_object *pObj,
 {
     for (int i = 0; i < joints_num; i++)
     {
-        // pObj->pose_landmark[i].x = pObj->pose_landmark[i].x * img.cols + offset_x;
-        // pObj->pose_landmark[i].y = pObj->pose_landmark[i].y * img.rows + offset_y;
-
-        // int x = std::max(std::min((int)pObj->pose_landmark[i].x, (img.cols - 1)), 0) + pObj->bbox.x;
-        // int y = std::max(std::min((int)pObj->pose_landmark[i].y, (img.rows - 1)), 0) + pObj->bbox.y;
-
         cv::circle(img, cv::Point(pObj->pose_landmark[i].x * img.cols + offset_x, pObj->pose_landmark[i].y * img.rows + offset_y), 4, cv::Scalar(0, 255, 0), cv::FILLED);
     }
 

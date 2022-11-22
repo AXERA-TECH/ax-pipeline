@@ -127,88 +127,7 @@ int sample_set_param_det(void *json_obj)
     return 0;
 }
 
-void fill_obj(std::vector<detection::Object> &objects, sample_run_joint_results *pResults)
-{
-    pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < pResults->nObjSize; i++)
-    {
-        const detection::Object &obj = objects[i];
-        pResults->mObjects[i].bbox.x = obj.rect.x;
-        pResults->mObjects[i].bbox.y = obj.rect.y;
-        pResults->mObjects[i].bbox.w = obj.rect.width;
-        pResults->mObjects[i].bbox.h = obj.rect.height;
-        pResults->mObjects[i].label = obj.label;
-        pResults->mObjects[i].prob = obj.prob;
 
-        if (obj.label < CLASS_NAMES.size())
-        {
-            strcpy(pResults->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
-        }
-        else
-        {
-            strcpy(pResults->mObjects[i].objname, "unknown");
-        }
-    }
-}
-
-// void fill_face_obj(std::vector<detection::Object> &objects, sample_run_joint_results *pResults)
-// {
-//     pResults->nFaceSize = MIN(objects.size(), SAMPLE_MAX_FACE_BBOX_COUNT);
-//     for (size_t i = 0; i < pResults->nFaceSize; i++)
-//     {
-//         const detection::Object &obj = objects[i];
-//         pResults->mFaceObjs[i].bbox.x = obj.rect.x;
-//         pResults->mFaceObjs[i].bbox.y = obj.rect.y;
-//         pResults->mFaceObjs[i].bbox.w = obj.rect.width;
-//         pResults->mFaceObjs[i].bbox.h = obj.rect.height;
-//         pResults->mFaceObjs[i].label = obj.label;
-//         pResults->mFaceObjs[i].prob = obj.prob;
-
-//         for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
-//         {
-//             pResults->mFaceObjs[i].landmark[j].x = obj.landmark[j].x;
-//             pResults->mFaceObjs[i].landmark[j].y = obj.landmark[j].y;
-//         }
-
-//         if (obj.label < CLASS_NAMES.size())
-//         {
-//             strcpy(pResults->mFaceObjs[i].objname, CLASS_NAMES[obj.label].c_str());
-//         }
-//         else
-//         {
-//             strcpy(pResults->mFaceObjs[i].objname, "unknown");
-//         }
-//     }
-// }
-
-// void fill_yolov5_mask_obj(std::vector<detection::Object> &objects, sample_run_joint_results *pResults)
-// {
-//     pResults->nYolov5MaskObjSize = MIN(objects.size(), SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT);
-//     for (size_t i = 0; i < pResults->nYolov5MaskObjSize; i++)
-//     {
-//         const detection::Object &obj = objects[i];
-//         pResults->mYolov5MaskObjs[i].bbox.x = obj.rect.x;
-//         pResults->mYolov5MaskObjs[i].bbox.y = obj.rect.y;
-//         pResults->mYolov5MaskObjs[i].bbox.w = obj.rect.width;
-//         pResults->mYolov5MaskObjs[i].bbox.h = obj.rect.height;
-//         pResults->mYolov5MaskObjs[i].label = obj.label;
-//         pResults->mYolov5MaskObjs[i].prob = obj.prob;
-
-//         if (obj.mask_feat.size() == SAMPLE_RUN_JOINT_YOLOV5_MASK_FEAT_SIZE)
-//         {
-//             memcpy(&pResults->mYolov5MaskObjs[i].mask_feat[0], obj.mask_feat.data(), sizeof(float) * SAMPLE_RUN_JOINT_YOLOV5_MASK_FEAT_SIZE);
-//         }
-
-//         if (obj.label < CLASS_NAMES.size())
-//         {
-//             strcpy(pResults->mYolov5MaskObjs[i].objname, CLASS_NAMES[obj.label].c_str());
-//         }
-//         else
-//         {
-//             strcpy(pResults->mYolov5MaskObjs[i].objname, "unknown");
-//         }
-//     }
-// }
 
 void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modeltype, sample_run_joint_attr *pJointAttr, sample_run_joint_results *pResults,
                                              int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
@@ -275,15 +194,6 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
             }
         }
 
-        // if (modeltype == MT_INSEG_YOLOV5_MASK)
-        // {
-        //     if (obj.mask_feat.size() == SAMPLE_RUN_JOINT_YOLOV5_MASK_FEAT_SIZE)
-        //     {
-        //         memcpy(&pResults->mObjects[i].mask_feat[0], obj.mask_feat.data(), sizeof(float) * SAMPLE_RUN_JOINT_YOLOV5_MASK_FEAT_SIZE);
-        //         pResults->mObjects[i].bHaseMask = 1;
-        //     }
-        // }
-
         if (obj.label < CLASS_NAMES.size())
         {
             strcpy(pResults->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
@@ -321,7 +231,6 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
     detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
 
-    // detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
 
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
@@ -344,18 +253,7 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
             *mask = obj.mask;
             pResults->mObjects[i].mYolov5Mask = mask;
 
-            // cv::Mat *mask = new cv::Mat;
-            // delete mask;
-            // pResults->mObjects[i].mYolov5Mask = nullptr;
-
-            // pResults->mObjects[i].mYolov5Mask.mask_w = obj.mask.cols;
-            // pResults->mObjects[i].mYolov5Mask.mask_h = obj.mask.rows;
-            // pResults->mObjects[i].mYolov5Mask.mask_data = new unsigned char[pResults->mObjects[i].mYolov5Mask.mask_w * pResults->mObjects[i].mYolov5Mask.mask_h];
-            // memcpy(pResults->mObjects[i].mYolov5Mask.mask_data, obj.mask.data, pResults->mObjects[i].mYolov5Mask.mask_w * pResults->mObjects[i].mYolov5Mask.mask_h);
         }
-
-        // pResults->mObjects[i].mYolov5Mask.mask_data = (unsigned char*)malloc(pResults->mObjects[i].mYolov5Mask.mask_w * pResults->mObjects[i].mYolov5Mask.mask_h);
-        // memcpy(pResults->mObjects[i].mYolov5Mask.mask_data, obj.mask.data, pResults->mObjects[i].mYolov5Mask.mask_w * pResults->mObjects[i].mYolov5Mask.mask_h);
 
         if (obj.label < CLASS_NAMES.size())
         {
