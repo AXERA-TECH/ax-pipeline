@@ -128,6 +128,8 @@ int sample_set_param_det(void *json_obj)
     return 0;
 }
 
+
+
 void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modeltype, sample_run_joint_attr *pJointAttr, sample_run_joint_results *pResults,
                                              int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
 {
@@ -171,7 +173,6 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
 
-    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(64);
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
@@ -184,14 +185,14 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
         pResults->mObjects[i].prob = obj.prob;
 
         pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasPoseLmk = 0;
-
-        pResults->mObjects[i].bHaseMask = !obj.mask.empty();
-
-        if (pResults->mObjects[i].bHaseMask)
+        if (modeltype == MT_DET_YOLOV5_FACE)
         {
-            cv::Mat &mask = mSimpleRingBuffer.next();
-            mask = obj.mask;
-            pResults->mObjects[i].mYolov5Mask = &mask;
+            for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
+            {
+                pResults->mObjects[i].face_landmark[j].x = obj.landmark[j].x;
+                pResults->mObjects[i].face_landmark[j].y = obj.landmark[j].y;
+                pResults->mObjects[i].bHasFaceLmk = 1;
+            }
         }
 
         if (obj.label < CLASS_NAMES.size())
@@ -231,6 +232,7 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
     detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
 
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(64);
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
@@ -248,9 +250,9 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
 
         if (pResults->mObjects[i].bHaseMask)
         {
-            cv::Mat *mask = new cv::Mat;
-            *mask = obj.mask;
-            pResults->mObjects[i].mYolov5Mask = mask;
+            cv::Mat&mask = mSimpleRingBuffer.next();
+            mask = obj.mask;
+            pResults->mObjects[i].mYolov5Mask = &mask;
         }
 
         if (obj.label < CLASS_NAMES.size())
