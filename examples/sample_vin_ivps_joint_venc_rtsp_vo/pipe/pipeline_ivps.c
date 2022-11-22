@@ -217,12 +217,12 @@ int SampleIvpsInit()
                 stPipelineAttr.tFilter[nChn + 1][0].tFRC.nDstFrameRate = s_sample_framerate;
                 stPipelineAttr.tFilter[nChn + 1][0].nDstPicOffsetX0 = 0;
                 stPipelineAttr.tFilter[nChn + 1][0].nDstPicOffsetY0 = 0;
-                stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth = SAMPLE_ALGO_WIDTH;
-                stPipelineAttr.tFilter[nChn + 1][0].nDstPicHeight = SAMPLE_ALGO_HEIGHT;
+                stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth = gModels.SAMPLE_IVPS_ALGO_WIDTH;
+                stPipelineAttr.tFilter[nChn + 1][0].nDstPicHeight = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
                 stPipelineAttr.tFilter[nChn + 1][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth, 64);
-                stPipelineAttr.tFilter[nChn + 1][0].nDstFrameWidth = SAMPLE_ALGO_WIDTH;
-                stPipelineAttr.tFilter[nChn + 1][0].nDstFrameHeight = SAMPLE_ALGO_HEIGHT;
-                stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = SAMPLE_ALGO_FORMAT;
+                stPipelineAttr.tFilter[nChn + 1][0].nDstFrameWidth = gModels.SAMPLE_IVPS_ALGO_WIDTH;
+                stPipelineAttr.tFilter[nChn + 1][0].nDstFrameHeight = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
+                stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = gModels.SAMPLE_ALGO_FORMAT;
                 stPipelineAttr.tFilter[nChn + 1][0].eEngine = AX_IVPS_ENGINE_TDP;
                 stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
                 // letterbox filling image
@@ -231,7 +231,10 @@ int SampleIvpsInit()
                 tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
                 tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
                 tAspectRatio.nBgColor = 0x0000FF;
-                stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.tAspectRatio = tAspectRatio;
+                if (gModels.ModelType_Main != MT_SEG_PPHUMSEG)
+                {
+                    stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.tAspectRatio = tAspectRatio;
+                }
 
                 stPipelineAttr.nOutFifoDepth[nChn] = 1; // for AI runjoint
             }

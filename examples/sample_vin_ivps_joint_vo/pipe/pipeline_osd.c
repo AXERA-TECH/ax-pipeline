@@ -87,124 +87,124 @@ AX_VOID StopOverlay(AX_VOID)
     }
 }
 
-AX_VOID *RgnThreadFunc(AX_VOID *pArg)
-{
-    if (!pArg)
-    {
-        return (AX_VOID *)0;
-    }
+// AX_VOID *RgnThreadFunc(AX_VOID *pArg)
+// {
+//     if (!pArg)
+//     {
+//         return (AX_VOID *)0;
+//     }
 
-    prctl(PR_SET_NAME, "SAMPLE_IVPS_RGN");
+//     prctl(PR_SET_NAME, "SAMPLE_IVPS_RGN");
 
-    RGN_GROUP_CFG_T tRgnGroupConfig[SAMPLE_REGION_COUNT] = {
-        {OSD_Grp[0], 0x11, SAMPLE_MINOR_STREAM_WIDTH, SAMPLE_MINOR_STREAM_HEIGHT, AX_IVPS_REGION_MAX_DISP_NUM, AX_IVPS_RGN_LAYER_COVER},
-    };
+//     RGN_GROUP_CFG_T tRgnGroupConfig[SAMPLE_REGION_COUNT] = {
+//         {OSD_Grp[0], 0x11, SAMPLE_MINOR_STREAM_WIDTH, SAMPLE_MINOR_STREAM_HEIGHT, AX_IVPS_REGION_MAX_DISP_NUM, AX_IVPS_RGN_LAYER_COVER},
+//     };
 
-    IVPS_REGION_PARAM_PTR pThreadParam = (IVPS_REGION_PARAM_PTR)pArg;
-    AX_IVPS_FILTER nFilter = pThreadParam->nFilter;
-    IVPS_GRP nIvpsGrp = pThreadParam->nGroupIdx;
+//     IVPS_REGION_PARAM_PTR pThreadParam = (IVPS_REGION_PARAM_PTR)pArg;
+//     AX_IVPS_FILTER nFilter = pThreadParam->nFilter;
+//     IVPS_GRP nIvpsGrp = pThreadParam->nGroupIdx;
 
-    AX_U8 nCfgIndex = nIvpsGrp;
+//     AX_U8 nCfgIndex = nIvpsGrp;
 
-    ALOGN("[%d][0x%02x] +++", nIvpsGrp, nFilter);
+//     ALOGN("[%d][0x%02x] +++", nIvpsGrp, nFilter);
 
-    osd_utils_img list_baseimgs[SAMPLE_RECT_BOX_COUNT];
-    for (AX_U8 i = 0; i < SAMPLE_RECT_BOX_COUNT; ++i)
-    {
-        genImg(SAMPLE_OBJ_NAME_MAX_LEN, 0.6, 1, &list_baseimgs[i]);
-    }
+//     osd_utils_img list_baseimgs[SAMPLE_RECT_BOX_COUNT];
+//     for (AX_U8 i = 0; i < SAMPLE_RECT_BOX_COUNT; ++i)
+//     {
+//         genImg(SAMPLE_OBJ_NAME_MAX_LEN, 0.6, 1, &list_baseimgs[i]);
+//     }
 
-    AX_S32 ret = 0;
-    pThreadParam->bExit = AX_FALSE;
-    while (!pThreadParam->bExit && !gLoopExit)
-    {
-        RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[nCfgIndex];
-        if (0 == tGrpCfg->nRgnNum)
-        {
-            break;
-        }
-        pthread_mutex_lock(&g_result_mutex);
+//     AX_S32 ret = 0;
+//     pThreadParam->bExit = AX_FALSE;
+//     while (!pThreadParam->bExit && !gLoopExit)
+//     {
+//         RGN_GROUP_CFG_T *tGrpCfg = &tRgnGroupConfig[nCfgIndex];
+//         if (0 == tGrpCfg->nRgnNum)
+//         {
+//             break;
+//         }
+//         pthread_mutex_lock(&g_result_mutex);
 
-        AX_IVPS_RGN_DISP_GROUP_S tDisp;
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
+//         AX_IVPS_RGN_DISP_GROUP_S tDisp;
+//         memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
 
-        tDisp.nNum = tGrpCfg->nRgnNum;
-        tDisp.tChnAttr.nAlpha = 1024;
-        tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-        tDisp.tChnAttr.nZindex = nIvpsGrp + 1;
-        tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-        tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-        tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-        tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
+//         tDisp.nNum = tGrpCfg->nRgnNum;
+//         tDisp.tChnAttr.nAlpha = 1024;
+//         tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
+//         tDisp.tChnAttr.nZindex = nIvpsGrp + 1;
+//         tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
+//         tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
+//         tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
+//         tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
 
-#pragma omp parallel for num_threads(2)
-        for (AX_U8 i = 0; i < tDisp.nNum; ++i)
-        {
-            if (i < g_result_disp.size)
-            {
-                // bbox
-                {
-                    tDisp.arrDisp[i].bShow = AX_TRUE;
-                    tDisp.arrDisp[i].eType = AX_IVPS_RGN_TYPE_RECT;
+// #pragma omp parallel for num_threads(2)
+//         for (AX_U8 i = 0; i < tDisp.nNum; ++i)
+//         {
+//             if (i < g_result_disp.size)
+//             {
+//                 // bbox
+//                 {
+//                     tDisp.arrDisp[i].bShow = AX_TRUE;
+//                     tDisp.arrDisp[i].eType = AX_IVPS_RGN_TYPE_RECT;
 
-                    AX_U32 nChnWidth = tGrpCfg->nChnWidth;
-                    AX_U32 nChnHeight = tGrpCfg->nChnHeight;
+//                     AX_U32 nChnWidth = tGrpCfg->nChnWidth;
+//                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
 
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(g_result_disp.objects[i].bbox.x * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(g_result_disp.objects[i].bbox.y * nChnHeight) + 32;
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(g_result_disp.objects[i].bbox.w * nChnWidth);
-                    tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(g_result_disp.objects[i].bbox.h * nChnHeight);
-                    tDisp.arrDisp[i].uDisp.tPolygon.bSolid = AX_FALSE;
-                    tDisp.arrDisp[i].uDisp.tPolygon.bCornerRect = AX_FALSE;
-                    tDisp.arrDisp[i].uDisp.tPolygon.nLineWidth = 2;
-                    tDisp.arrDisp[i].uDisp.tPolygon.nColor = GREEN;
-                    tDisp.arrDisp[i].uDisp.tPolygon.nAlpha = 255;
-                }
-                // text
-                {
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].bShow = AX_TRUE;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].eType = AX_IVPS_RGN_TYPE_OSD;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX = (AX_U32)(g_result_disp.objects[i].bbox.x * nChnWidth);
+//                     tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY = (AX_U32)(g_result_disp.objects[i].bbox.y * nChnHeight) + 32;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.tRect.nW = (AX_U32)(g_result_disp.objects[i].bbox.w * nChnWidth);
+//                     tDisp.arrDisp[i].uDisp.tPolygon.tRect.nH = (AX_U32)(g_result_disp.objects[i].bbox.h * nChnHeight);
+//                     tDisp.arrDisp[i].uDisp.tPolygon.bSolid = AX_FALSE;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.bCornerRect = AX_FALSE;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.nLineWidth = 2;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.nColor = GREEN;
+//                     tDisp.arrDisp[i].uDisp.tPolygon.nAlpha = 255;
+//                 }
+//                 // text
+//                 {
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].bShow = AX_TRUE;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].eType = AX_IVPS_RGN_TYPE_OSD;
 
-                    AX_U32 nChnWidth = tGrpCfg->nChnWidth;
-                    AX_U32 nChnHeight = tGrpCfg->nChnHeight;
-                    osd_utils_img out;
-                    putText(g_result_disp.objects[i].objname, 0.6, 1, &list_baseimgs[i], &out);
+//                     AX_U32 nChnWidth = tGrpCfg->nChnWidth;
+//                     AX_U32 nChnHeight = tGrpCfg->nChnHeight;
+//                     osd_utils_img out;
+//                     putText(g_result_disp.objects[i].objname, 0.6, 1, &list_baseimgs[i], &out);
 
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.bEnable = AX_TRUE;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32Zindex = 1;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32ColorKey = 0x0;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BmpWidth = out.width;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BmpHeight = out.height;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32DstXoffset = tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32DstYoffset = tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u64PhyAddr = 0;
-                    tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.pBitmap = out.data;
-                }
-            }
-        }
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.bEnable = AX_TRUE;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32Zindex = 1;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32ColorKey = 0x0;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BmpWidth = out.width;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32BmpHeight = out.height;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32DstXoffset = tDisp.arrDisp[i].uDisp.tPolygon.tRect.nX;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u32DstYoffset = tDisp.arrDisp[i].uDisp.tPolygon.tRect.nY;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.u64PhyAddr = 0;
+//                     tDisp.arrDisp[i + SAMPLE_RECT_BOX_COUNT].uDisp.tOSD.pBitmap = out.data;
+//                 }
+//             }
+//         }
 
-        ret = AX_IVPS_RGN_Update(pThreadParam->hChnRgn, &tDisp);
-        if (0 != ret)
-        {
-            ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", nIvpsGrp, nFilter, ret, pThreadParam->hChnRgn);
-        }
+//         ret = AX_IVPS_RGN_Update(pThreadParam->hChnRgn, &tDisp);
+//         if (0 != ret)
+//         {
+//             ALOGE("[%d][0x%02x] AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", nIvpsGrp, nFilter, ret, pThreadParam->hChnRgn);
+//         }
 
-        pthread_mutex_unlock(&g_result_mutex);
-        usleep(10000);
-    }
+//         pthread_mutex_unlock(&g_result_mutex);
+//         usleep(10000);
+//     }
 
-    for (AX_U8 i = 0; i < SAMPLE_RECT_BOX_COUNT; ++i)
-    {
-        releaseImg(&list_baseimgs[i]);
-    }
+//     for (AX_U8 i = 0; i < SAMPLE_RECT_BOX_COUNT; ++i)
+//     {
+//         releaseImg(&list_baseimgs[i]);
+//     }
 
-    ALOGN("[%d][0x%02x] ---", nIvpsGrp, nFilter);
+//     ALOGN("[%d][0x%02x] ---", nIvpsGrp, nFilter);
 
-    return (AX_VOID *)0;
-}
+//     return (AX_VOID *)0;
+// }
 
 
 AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
@@ -237,13 +237,14 @@ AX_VOID *RgnThreadFunc_V2(AX_VOID *pArg)
     while (!g_arrRgnThreadParam->bExit && !gLoopExit)
     {
         pthread_mutex_lock(&g_result_mutex);
-        local_result_disp.size = g_result_disp.size;
-        memcpy(&local_result_disp.objects[0], &g_result_disp.objects[0], local_result_disp.size * sizeof(sample_run_joint_object));
+        memcpy(&local_result_disp, &g_result_disp, sizeof(sample_run_joint_results));
+        // local_result_disp.nObjSize = g_result_disp.nObjSize;
+        // memcpy(&local_result_disp.mObjects[0], &g_result_disp.mObjects[0], local_result_disp.nObjSize * sizeof(sample_run_joint_object));
         pthread_mutex_unlock(&g_result_mutex);
 
         memset(img_overlay.data, 0, tRgnGroupConfig[0].nChnWidth * tRgnGroupConfig[0].nChnHeight * 4);
-        drawObjs(&img_overlay, 0.6, 1.0, &local_result_disp, 0,  0);
-
+        drawResults(&img_overlay, 0.6, 1.0, &local_result_disp, 0,  0);
+        freeObjs(&local_result_disp);
         memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
 
         tDisp.nNum = tRgnGroupConfig[0].nRgnNum;

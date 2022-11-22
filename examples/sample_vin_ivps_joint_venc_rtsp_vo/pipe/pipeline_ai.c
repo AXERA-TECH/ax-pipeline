@@ -82,34 +82,50 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         tSrcFrame.pPhy = tVideoFrame.u64PhyAddr[0];
         tSrcFrame.pVir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
 
-        if (gJointHandle)
+        if (gModels.bRunJoint == AX_TRUE)
         {
-            static sample_run_joint_results pResult;
-            ret = sample_run_joint_inference(gJointHandle, &tSrcFrame, NULL);
+            static sample_run_joint_results pResults;
 
-            sample_run_joint_post_process_detection(gModelType, gJointAttr.nOutputSize, gJointAttr.pOutputsInfo, gJointAttr.pOutputs, &pResult,
-                                                    SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
+            switch (gModels.ModelType_Main)
+            {
+            case MT_DET_YOLOV5:
+            case MT_DET_YOLOV5_FACE:
+            case MT_DET_YOLOV7:
+            case MT_DET_YOLOX:
+            case MT_DET_NANODET:
+            case MT_INSEG_YOLOV5_MASK:
+            case MT_SEG_PPHUMSEG:
+                gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
+                gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
+                break;
+            case MT_MLM_HUMAN_POSE:
+                gModels.SAMPLE_RESTORE_WIDTH = gModels.SAMPLE_IVPS_ALGO_WIDTH;
+                gModels.SAMPLE_RESTORE_HEIGHT = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
+                break;
+            default:
+                break;
+            }
+
+            sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &pResults);
 
             pthread_mutex_lock(&g_result_mutex);
 
             if (0 == ret)
             {
-                memcpy(&g_result_disp, &pResult, sizeof(sample_run_joint_results));
-
-                for (AX_U8 i = 0; i < g_result_disp.size && i < SAMPLE_MAX_BBOX_COUNT; i++)
-                {
-                    g_result_disp.objects[i].bbox.x /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    g_result_disp.objects[i].bbox.y /= SAMPLE_MAJOR_STREAM_HEIGHT;
-                    g_result_disp.objects[i].bbox.w /= SAMPLE_MAJOR_STREAM_WIDTH;
-                    g_result_disp.objects[i].bbox.h /= SAMPLE_MAJOR_STREAM_HEIGHT;
-                }
+                memcpy(&g_result_disp, &pResults, sizeof(sample_run_joint_results));
+            }
+            else
+            {
+                g_result_disp.nObjSize = 0;
+                g_result_disp.bPPHumSeg = 0;
             }
             pthread_mutex_unlock(&g_result_mutex);
         }
         else
         {
             pthread_mutex_lock(&g_result_mutex);
-            g_result_disp.size = 0;
+            g_result_disp.nObjSize = 0;
+            g_result_disp.bPPHumSeg = 0;
             pthread_mutex_unlock(&g_result_mutex);
         }
 

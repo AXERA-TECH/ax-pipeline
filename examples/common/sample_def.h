@@ -114,21 +114,20 @@ typedef struct axSAMPLE_VO_CHN_THREAD_PARAM
     AX_POOL u32UserPoolId;
 } SAMPLE_VO_CHN_THREAD_PARAM_S;
 
-extern AX_S32 s_sample_framerate; //25fps
+extern AX_S32 s_sample_framerate; // 25fps
 
 extern volatile AX_S32 gLoopExit;
 
 extern pthread_mutex_t g_result_mutex;
 extern sample_run_joint_results g_result_disp;
-extern void *gJointHandle;
-extern sample_run_joint_attr gJointAttr;
-extern SAMPLE_RUN_JOINT_MODEL_TYPE gModelType;
+// extern void *gJointHandle_Major, *gJointHandle_Minor;
+// extern sample_run_joint_attr gJointAttr_Major, gJointAttr_Minor;
+// extern SAMPLE_RUN_JOINT_MODEL_TYPE gModelType_Main, gModelType_Major;
 
 extern CAMERA_T gCams[MAX_CAMERAS];
 
-extern int SAMPLE_ALGO_WIDTH;  // 640
-extern int SAMPLE_ALGO_HEIGHT; // 640
-extern int SAMPLE_ALGO_FORMAT;
+extern sample_run_joint_models gModels;
+
 extern int SAMPLE_MAJOR_STREAM_WIDTH;
 extern int SAMPLE_MAJOR_STREAM_HEIGHT;
 
