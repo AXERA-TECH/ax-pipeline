@@ -9,6 +9,7 @@
 
 #include "joint.h"
 #include "../utilities/sample_log.h"
+#include "../utilities/ringbuffer.hpp"
 
 static float PROB_THRESHOLD = 0.4f;
 static float NMS_THRESHOLD = 0.45f;
@@ -127,8 +128,6 @@ int sample_set_param_det(void *json_obj)
     return 0;
 }
 
-
-
 void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modeltype, sample_run_joint_attr *pJointAttr, sample_run_joint_results *pResults,
                                              int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
 {
@@ -231,7 +230,7 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
     detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
 
-
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * 6);
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
@@ -249,10 +248,9 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
 
         if (pResults->mObjects[i].bHaseMask)
         {
-            cv::Mat *mask = new cv::Mat;
-            *mask = obj.mask;
-            pResults->mObjects[i].mYolov5Mask = mask;
-
+            cv::Mat &mask = mSimpleRingBuffer.next();
+            mask = obj.mask;
+            pResults->mObjects[i].mYolov5Mask = &mask;
         }
 
         if (obj.label < CLASS_NAMES.size())

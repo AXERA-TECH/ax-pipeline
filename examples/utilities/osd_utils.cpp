@@ -219,9 +219,7 @@ int freeObjs(sample_run_joint_results *results)
     {
         if (results->mObjects[i].bHaseMask && results->mObjects[i].mYolov5Mask)
         {
-            //这里有内存泄漏，mask不能delete，不然就崩溃了，还不知道啥原因，希望有大佬PR一下修好
             cv::Mat *mask = (cv::Mat *)results->mObjects[i].mYolov5Mask;
-            mask->release();
             results->mObjects[i].mYolov5Mask = nullptr;
         }
     }
