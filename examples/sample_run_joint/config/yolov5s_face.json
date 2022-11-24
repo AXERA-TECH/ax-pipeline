@@ -1,5 +1,6 @@
 {
-    "MODEL_TYPE":18,
+    "MODEL_TYPE": "MT_DET_YOLOV5_FACE",
+    "MODEL_PATH": "./models/yolov5s_face_nv12_11.joint",
     "ANCHORS": [
         4,
         5,

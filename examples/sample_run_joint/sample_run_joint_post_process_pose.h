@@ -8,7 +8,7 @@ extern "C"
 {
 #endif
 
-    void sample_run_joint_post_process_hrnet_pose(sample_run_joint_attr *pJointAttr, sample_run_joint_object *pObj);
+    void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample_run_joint_object *pObj);
 
 #ifdef __cplusplus
 }

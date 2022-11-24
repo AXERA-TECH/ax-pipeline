@@ -1,12 +1,24 @@
-#include "sample_run_joint_post_process_hrnet_pose.h"
-#include "pose.hpp"
+#include "sample_run_joint_post_process_pose.h"
+#include "base/pose.hpp"
 
-void sample_run_joint_post_process_hrnet_pose(sample_run_joint_attr *pJointAttr, sample_run_joint_object *pObj)
+void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample_run_joint_object *pObj)
 {
     static const int HRNET_JOINTS = 17;
+    sample_run_joint_attr *pJointAttr = &pModels->mMinor.JointAttr;
     auto ptr = (float *)pJointAttr->pOutputs[0].pVirAddr;
+    auto ptr_index = (float *)pJointAttr->pOutputs[1].pVirAddr;
     pose::ai_body_parts_s ai_point_result;
-    pose::post_process(ptr, ai_point_result, HRNET_JOINTS, pJointAttr->algo_height, pJointAttr->algo_width);
+    switch (pModels->ModelType_Main)
+    {
+    case MT_MLM_HUMAN_POSE_AXPPL:
+        pose::ppl_pose_post_process(ptr, ptr_index, ai_point_result, HRNET_JOINTS);
+        break;
+    case MT_MLM_HUMAN_POSE_HRNET:
+        pose::hrnet_post_process(ptr, ai_point_result, HRNET_JOINTS, pJointAttr->algo_height, pJointAttr->algo_width);
+        break;
+    default:
+        break;
+    }
 
     float scale_letterbox;
     int resize_rows;
@@ -36,10 +48,7 @@ void sample_run_joint_post_process_hrnet_pose(sample_run_joint_attr *pJointAttr,
 
     for (size_t i = 0; i < HRNET_JOINTS; i++)
     {
-        pObj->pose_landmark[i].x = ai_point_result.keypoints[i].x;
-        pObj->pose_landmark[i].y = ai_point_result.keypoints[i].y;
-        pObj->pose_landmark[i].x = (pObj->pose_landmark[i].x - tmp_w) * ratio_x + pObj->bbox.x;
-        pObj->pose_landmark[i].y = (pObj->pose_landmark[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+        pObj->pose_landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
+        pObj->pose_landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
     }
-
 }

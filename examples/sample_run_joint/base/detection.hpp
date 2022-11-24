@@ -30,6 +30,13 @@ namespace detection
 {
     typedef struct
     {
+        int grid0;
+        int grid1;
+        int stride;
+    } GridAndStride;
+
+    typedef struct
+    {
         cv::Rect_<float> rect;
         int label;
         float prob;
@@ -572,6 +579,66 @@ namespace detection
                 }
             }
         }
+    }
+
+    static void generate_grids_and_stride(const int target_w, const int target_h, std::vector<int> &strides, std::vector<GridAndStride> &grid_strides)
+    {
+        for (auto stride : strides)
+        {
+            int num_grid_w = target_w / stride;
+            int num_grid_h = target_h / stride;
+            for (int g1 = 0; g1 < num_grid_h; g1++)
+            {
+                for (int g0 = 0; g0 < num_grid_w; g0++)
+                {
+                    GridAndStride gs;
+                    gs.grid0 = g0;
+                    gs.grid1 = g1;
+                    gs.stride = stride;
+                    grid_strides.push_back(gs);
+                }
+            }
+        }
+    }
+
+    static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, float* feat_ptr, float prob_threshold, std::vector<Object>& objects, int wxc)
+    {
+        const int num_grid = 3549;
+        const int num_class = 1;
+        const int num_anchors = grid_strides.size();
+
+        for (int anchor_idx = 0; anchor_idx < num_anchors; anchor_idx++)
+        {
+
+            float box_objectness = feat_ptr[4 * wxc + anchor_idx];
+            float box_cls_score = feat_ptr[5 * wxc + anchor_idx];
+            float box_prob = box_objectness * box_cls_score;
+            if (box_prob > prob_threshold)
+            {
+                Object obj;
+                // printf("%d,%d\n",num_anchors,anchor_idx);
+                const int grid0 = grid_strides[anchor_idx].grid0; // 0
+                const int grid1 = grid_strides[anchor_idx].grid1; // 0
+                const int stride = grid_strides[anchor_idx].stride; // 8
+                // yolox/models/yolo_head.py decode logic
+                //  outputs[..., :2] = (outputs[..., :2] + grids) * strides
+                //  outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides
+                float x_center = (feat_ptr[0 + anchor_idx] + grid0) * stride;
+                float y_center = (feat_ptr[1 * wxc + anchor_idx] + grid1) * stride;
+                float w = exp(feat_ptr[2 * wxc + anchor_idx]) * stride;
+                float h = exp(feat_ptr[3 * wxc + anchor_idx]) * stride;
+                float x0 = x_center - w * 0.5f;
+                float y0 = y_center - h * 0.5f;
+                obj.rect.x = x0;
+                obj.rect.y = y0;
+                obj.rect.width = w;
+                obj.rect.height = h;
+                obj.label = 0;
+                obj.prob = box_prob;
+
+                objects.push_back(obj);
+            }
+        } // point anchor loop
     }
 
     static void generate_proposals_yolov5_seg(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,

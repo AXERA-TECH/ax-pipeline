@@ -1,5 +1,6 @@
 {
-    "MODEL_TYPE":19,
+    "MODEL_TYPE": "MT_DET_YOLOV7",
+    "MODEL_PATH": "./models/yolov7-tiny.joint",
     "ANCHORS": [
         12,
         16,

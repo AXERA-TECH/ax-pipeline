@@ -86,26 +86,6 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         {
             static sample_run_joint_results pResults;
 
-            switch (gModels.ModelType_Main)
-            {
-            case MT_DET_YOLOV5:
-            case MT_DET_YOLOV5_FACE:
-            case MT_DET_YOLOV7:
-            case MT_DET_YOLOX:
-            case MT_DET_NANODET:
-            case MT_INSEG_YOLOV5_MASK:
-            case MT_SEG_PPHUMSEG:
-                gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
-                gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
-                break;
-            case MT_MLM_HUMAN_POSE:
-                gModels.SAMPLE_RESTORE_WIDTH = gModels.SAMPLE_IVPS_ALGO_WIDTH;
-                gModels.SAMPLE_RESTORE_HEIGHT = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
-                break;
-            default:
-                break;
-            }
-
             sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &pResults);
 
             pthread_mutex_lock(&g_result_mutex);

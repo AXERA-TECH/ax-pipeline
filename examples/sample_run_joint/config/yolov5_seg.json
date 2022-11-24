@@ -1,5 +1,6 @@
 {
     "MODEL_TYPE": "MT_INSEG_YOLOV5_MASK",
+    "MODEL_PATH": "./models/yolov5s-seg.joint",
     "ANCHORS": [
         10,
         13,

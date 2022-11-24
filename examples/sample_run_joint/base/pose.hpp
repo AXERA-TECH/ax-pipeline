@@ -223,7 +223,7 @@ namespace pose
         cv::imwrite("./hand_pose_out.png", img);
     }
 
-    static inline void post_process(float *data, ai_body_parts_s &pose, int joint_num, int img_h, int img_w)
+    static inline void hrnet_post_process(float *data, ai_body_parts_s &pose, int joint_num, int img_h, int img_w)
     {
         int heatmap_width = img_w / 4;
         int heatmap_height = img_h / 4;
@@ -241,6 +241,18 @@ namespace pose
 
             //            std::cout << "x: " << pose.keypoints[c].x << ", y: " << pose.keypoints[c].y << ", score: "
             //                      << pose.keypoints[c].score << std::endl;
+        }
+    }
+    static inline void ppl_pose_post_process(float *data1, float *data2, ai_body_parts_s &pose, int joint_num)
+    {
+        ai_point_t kp;
+
+        for (int c = 0; c < joint_num; ++c)
+        {
+            kp.x = data1[c] / 2;
+            kp.y = data2[c] / 2;
+            // std::cout << "x1: " << kp.x << ", y1: " << kp.y << std::endl;
+            pose.keypoints.push_back(kp);
         }
     }
 

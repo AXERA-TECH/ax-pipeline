@@ -123,6 +123,12 @@ int npu_crop_resize(const AX_NPU_CV_Image *input_image, AX_NPU_CV_Image *output_
     color.nYUVColorValue[1] = 128;
     AX_NPU_SDK_EX_MODEL_TYPE_T virtual_npu_mode_type = model_type;
 
+    if (box)
+    {
+        box->fW = int(box->fW) - int(box->fW) % 2;
+        box->fH = int(box->fH) - int(box->fH) % 2;
+    }
+
     AX_NPU_CV_Box *ppBox[1];
     ppBox[0] = box;
 

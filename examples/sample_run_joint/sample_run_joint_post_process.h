@@ -18,6 +18,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_YOLOV7,
     MT_DET_YOLOX,
     MT_DET_NANODET,
+    MT_DET_YOLOX_PPL,
 
     // segmentation
     MT_SEG = 0x20,
@@ -29,7 +30,8 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
 
     // multi level model
     MT_MLM = 0x40,
-    MT_MLM_HUMAN_POSE,
+    MT_MLM_HUMAN_POSE_AXPPL,
+    MT_MLM_HUMAN_POSE_HRNET,
     MT_MLM_HAND_POSE,
     MT_MLM_FACE_RECOGNITION,
     MT_MLM_VEHICLE_LICENSE_RECOGNITION,
@@ -106,7 +108,7 @@ typedef struct _sample_run_joint_models
 } sample_run_joint_models;
 
 #include "sample_run_joint_post_process_det.h"
-#include "sample_run_joint_post_process_hrnet_pose.h"
+#include "sample_run_joint_post_process_pose.h"
 #ifdef __cplusplus
 extern "C"
 {

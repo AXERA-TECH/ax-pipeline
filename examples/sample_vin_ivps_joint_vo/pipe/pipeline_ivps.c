@@ -217,9 +217,14 @@ int SampleIvpsInit()
                 tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
                 tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
                 tAspectRatio.nBgColor = 0x0000FF;
-                if (gModels.ModelType_Main != MT_SEG_PPHUMSEG)
+                stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.tAspectRatio = tAspectRatio;
+                switch (gModels.ModelType_Main)
                 {
-                    stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.tAspectRatio = tAspectRatio;
+                case MT_SEG_PPHUMSEG:
+                    memset(&stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.tAspectRatio, 0, sizeof(AX_IVPS_ASPECT_RATIO_S));
+                    break;
+                default:
+                    break;
                 }
 
                 stPipelineAttr.nOutFifoDepth[nChn] = 1; // for AI runjoint

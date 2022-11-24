@@ -1,0 +1,10 @@
+{
+    "MODEL_TYPE": "MT_DET_YOLOX_PPL",
+    "MODEL_PATH": "./models/ax_person_det.joint",
+    "CLASS_NAMES": [
+        "person"
+    ],
+    "CLASS_NUM": 1,
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}

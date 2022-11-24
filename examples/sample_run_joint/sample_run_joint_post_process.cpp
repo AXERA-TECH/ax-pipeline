@@ -11,7 +11,9 @@ static std::map<std::string, int> ModelTypeTable = {
     {"MT_DET_NANODET", MT_DET_NANODET},
     {"MT_SEG_PPHUMSEG", MT_SEG_PPHUMSEG},
     {"MT_INSEG_YOLOV5_MASK", MT_INSEG_YOLOV5_MASK},
-    {"MT_MLM_HUMAN_POSE", MT_MLM_HUMAN_POSE},
+    {"MT_MLM_HUMAN_POSE_AXPPL", MT_MLM_HUMAN_POSE_AXPPL},
+    {"MT_MLM_HUMAN_POSE_HRNET", MT_MLM_HUMAN_POSE_HRNET},
+    {"MT_DET_YOLOX_PPL", MT_DET_YOLOX_PPL},
 
 };
 
@@ -75,6 +77,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_DET_YOLOV7:
     case MT_DET_YOLOX:
     case MT_DET_NANODET:
+    case MT_DET_YOLOX_PPL:
     case MT_INSEG_YOLOV5_MASK:
         sample_parse_param_det(json_file_path);
         pModels->mMajor.ModelType = pModels->ModelType_Main;
@@ -82,7 +85,8 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_SEG_PPHUMSEG:
         pModels->mMajor.ModelType = pModels->ModelType_Main;
         break;
-    case MT_MLM_HUMAN_POSE:
+    case MT_MLM_HUMAN_POSE_AXPPL:
+    case MT_MLM_HUMAN_POSE_HRNET:
         if (jsondata.contains("MODEL_MAJOR"))
         {
             nlohmann::json json_major = jsondata["MODEL_MAJOR"];
@@ -155,44 +159,12 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
     case MT_DET_YOLOV7:
     case MT_DET_YOLOX:
     case MT_DET_NANODET:
-    {
-        sample_run_joint_post_process_detection(pModels->ModelType_Main, &pModels->mMajor.JointAttr, pResults,
-                                                pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
-                                                pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
-
-        for (AX_U8 i = 0; i < pResults->nObjSize; i++)
-        {
-            pResults->mObjects[i].bbox.x /= pModels->SAMPLE_RESTORE_WIDTH;
-            pResults->mObjects[i].bbox.y /= pModels->SAMPLE_RESTORE_HEIGHT;
-            pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
-            pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
-
-            if (pModels->ModelType_Main == MT_DET_YOLOV5_FACE)
-            {
-                for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
-                {
-                    pResults->mObjects[i].face_landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
-                    pResults->mObjects[i].face_landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
-                }
-            }
-        }
-    }
-    break;
     case MT_INSEG_YOLOV5_MASK:
-        sample_run_joint_post_process_yolov5_seg(pModels->ModelType_Main, &pModels->mMajor.JointAttr, pResults,
-                                                 pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
-                                                 pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
-        for (AX_U8 i = 0; i < pResults->nObjSize; i++)
-        {
-            pResults->mObjects[i].bbox.x /= pModels->SAMPLE_RESTORE_WIDTH;
-            pResults->mObjects[i].bbox.y /= pModels->SAMPLE_RESTORE_HEIGHT;
-            pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
-            pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
-        }
+    case MT_DET_YOLOX_PPL:
+        sample_run_joint_post_process_det_single_func(pResults, pModels);
         break;
     case MT_SEG_PPHUMSEG:
     {
-        // ret = sample_run_joint_inference(pModels->JointHandle_MAJOR, pstFrame, NULL);
         pResults->bPPHumSeg = 1;
         auto ptr = (float *)pModels->mMajor.JointAttr.pOutputs[0].pVirAddr;
         for (int j = 0; j < SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE; ++j)
@@ -201,12 +173,10 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
         }
     }
     break;
-    case MT_MLM_HUMAN_POSE:
+    case MT_MLM_HUMAN_POSE_HRNET:
+    case MT_MLM_HUMAN_POSE_AXPPL:
     {
-        // ret = sample_run_joint_inference(pModels->JointHandle_MAJOR, pstFrame, NULL);
-        sample_run_joint_post_process_detection(pModels->mMajor.ModelType, &pModels->mMajor.JointAttr, pResults,
-                                                pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
-                                                pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
+        sample_run_joint_post_process_det_single_func(pResults, pModels);
 
         sample_run_joint_object HumObj = {0};
         int idx = -1;
@@ -230,9 +200,10 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
         if (bHasHuman == AX_TRUE && pModels->mMinor.JointHandle && HumObj.bbox.w > 0 && HumObj.bbox.h > 0)
         {
             ret = sample_run_joint_inference(pModels->mMinor.JointHandle, pstFrame, &HumObj.bbox);
-            sample_run_joint_post_process_hrnet_pose(&pModels->mMinor.JointAttr, &HumObj);
-            pResults->mObjects[idx].bHasPoseLmk = 1;
-            memcpy(&pResults->mObjects[idx].pose_landmark[0], &HumObj.pose_landmark[0], sizeof(HumObj.pose_landmark));
+            sample_run_joint_post_process_pose(pModels, &HumObj);
+            pResults->nObjSize = 1;
+            pResults->mObjects[0].bHasPoseLmk = 1;
+            memcpy(&pResults->mObjects[0].pose_landmark[0], &HumObj.pose_landmark[0], sizeof(HumObj.pose_landmark));
         }
 
         for (int i = 0; i < pResults->nObjSize; i++)

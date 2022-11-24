@@ -20,7 +20,7 @@
 
 #include "opencv2/opencv.hpp"
 #include "../sample_run_joint/sample_run_joint_post_process.h"
-#include "../sample_run_joint/pose.hpp"
+#include "../sample_run_joint/base/pose.hpp"
 #include "osd_utils.h"
 #include "../common/sample_def.h"
 #include "sstream"

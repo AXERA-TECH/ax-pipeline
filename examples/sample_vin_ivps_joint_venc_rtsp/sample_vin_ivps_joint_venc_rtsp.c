@@ -506,27 +506,35 @@ int main(int argc, char *argv[])
 
         switch (gModels.ModelType_Main)
         {
-        case MT_DET_YOLOV5:
-        case MT_DET_YOLOV5_FACE:
-        case MT_DET_YOLOV7:
-        case MT_DET_YOLOX:
-        case MT_DET_NANODET:
-        case MT_INSEG_YOLOV5_MASK:
-        case MT_SEG_PPHUMSEG:
-            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
-            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
-            break;
-        case MT_MLM_HUMAN_POSE:
+        case MT_MLM_HUMAN_POSE_AXPPL:
+        case MT_MLM_HUMAN_POSE_HRNET:
+        case MT_MLM_HAND_POSE:
+        case MT_MLM_FACE_RECOGNITION:
+        case MT_MLM_VEHICLE_LICENSE_RECOGNITION:
             s32Ret = sample_run_joint_init(gModels.MODEL_PATH_L2, &gModels.mMinor.JointHandle, &gModels.mMinor.JointAttr);
             if (0 != s32Ret)
             {
                 ALOGE("pose:sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
                 goto EXIT_2;
             }
-            // SAMPLE_IVPS_ALGO_WIDTH = SAMPLE_ALGO_WIDTH;
-            // SAMPLE_IVPS_ALGO_HEIGHT = SAMPLE_ALGO_HEIGHT;
+            ALOGN("load l2 model %s success!\n", gModels.MODEL_PATH_L2);
             break;
         default:
+            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
+            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
+            break;
+        }
+
+        switch (gModels.ModelType_Main)
+        {
+        case MT_MLM_HUMAN_POSE_HRNET:
+        case MT_MLM_HUMAN_POSE_AXPPL:
+            gModels.SAMPLE_RESTORE_WIDTH = gModels.SAMPLE_IVPS_ALGO_WIDTH;
+            gModels.SAMPLE_RESTORE_HEIGHT = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
+            break;
+        default:
+            gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
+            gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
             break;
         }
     }

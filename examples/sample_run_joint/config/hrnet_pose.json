@@ -1,14 +1,14 @@
 {
-    "MODEL_TYPE": "MT_MLM_HUMAN_POSE",
+    "MODEL_TYPE": "MT_MLM_HUMAN_POSE_HRNET",
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
-    "MODEL_PATH": "/root/test/install/bin/yolov5s_sub_rgb_11.joint",
+    "MODEL_PATH": "./models/yolov5s_sub_rgb_11.joint",
     "MODEL_MINOR": {
-        "MODEL_PATH": "/root/test/install/bin/hrnet_256x192.joint"
+        "MODEL_PATH": "./models/hrnet_256x192.joint"
     },
     "MODEL_MAJOR": {
         "MODEL_TYPE": "MT_DET_YOLOV5",
-        "MODEL_PATH": "/root/test/install/bin/yolov5s_sub_rgb_11.joint",
+        "MODEL_PATH": "./models/yolov5s_sub_rgb_11.joint",
         "ANCHORS": [
             10.0,
             13.0,

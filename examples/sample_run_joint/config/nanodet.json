@@ -1,5 +1,6 @@
 {
-    "MODEL_TYPE":21,
+    "MODEL_TYPE": "MT_DET_NANODET",
+    "MODEL_PATH": "./models/nanom.joint",
     "CLASS_NAMES": [
         "person",
         "bicycle",

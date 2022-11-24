@@ -3,7 +3,8 @@
 
 #include "sample_run_joint_post_process.h"
 #include "sample_run_joint_post_process_det.h"
-#include "detection.hpp"
+#include "base/detection.hpp"
+#include "base/yolo.hpp"
 
 #include "../utilities/json.hpp"
 
@@ -164,6 +165,15 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
             generate_proposals_nanodet(ptr, DEFAULT_STRIDES[i], SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, PROB_THRESHOLD, proposals, CLASS_NUM);
         }
         break;
+        case MT_DET_YOLOX_PPL:
+        {
+            std::vector<detection::GridAndStride> grid_stride;
+            int wxc = output.pShape[2] * output.pShape[3];
+            static std::vector<std::vector<int>> stride_ppl = {{8}, {16}, {32}};
+            generate_grids_and_stride(SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, stride_ppl[i], grid_stride);
+            generate_yolox_proposals(grid_stride, ptr, PROB_THRESHOLD, proposals, wxc);
+        }
+        break;
         default:
             break;
         }
@@ -261,5 +271,61 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
         {
             strcpy(pResults->mObjects[i].objname, "unknown");
         }
+    }
+}
+
+void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
+{
+    switch (pModels->mMajor.ModelType)
+    {
+    case MT_DET_YOLOV5:
+    case MT_DET_YOLOV5_FACE:
+    case MT_DET_YOLOV7:
+    case MT_DET_YOLOX:
+    case MT_DET_NANODET:
+    case MT_DET_YOLOX_PPL:
+    {
+        sample_run_joint_post_process_detection(pModels->mMajor.ModelType, &pModels->mMajor.JointAttr, pResults,
+                                                pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
+                                                pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
+    }
+    break;
+    case MT_INSEG_YOLOV5_MASK:
+    {
+        sample_run_joint_post_process_yolov5_seg(pModels->mMajor.ModelType, &pModels->mMajor.JointAttr, pResults,
+                                                 pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
+                                                 pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
+    }
+    break;
+    default:
+        break;
+    }
+
+    switch (pModels->ModelType_Main)
+    {
+    case MT_MLM_HUMAN_POSE_AXPPL:
+    case MT_MLM_HUMAN_POSE_HRNET:
+    case MT_MLM_HAND_POSE:
+    case MT_MLM_FACE_RECOGNITION:
+    case MT_MLM_VEHICLE_LICENSE_RECOGNITION:
+        break;
+    default:
+        for (AX_U8 i = 0; i < pResults->nObjSize; i++)
+        {
+            pResults->mObjects[i].bbox.x /= pModels->SAMPLE_RESTORE_WIDTH;
+            pResults->mObjects[i].bbox.y /= pModels->SAMPLE_RESTORE_HEIGHT;
+            pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
+            pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
+
+            if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE)
+            {
+                for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
+                {
+                    pResults->mObjects[i].face_landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                    pResults->mObjects[i].face_landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+                }
+            }
+        }
+        break;
     }
 }
