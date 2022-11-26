@@ -2,12 +2,10 @@
 #include "../utilities/json.hpp"
 #include "fstream"
 
-typedef int (*callback_for_sipeed_py)(int, sample_run_joint_results *);
-extern "C" callback_for_sipeed_py g_cb_results_sipeed_py = NULL;
-
-extern "C" int register_result_callback(callback_for_sipeed_py cb)
-{
-    g_cb_results_sipeed_py = cb;
+extern "C" {
+    typedef int (*result_callback_for_sipeed_py)(void *, sample_run_joint_results *);
+    result_callback_for_sipeed_py g_cb_results_sipeed_py = NULL;
+    int register_result_callback(result_callback_for_sipeed_py cb) { g_cb_results_sipeed_py = cb; }
 }
 
 static std::map<std::string, int> ModelTypeTable = {
@@ -238,7 +236,7 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
 
     if (g_cb_results_sipeed_py)
     {
-        int retcbnikeyi = g_cb_results_sipeed_py(sizeof(sample_run_joint_results), pResults);
+        int retcbnikeyi = g_cb_results_sipeed_py((void *)pstFrame, pResults);
     }
 
     return 0;
