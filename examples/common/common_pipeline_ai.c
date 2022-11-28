@@ -18,20 +18,21 @@
  * Author: ZHEQIUSHUI
  */
 
-#include "../../sample_run_joint/sample_run_joint_post_process.h"
+#include "../sample_run_joint/sample_run_joint_post_process.h"
 #include "ax_ivps_api.h"
 #include "npu_common.h"
 
 #include "pthread.h"
 #include "sys/prctl.h"
 
-#include "../../common/sample_def.h"
-#include "../../utilities/sample_log.h"
+#include "sample_def.h"
+#include "../utilities/sample_log.h"
+
+extern int gPipeAi_IvpsGrp; // 1
+extern int gPipeAi_IvpsChn; // 0
 
 AX_VOID *GetFrameThread(AX_VOID *pArg)
 {
-    IVPS_GRP IvpsGrp = 1;
-    IVPS_CHN IvpsChn = 0;
     AX_S32 nMilliSec = 200;
 
     prctl(PR_SET_NAME, "SAMPLE_IVPS_GET");
@@ -42,7 +43,7 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
     {
         AX_VIDEO_FRAME_S tVideoFrame;
 
-        AX_S32 ret = AX_IVPS_GetChnFrame(IvpsGrp, IvpsChn, &tVideoFrame, nMilliSec);
+        AX_S32 ret = AX_IVPS_GetChnFrame(gPipeAi_IvpsGrp, gPipeAi_IvpsChn, &tVideoFrame, nMilliSec);
 
         if (0 != ret)
         {
@@ -57,7 +58,6 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
 
         tVideoFrame.u64VirAddr[0] = (AX_U32)AX_POOL_GetBlockVirAddr(tVideoFrame.u32BlkId[0]);
         tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
-        tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
 
         AX_NPU_CV_Image tSrcFrame = {0};
         tSrcFrame.nWidth = tVideoFrame.u32Width;
@@ -66,12 +66,15 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         {
         case AX_YUV420_SEMIPLANAR:
             tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
+            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
             break;
         case AX_FORMAT_RGB888:
             tSrcFrame.eDtype = AX_NPU_CV_FDT_RGB;
+            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
             break;
         case AX_FORMAT_BGR888:
             tSrcFrame.eDtype = AX_NPU_CV_FDT_BGR;
+            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
             break;
         default:
             tSrcFrame.eDtype = AX_NPU_CV_FDT_UNKNOWN;
@@ -109,7 +112,7 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
             pthread_mutex_unlock(&g_result_mutex);
         }
 
-        ret = AX_IVPS_ReleaseChnFrame(IvpsGrp, IvpsChn, &tVideoFrame);
+        ret = AX_IVPS_ReleaseChnFrame(gPipeAi_IvpsGrp, gPipeAi_IvpsChn, &tVideoFrame);
     }
     ALOGN("SAMPLE_RUN_JOINT ---");
     return (AX_VOID *)0;

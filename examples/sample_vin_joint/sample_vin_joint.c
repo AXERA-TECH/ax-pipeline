@@ -42,6 +42,7 @@
 
 #include "../sample_run_joint/sample_run_joint_post_process.h"
 #include "../utilities/sample_log.h"
+#include "../common/common_joint.h"
 
 typedef enum
 {
@@ -208,7 +209,6 @@ sample_run_joint_models gModels = {
     .SAMPLE_IVPS_ALGO_HEIGHT = 540,
 };
 
-
 void *IspRun(void *args)
 {
     AX_U32 i = (AX_U32)args;
@@ -284,7 +284,7 @@ static void *getYuv(void *arg)
             {
                 for (AX_U8 i = 0; i < pResults.nObjSize; i++)
                 {
-                    printf("%2d %16s [%4.0f,%4.0f,%4.0f,%4.0f]\n", i, pResults.mObjects[i].objname,
+                    printf("%2d %16s [%4.2f,%4.2f,%4.2f,%4.2f]\n", i, pResults.mObjects[i].objname,
                            pResults.mObjects[i].bbox.x, pResults.mObjects[i].bbox.y, pResults.mObjects[i].bbox.w, pResults.mObjects[i].bbox.h);
                 }
             }
@@ -376,9 +376,9 @@ int main(int argc, char *argv[])
 {
     gLoopExit = 0;
     g_isp_force_loop_exit = 0;
-    memset(&gModels,0,sizeof(gModels));
-    memset(&g_result_disp,0,sizeof(g_result_disp));
-    memset(&gCams,0,sizeof(gCams));
+    memset(&gModels, 0, sizeof(gModels));
+    memset(&g_result_disp, 0, sizeof(g_result_disp));
+    memset(&gCams, 0, sizeof(gCams));
     optind = 0;
 
     int c;
@@ -634,59 +634,12 @@ int main(int argc, char *argv[])
         goto EXIT;
     }
 
-    if (gModels.bRunJoint == AX_TRUE)
+    s32Ret = COMMON_JOINT_Init();
+    if (0 != s32Ret)
     {
-        s32Ret = sample_run_joint_init(gModels.MODEL_PATH, &gModels.mMajor.JointHandle, &gModels.mMajor.JointAttr);
-        if (0 != s32Ret)
-        {
-            ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
-            goto EXIT;
-        }
-        ALOGN("load model %s success!\n", gModels.MODEL_PATH);
-        gModels.SAMPLE_ALGO_FORMAT = gModels.mMajor.JointAttr.algo_colorformat;
-        gModels.SAMPLE_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_height;
-        gModels.SAMPLE_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_width;
-
-        switch (gModels.ModelType_Main)
-        {
-        case MT_MLM_HUMAN_POSE_AXPPL:
-        case MT_MLM_HUMAN_POSE_HRNET:
-        case MT_MLM_HAND_POSE:
-        case MT_MLM_FACE_RECOGNITION:
-        case MT_MLM_VEHICLE_LICENSE_RECOGNITION:
-            s32Ret = sample_run_joint_init(gModels.MODEL_PATH_L2, &gModels.mMinor.JointHandle, &gModels.mMinor.JointAttr);
-            if (0 != s32Ret)
-            {
-                ALOGE("pose:sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
-                goto EXIT;
-            }
-            ALOGN("load l2 model %s success!\n", gModels.MODEL_PATH_L2);
-            break;
-        default:
-            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
-            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
-            break;
-        }
-
-        switch (gModels.ModelType_Main)
-        {
-        case MT_MLM_HUMAN_POSE_HRNET:
-        case MT_MLM_HUMAN_POSE_AXPPL:
-            gModels.SAMPLE_RESTORE_WIDTH = gModels.SAMPLE_IVPS_ALGO_WIDTH;
-            gModels.SAMPLE_RESTORE_HEIGHT = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
-            break;
-        default:
-            gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
-            gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
-            break;
-        }
+        ALOGE("COMMON_JOINT_Init failed,s32Ret:0x%x\n", s32Ret);
+        goto EXIT;
     }
-    else
-    {
-        ALOGN("Not specified model file\n");
-    }
-
-
 
     COMMON_CAM_Init();
 
@@ -733,8 +686,7 @@ int main(int argc, char *argv[])
     SysRun();
 
 EXIT:
-    sample_run_joint_release(gModels.mMajor.JointHandle);
-    sample_run_joint_release(gModels.mMinor.JointHandle);
+    COMMON_JOINT_Deinit();
     for (i = 0; i < MAX_CAMERAS; i++)
     {
         if (!gCams[i].bOpen)

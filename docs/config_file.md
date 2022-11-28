@@ -10,13 +10,13 @@
     "MODEL_TYPE": "MT_MLM_HUMAN_POSE",
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
-    "MODEL_PATH": "/root/test/install/bin/yolov5s_sub_rgb_11.joint", //第一层节点
+    "MODEL_PATH": "/root/test/install/bin/yolov5s.joint", //第一层节点
     "MODEL_MINOR": {
         "MODEL_PATH": "/root/test/install/bin/hrnet_256x192.joint"
     },
     "MODEL_MAJOR": {
         "MODEL_TYPE": "MT_DET_YOLOV5",
-        "MODEL_PATH": "/root/test/install/bin/yolov5s_sub_rgb_11.joint",  //第二层节点，会覆盖第一层的 MODEL_PATH
+        "MODEL_PATH": "/root/test/install/bin/yolov5s.joint",  //第二层节点，会覆盖第一层的 MODEL_PATH
         "ANCHORS": [
 ```
 ### 二级模型节点

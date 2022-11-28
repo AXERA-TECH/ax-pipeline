@@ -21,87 +21,7 @@
 #include "sample_vin_ivps_joint_venc_rtsp_vo.h"
 #include <getopt.h>
 #include "../sample_run_joint/sample_run_joint_post_process.h"
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10Sdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP, 4}, /*vin raw10 use */
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {2688, 1520, 2688, AX_YUV420_SEMIPLANAR, 4},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {1280, 720, 1280, AX_YUV420_SEMIPLANAR, 3},
-};
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10OnlineSdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP, 3}, /*vin raw10 use */
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 5}, /*vin raw16 use */
-    {2688, 1520, 2688, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 3},
-    {1280, 720, 1280, AX_YUV420_SEMIPLANAR, 3},
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10Hdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP, 4}, /*vin raw10 use */
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {2688, 1520, 2688, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {720, 576, 720, AX_YUV420_SEMIPLANAR, 3},
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10OnlineHdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP, 4}, /*vin raw10 use */
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {2688, 1520, 2688, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {720, 576, 720, AX_YUV420_SEMIPLANAR, 3},
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleImx334Sdr[] = {
-
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_12BPP, 8}, /*vin raw10 use */
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {3840, 2160, 3840, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {960, 540, 960, AX_YUV420_SEMIPLANAR, 3},
-
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleImx334Hdr[] = {
-
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_10BPP, 8}, /*vin raw10 use */
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {3840, 2160, 3840, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {960, 540, 960, AX_YUV420_SEMIPLANAR, 3},
-
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleGc4653[] = {
-
-    {2560, 1440, 2560, AX_FORMAT_BAYER_RAW_10BPP, 4}, /*vin raw10 use */
-    {2560, 1440, 2560, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {2560, 1440, 2560, AX_YUV420_SEMIPLANAR, 4},      /*vin nv21/nv21 use */
-    {1280, 720, 1280, AX_YUV420_SEMIPLANAR, 4},
-    {640, 360, 640, AX_YUV420_SEMIPLANAR, 3},
-
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Sdr[] = {
-
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_12BPP, 4}, /*vin raw10 use */
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {3840, 2160, 3840, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {960, 540, 960, AX_YUV420_SEMIPLANAR, 3},
-
-};
-
-static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20Hdr[] = {
-
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_10BPP, 8}, /*vin raw10 use */
-    {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 4}, /*vin raw16 use */
-    {3840, 2160, 3840, AX_YUV420_SEMIPLANAR, 6},      /*vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_YUV420_SEMIPLANAR, 4},
-    {960, 540, 960, AX_YUV420_SEMIPLANAR, 3},
-
-};
+#include "../common/common_joint.h"
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
@@ -135,6 +55,8 @@ sample_run_joint_models gModels = {
     .SAMPLE_IVPS_ALGO_HEIGHT = 540,
 };
 
+int gPipeAi_IvpsGrp; // 1
+int gPipeAi_IvpsChn; // 0
 
 /* venc task */
 AX_S32 SampleVencInit(COMMON_VENC_CASE_E eVencType);
@@ -272,9 +194,9 @@ int main(int argc, char *argv[])
 {
     gLoopExit = 0;
     g_isp_force_loop_exit = 0;
-    memset(&gModels,0,sizeof(gModels));
-    memset(&g_result_disp,0,sizeof(g_result_disp));
-    memset(&gCams,0,sizeof(gCams));
+    memset(&gModels, 0, sizeof(gModels));
+    memset(&g_result_disp, 0, sizeof(g_result_disp));
+    memset(&gCams, 0, sizeof(gCams));
     optind = 0;
 
     AX_S32 isExit = 0, i, ch;
@@ -350,100 +272,9 @@ int main(int argc, char *argv[])
 
     ALOGN("eSysCase=%d,eHdrMode=%d,eVencType=%d\n", eSysCase, eHdrMode, eVencType);
 
-    if (eSysCase == SYS_CASE_SINGLE_OS04A10)
+    s32Ret = COMMON_SET_CAM(eSysCase, eHdrMode, &eSnsType, &tCommonArgs);
+    if (s32Ret != 0)
     {
-        tCommonArgs.nCamCnt = 1;
-        eSnsType = OMNIVISION_OS04A10;
-        COMMON_ISP_GetSnsConfig(OMNIVISION_OS04A10, &gCams[0].stSnsAttr, &gCams[0].stSnsClkAttr, &gCams[0].stDevAttr, &gCams[0].stPipeAttr, &gCams[0].stChnAttr);
-        if (eHdrMode == AX_SNS_LINEAR_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04a10Sdr) / sizeof(gtSysCommPoolSingleOs04a10Sdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs04a10Sdr;
-        }
-        else if (eHdrMode == AX_SNS_HDR_2X_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04a10Hdr) / sizeof(gtSysCommPoolSingleOs04a10Hdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs04a10Hdr;
-        }
-        gCams[0].stPipeAttr.ePipeDataSrc = AX_PIPE_SOURCE_DEV_ONLINE;
-        gCams[0].stSnsAttr.nFrameRate = s_sample_framerate;
-    }
-    else if (eSysCase == SYS_CASE_SINGLE_OS04A10_ONLINE)
-    {
-        tCommonArgs.nCamCnt = 1;
-        eSnsType = OMNIVISION_OS04A10;
-        COMMON_ISP_GetSnsConfig(OMNIVISION_OS04A10, &gCams[0].stSnsAttr, &gCams[0].stSnsClkAttr, &gCams[0].stDevAttr, &gCams[0].stPipeAttr, &gCams[0].stChnAttr);
-        if (eHdrMode == AX_SNS_LINEAR_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04a10OnlineSdr) / sizeof(gtSysCommPoolSingleOs04a10OnlineSdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs04a10OnlineSdr;
-        }
-        else if (eHdrMode == AX_SNS_HDR_2X_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04a10OnlineHdr) / sizeof(gtSysCommPoolSingleOs04a10OnlineHdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs04a10OnlineHdr;
-        }
-        gCams[0].stPipeAttr.ePipeDataSrc = AX_PIPE_SOURCE_DEV_ONLINE;
-        gCams[0].stChnAttr.tChnAttr[0].nDepth = 1;
-        gCams[0].stChnAttr.tChnAttr[1].nDepth = 1;
-        gCams[0].stChnAttr.tChnAttr[2].nDepth = 1;
-        gCams[0].stSnsAttr.nFrameRate = s_sample_framerate;
-    }
-    else if (eSysCase == SYS_CASE_SINGLE_IMX334)
-    {
-        tCommonArgs.nCamCnt = 1;
-        eSnsType = SONY_IMX334;
-        COMMON_ISP_GetSnsConfig(SONY_IMX334, &gCams[0].stSnsAttr, &gCams[0].stSnsClkAttr, &gCams[0].stDevAttr, &gCams[0].stPipeAttr,
-                                &gCams[0].stChnAttr);
-        if (eHdrMode == AX_SNS_LINEAR_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleImx334Sdr) / sizeof(gtSysCommPoolSingleImx334Sdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleImx334Sdr;
-            gCams[0].stSnsAttr.eRawType = AX_RT_RAW12;
-            gCams[0].stDevAttr.ePixelFmt = AX_FORMAT_BAYER_RAW_12BPP;
-            gCams[0].stPipeAttr.ePixelFmt = AX_FORMAT_BAYER_RAW_12BPP;
-        }
-        else
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleImx334Hdr) / sizeof(gtSysCommPoolSingleImx334Hdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleImx334Hdr;
-        }
-        gCams[0].stSnsAttr.nFrameRate = s_sample_framerate;
-    }
-    else if (eSysCase == SYS_CASE_SINGLE_GC4653)
-    {
-        tCommonArgs.nCamCnt = 1;
-        eSnsType = GALAXYCORE_GC4653;
-        tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleGc4653) / sizeof(gtSysCommPoolSingleGc4653[0]);
-        tCommonArgs.pPoolCfg = gtSysCommPoolSingleGc4653;
-        COMMON_ISP_GetSnsConfig(GALAXYCORE_GC4653, &gCams[0].stSnsAttr, &gCams[0].stSnsClkAttr, &gCams[0].stDevAttr, &gCams[0].stPipeAttr,
-                                &gCams[0].stChnAttr);
-        gCams[0].stSnsAttr.nFrameRate = s_sample_framerate;
-    }
-    else if (eSysCase == SYS_CASE_SINGLE_OS08A20)
-    {
-        tCommonArgs.nCamCnt = 1;
-        eSnsType = OMNIVISION_OS08A20;
-        COMMON_ISP_GetSnsConfig(OMNIVISION_OS08A20, &gCams[0].stSnsAttr, &gCams[0].stSnsClkAttr, &gCams[0].stDevAttr, &gCams[0].stPipeAttr,
-                                &gCams[0].stChnAttr);
-        if (eHdrMode == AX_SNS_LINEAR_MODE)
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs08a20Sdr) / sizeof(gtSysCommPoolSingleOs08a20Sdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs08a20Sdr;
-            gCams[0].stSnsAttr.eRawType = AX_RT_RAW12;
-            gCams[0].stDevAttr.ePixelFmt = AX_FORMAT_BAYER_RAW_12BPP;
-            gCams[0].stPipeAttr.ePixelFmt = AX_FORMAT_BAYER_RAW_12BPP;
-        }
-        else
-        {
-            tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs08a20Hdr) / sizeof(gtSysCommPoolSingleOs08a20Hdr[0]);
-            tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs08a20Hdr;
-        }
-        gCams[0].stSnsAttr.nFrameRate = s_sample_framerate;
-    }
-    else
-    {
-        ALOGE("Unsupported case eSysCase=%d\n", eSysCase);
         PrintHelp(argv[0]);
         exit(0);
     }
@@ -468,28 +299,6 @@ int main(int argc, char *argv[])
         goto EXIT_1;
     }
 
-    for (i = 0; i < tCommonArgs.nCamCnt; i++)
-    {
-        gCams[i].eSnsType = eSnsType;
-        gCams[i].stSnsAttr.eSnsMode = eHdrMode;
-        gCams[i].stDevAttr.eSnsMode = eHdrMode;
-        gCams[i].stPipeAttr.eSnsMode = eHdrMode;
-        gCams[i].stChnAttr.tChnAttr[0].nDepth = 0;
-        gCams[i].stChnAttr.tChnAttr[1].nDepth = 0;
-        gCams[i].stChnAttr.tChnAttr[2].nDepth = 0;
-        if (i == 0)
-        {
-            gCams[i].nDevId = 0;
-            gCams[i].nRxDev = AX_MIPI_RX_DEV_0;
-            gCams[i].nPipeId = 0;
-        }
-        else if (i == 1)
-        {
-            gCams[i].nDevId = 2;
-            gCams[i].nRxDev = AX_MIPI_RX_DEV_2;
-            gCams[i].nPipeId = 2;
-        }
-    }
     /*step 3:npu init*/
     AX_NPU_SDK_EX_ATTR_T sNpuAttr;
     sNpuAttr.eHardMode = AX_NPU_VIRTUAL_1_1;
@@ -505,58 +314,12 @@ int main(int argc, char *argv[])
         现在默认 IVPS 输出的 AI 图像通道，会将图像置中并填充
         本 SAMPLE 的 AI 只支持 NV12 的输入
      */
-    if (gModels.bRunJoint == AX_TRUE)
+    s32Ret = COMMON_JOINT_Init();
+    if (0 != s32Ret)
     {
-        s32Ret = sample_run_joint_init(gModels.MODEL_PATH, &gModels.mMajor.JointHandle, &gModels.mMajor.JointAttr);
-        if (0 != s32Ret)
-        {
-            ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
-            goto EXIT_2;
-        }
-        ALOGN("load model %s success!\n", gModels.MODEL_PATH);
-        gModels.SAMPLE_ALGO_FORMAT = gModels.mMajor.JointAttr.algo_colorformat;
-        gModels.SAMPLE_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_height;
-        gModels.SAMPLE_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_width;
-
-        switch (gModels.ModelType_Main)
-        {
-        case MT_MLM_HUMAN_POSE_AXPPL:
-        case MT_MLM_HUMAN_POSE_HRNET:
-        case MT_MLM_HAND_POSE:
-        case MT_MLM_FACE_RECOGNITION:
-        case MT_MLM_VEHICLE_LICENSE_RECOGNITION:
-            s32Ret = sample_run_joint_init(gModels.MODEL_PATH_L2, &gModels.mMinor.JointHandle, &gModels.mMinor.JointAttr);
-            if (0 != s32Ret)
-            {
-                ALOGE("pose:sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
-                goto EXIT_2;
-            }
-            ALOGN("load l2 model %s success!\n", gModels.MODEL_PATH_L2);
-            break;
-        default:
-            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
-            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
-            break;
-        }
-
-        switch (gModels.ModelType_Main)
-        {
-        case MT_MLM_HUMAN_POSE_HRNET:
-        case MT_MLM_HUMAN_POSE_AXPPL:
-            gModels.SAMPLE_RESTORE_WIDTH = gModels.SAMPLE_IVPS_ALGO_WIDTH;
-            gModels.SAMPLE_RESTORE_HEIGHT = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
-            break;
-        default:
-            gModels.SAMPLE_RESTORE_WIDTH = SAMPLE_MAJOR_STREAM_WIDTH;
-            gModels.SAMPLE_RESTORE_HEIGHT = SAMPLE_MAJOR_STREAM_HEIGHT;
-            break;
-        }
+        ALOGE("COMMON_JOINT_Init failed,s32Ret:0x%x\n", s32Ret);
+        goto EXIT_2;
     }
-    else
-    {
-        ALOGN("Not specified model file\n");
-    }
-
 
     /*step 3:camera init*/
     s32Ret = COMMON_CAM_Init();
@@ -595,6 +358,8 @@ int main(int argc, char *argv[])
         ALOGE("SampleVencInit failed,s32Ret:0x%x\n", s32Ret);
         goto EXIT_5;
     }
+    gPipeAi_IvpsGrp = 1;
+    gPipeAi_IvpsChn = 0;
 
     s32Ret = VoInit("dsi0@480x854@60");
     if (AX_SUCCESS != s32Ret)
@@ -633,8 +398,7 @@ EXIT_4:
 
 EXIT_3:
     COMMON_CAM_Deinit();
-    sample_run_joint_release(gModels.mMajor.JointHandle);
-    sample_run_joint_release(gModels.mMinor.JointHandle);
+    COMMON_JOINT_Deinit();
 
 EXIT_2:
     SampleLinkDeInit();
