@@ -134,9 +134,15 @@ static inline void draw_pose_result(cv::Mat &img, sample_run_joint_object *pObj,
     }
 }
 
+extern "C" {
+    typedef int (*display_callback_for_sipeed_py)(int, int, int, char **);
+    display_callback_for_sipeed_py g_cb_display_sipeed_py = NULL;
+    int register_display_callback(display_callback_for_sipeed_py cb) { g_cb_display_sipeed_py = cb; }
+}
+
 void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
 {
-
+    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(out->height, out->width, CV_8UC4, (char**)&out->data) != 0)) return;
     cv::Mat image(out->height, out->width, CV_8UC4, out->data);
     for (size_t i = 0; i < results->nObjSize; i++)
     {
