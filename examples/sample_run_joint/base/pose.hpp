@@ -261,8 +261,8 @@ namespace pose
         ai_point_t kp;
         for (int c = 0; c < joint_num; ++c)
         {
-            kp.x = (float)point_data[c * 3] / img_w;
-            kp.y = (float)point_data[c * 3 + 1] / img_h;
+            kp.x = (float)point_data[c * 3];
+            kp.y = (float)point_data[c * 3 + 1];
             pose.keypoints.push_back(kp);
         }
         if (score_data[0] > 0.5)

@@ -3,22 +3,8 @@
 
 void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample_run_joint_object *pObj)
 {
-    static const int HRNET_JOINTS = 17;
+    // static const int HRNET_JOINTS = 17;
     sample_run_joint_attr *pJointAttr = &pModels->mMinor.JointAttr;
-    auto ptr = (float *)pJointAttr->pOutputs[0].pVirAddr;
-    auto ptr_index = (float *)pJointAttr->pOutputs[1].pVirAddr;
-    pose::ai_body_parts_s ai_point_result;
-    switch (pModels->ModelType_Main)
-    {
-    case MT_MLM_HUMAN_POSE_AXPPL:
-        pose::ppl_pose_post_process(ptr, ptr_index, ai_point_result, HRNET_JOINTS);
-        break;
-    case MT_MLM_HUMAN_POSE_HRNET:
-        pose::hrnet_post_process(ptr, ai_point_result, HRNET_JOINTS, pJointAttr->algo_height, pJointAttr->algo_width);
-        break;
-    default:
-        break;
-    }
 
     float scale_letterbox;
     int resize_rows;
@@ -44,11 +30,53 @@ void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample
     float ratio_x = (float)src_rows / resize_rows;
     float ratio_y = (float)src_cols / resize_cols;
 
-    pObj->bHasPoseLmk = 1;
-
-    for (size_t i = 0; i < HRNET_JOINTS; i++)
+    pose::ai_body_parts_s ai_point_result;
+    pose::ai_hand_parts_s ai_hand_point_result;
+    switch (pModels->ModelType_Main)
     {
-        pObj->pose_landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
-        pObj->pose_landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+    case MT_MLM_HUMAN_POSE_AXPPL:
+    {
+        auto ptr = (float *)pJointAttr->pOutputs[0].pVirAddr;
+        auto ptr_index = (float *)pJointAttr->pOutputs[1].pVirAddr;
+        pose::ppl_pose_post_process(ptr, ptr_index, ai_point_result, SAMPLE_RUN_JOINT_BODY_LMK_SIZE);
+        pObj->bHasBodyLmk = 1;
+        for (size_t i = 0; i < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; i++)
+        {
+            pObj->landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
+            pObj->landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+        }
+    }
+    break;
+    case MT_MLM_HUMAN_POSE_HRNET:
+    {
+        auto ptr = (float *)pJointAttr->pOutputs[0].pVirAddr;
+        pose::hrnet_post_process(ptr, ai_point_result, SAMPLE_RUN_JOINT_BODY_LMK_SIZE, pJointAttr->algo_height, pJointAttr->algo_width);
+        pObj->bHasBodyLmk = 1;
+        for (size_t i = 0; i < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; i++)
+        {
+            pObj->landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
+            pObj->landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+        }
+    }
+    break;
+    case MT_MLM_HAND_POSE:
+    {
+        auto &info_point = pJointAttr->pOutputs[0];
+        auto &info_score = pJointAttr->pOutputs[1];
+        auto point_ptr = (float *)info_point.pVirAddr;
+        auto score_ptr = (float *)info_score.pVirAddr;
+        pose::post_process_hand(point_ptr, score_ptr, ai_hand_point_result, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, pJointAttr->algo_height, pJointAttr->algo_width);
+        pObj->bHasHandLmk = 1;
+        for (size_t i = 0; i < SAMPLE_RUN_JOINT_HAND_LMK_SIZE; i++)
+        {
+            pObj->landmark[i].x = ai_hand_point_result.keypoints[i].x;
+            pObj->landmark[i].y = ai_hand_point_result.keypoints[i].y;
+            // pObj->landmark[i].x = (ai_hand_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
+            // pObj->landmark[i].y = (ai_hand_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+        }
+    }
+    break;
+    default:
+        break;
     }
 }

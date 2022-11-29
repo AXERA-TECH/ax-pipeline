@@ -374,12 +374,22 @@ AX_VOID __sigExit(int iSigNo)
 }
 int main(int argc, char *argv[])
 {
+    optind = 0;
     gLoopExit = 0;
     g_isp_force_loop_exit = 0;
     memset(&gModels, 0, sizeof(gModels));
     memset(&g_result_disp, 0, sizeof(g_result_disp));
     memset(&gCams, 0, sizeof(gCams));
-    optind = 0;
+
+    gModels.bRunJoint = AX_FALSE;
+    gModels.mMajor.JointHandle = NULL;
+    gModels.mMinor.JointHandle = NULL;
+    gModels.mMajor.ModelType = MT_UNKNOWN;
+    gModels.mMinor.ModelType = MT_UNKNOWN;
+    gModels.ModelType_Main = MT_UNKNOWN;
+    gModels.SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR;
+    gModels.SAMPLE_IVPS_ALGO_WIDTH = 960;
+    gModels.SAMPLE_IVPS_ALGO_HEIGHT = 540;
 
     int c;
     int isExit = 0, i;

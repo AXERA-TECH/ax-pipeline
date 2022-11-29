@@ -3,10 +3,10 @@
 #include "sample_run_joint.h"
 #define SAMPLE_MAX_BBOX_COUNT 64
 #define SAMPLE_MAX_FACE_BBOX_COUNT 64
-#define SAMPLE_MAX_POSE_OBJ_COUNT 5
+// #define SAMPLE_MAX_POSE_OBJ_COUNT 5
 #define SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT 8
 #define SAMPLE_OBJ_NAME_MAX_LEN 16
-
+#define SAMPLE_MAX_HAND_BBOX_COUNT 2
 typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
 {
     MT_UNKNOWN = -1,
@@ -19,6 +19,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_YOLOX,
     MT_DET_NANODET,
     MT_DET_YOLOX_PPL,
+    MT_DET_PALM_HAND,
 
     // segmentation
     MT_SEG = 0x20,
@@ -57,19 +58,23 @@ typedef struct _sample_run_joint_mat
 typedef struct _sample_run_joint_object
 {
     sample_run_joint_bbox bbox;
+    // bbox with rotate
+    char bHasBoxVertices;
+    sample_run_joint_point bbox_vertices[4];
 
-    int bHasFaceLmk;
+    char bHasFaceLmk;
+    char bHasBodyLmk;
+    char bHasHandLmk;
 #define SAMPLE_RUN_JOINT_FACE_LMK_SIZE 5
-    sample_run_joint_point face_landmark[SAMPLE_RUN_JOINT_FACE_LMK_SIZE];
+#define SAMPLE_RUN_JOINT_BODY_LMK_SIZE 17
+#define SAMPLE_RUN_JOINT_HAND_LMK_SIZE 21
+#define SAMPLE_RUN_JOINT_MAX_LMK_SIZE SAMPLE_RUN_JOINT_HAND_LMK_SIZE
+    sample_run_joint_point landmark[SAMPLE_RUN_JOINT_MAX_LMK_SIZE];
 
-    int bHasPoseLmk;
-#define SAMPLE_RUN_JOINT_POSE_LMK_SIZE 17
-    sample_run_joint_point pose_landmark[SAMPLE_RUN_JOINT_POSE_LMK_SIZE];
-
-    int bHaseMask;
+    char bHaseMask;
     sample_run_joint_mat mYolov5Mask; // cv::Mat
 
-    int label;
+    short label;
     float prob;
     char objname[SAMPLE_OBJ_NAME_MAX_LEN];
 } sample_run_joint_object;
@@ -82,10 +87,10 @@ typedef struct _sample_run_joint_pphumseg
 
 typedef struct _sample_run_joint_results
 {
-    int nObjSize;
+    short nObjSize;
     sample_run_joint_object mObjects[SAMPLE_MAX_BBOX_COUNT];
 
-    int bPPHumSeg;
+    char bPPHumSeg;
     sample_run_joint_pphumseg mPPHumSeg;
 
 } sample_run_joint_results;

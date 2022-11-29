@@ -129,14 +129,13 @@ int sample_set_param_det(void *json_obj)
     return 0;
 }
 
-void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modeltype, sample_run_joint_attr *pJointAttr, sample_run_joint_results *pResults,
-                                             int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
+void sample_run_joint_post_process_detection(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = pJointAttr->nOutputSize;
-    AX_JOINT_IOMETA_T *pOutputsInfo = pJointAttr->pOutputsInfo;
-    AX_JOINT_IO_BUFFER_T *pOutputs = pJointAttr->pOutputs;
+    AX_U32 nOutputSize = pModels->mMajor.JointAttr.nOutputSize;
+    AX_JOINT_IOMETA_T *pOutputsInfo = pModels->mMajor.JointAttr.pOutputsInfo;
+    AX_JOINT_IO_BUFFER_T *pOutputs = pModels->mMajor.JointAttr.pOutputs;
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
     for (uint32_t i = 0; i < nOutputSize; ++i)
@@ -145,24 +144,24 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
         auto &info = pOutputs[i];
         auto ptr = (float *)info.pVirAddr;
         int32_t stride = (1 << i) * 8;
-        switch (modeltype)
+        switch (pModels->mMajor.ModelType)
         {
         case MT_DET_YOLOV5:
-            generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, ANCHORS.data(), prob_threshold_unsigmoid, CLASS_NUM);
+            generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, CLASS_NUM);
             break;
         case MT_DET_YOLOV5_FACE:
-            generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, ANCHORS.data(), prob_threshold_unsigmoid);
+            generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid);
             break;
         case MT_DET_YOLOV7:
-            generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, ANCHORS.data() + i * 6, CLASS_NUM);
+            generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data() + i * 6, CLASS_NUM);
             break;
         case MT_DET_YOLOX:
-            generate_proposals_yolox(stride, ptr, PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, CLASS_NUM);
+            generate_proposals_yolox(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, CLASS_NUM);
             break;
         case MT_DET_NANODET:
         {
             static const int DEFAULT_STRIDES[] = {32, 16, 8};
-            generate_proposals_nanodet(ptr, DEFAULT_STRIDES[i], SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, PROB_THRESHOLD, proposals, CLASS_NUM);
+            generate_proposals_nanodet(ptr, DEFAULT_STRIDES[i], pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, PROB_THRESHOLD, proposals, CLASS_NUM);
         }
         break;
         case MT_DET_YOLOX_PPL:
@@ -170,7 +169,7 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
             std::vector<detection::GridAndStride> grid_stride;
             int wxc = output.pShape[2] * output.pShape[3];
             static std::vector<std::vector<int>> stride_ppl = {{8}, {16}, {32}};
-            generate_grids_and_stride(SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, stride_ppl[i], grid_stride);
+            generate_grids_and_stride(pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, stride_ppl[i], grid_stride);
             generate_yolox_proposals(grid_stride, ptr, PROB_THRESHOLD, proposals, wxc);
         }
         break;
@@ -179,7 +178,12 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
         }
     }
 
-    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
+    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, pModels->mMajor.JointAttr.algo_height, pModels->mMajor.JointAttr.algo_width, pModels->SAMPLE_RESTORE_HEIGHT, pModels->SAMPLE_RESTORE_WIDTH);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
 
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
@@ -192,14 +196,14 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
 
-        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasPoseLmk = 0;
-        if (modeltype == MT_DET_YOLOV5_FACE)
+        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasBodyLmk = pResults->mObjects[i].bHasHandLmk = 0;
+        if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE)
         {
+            pResults->mObjects[i].bHasFaceLmk = 1;
             for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
             {
-                pResults->mObjects[i].face_landmark[j].x = obj.landmark[j].x;
-                pResults->mObjects[i].face_landmark[j].y = obj.landmark[j].y;
-                pResults->mObjects[i].bHasFaceLmk = 1;
+                pResults->mObjects[i].landmark[j].x = obj.landmark[j].x;
+                pResults->mObjects[i].landmark[j].y = obj.landmark[j].y;
             }
         }
 
@@ -214,14 +218,13 @@ void sample_run_joint_post_process_detection(SAMPLE_RUN_JOINT_MODEL_TYPE modelty
     }
 }
 
-void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modeltype, sample_run_joint_attr *pJointAttr, sample_run_joint_results *pResults,
-                                              int SAMPLE_ALGO_WIDTH, int SAMPLE_ALGO_HEIGHT, int SAMPLE_MAJOR_STREAM_WIDTH, int SAMPLE_MAJOR_STREAM_HEIGHT)
+void sample_run_joint_post_process_yolov5_seg(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = pJointAttr->nOutputSize;
-    AX_JOINT_IOMETA_T *pOutputsInfo = pJointAttr->pOutputsInfo;
-    AX_JOINT_IO_BUFFER_T *pOutputs = pJointAttr->pOutputs;
+    AX_U32 nOutputSize = pModels->mMajor.JointAttr.nOutputSize;
+    AX_JOINT_IOMETA_T *pOutputsInfo = pModels->mMajor.JointAttr.pOutputsInfo;
+    AX_JOINT_IO_BUFFER_T *pOutputs = pModels->mMajor.JointAttr.pOutputs;
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
     for (uint32_t i = 0; i < nOutputSize - 1; ++i)
@@ -230,7 +233,7 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
         auto &info = pOutputs[i];
         auto ptr = (float *)info.pVirAddr;
         int32_t stride = (1 << i) * 8;
-        generate_proposals_yolov5_seg(stride, ptr, PROB_THRESHOLD, proposals, SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT, ANCHORS.data(), prob_threshold_unsigmoid);
+        generate_proposals_yolov5_seg(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid);
     }
     static const int DEFAULT_MASK_PROTO_DIM = 32;
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
@@ -238,7 +241,13 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
     auto &info = pOutputs[3];
     auto ptr = (float *)info.pVirAddr;
     detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
-                                 SAMPLE_ALGO_HEIGHT, SAMPLE_ALGO_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH);
+                                 pModels->mMajor.JointAttr.algo_height, pModels->mMajor.JointAttr.algo_width, pModels->SAMPLE_RESTORE_HEIGHT, pModels->SAMPLE_RESTORE_WIDTH);
+
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
 
     static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * 6);
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
@@ -252,7 +261,7 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
 
-        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasPoseLmk = 0;
+        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasBodyLmk = pResults->mObjects[i].bHasHandLmk = 0;
 
         pResults->mObjects[i].bHaseMask = !obj.mask.empty();
 
@@ -276,33 +285,81 @@ void sample_run_joint_post_process_yolov5_seg(SAMPLE_RUN_JOINT_MODEL_TYPE modelt
     }
 }
 
+void sample_run_joint_post_process_palm_hand(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
+{
+    static const int map_size[2] = {24, 12};
+    static const int strides[2] = {8, 16};
+    static const int anchor_size[2] = {2, 6};
+    static const float anchor_offset[2] = {0.5f, 0.5f};
+    std::vector<detection::PalmObject> proposals;
+    std::vector<detection::PalmObject> objects;
+
+    auto &bboxes_info = pModels->mMajor.JointAttr.pOutputs[0];
+    auto bboxes_ptr = (float *)bboxes_info.pVirAddr;
+    auto &scores_info = pModels->mMajor.JointAttr.pOutputs[1];
+    auto scores_ptr = (float *)scores_info.pVirAddr;
+    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    detection::generate_proposals_palm(proposals, PROB_THRESHOLD, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, scores_ptr, bboxes_ptr, 2, strides, anchor_size, anchor_offset, map_size, prob_threshold_unsigmoid);
+
+    detection::get_out_bbox_palm(proposals, objects, NMS_THRESHOLD, pModels->mMajor.JointAttr.algo_height, pModels->mMajor.JointAttr.algo_width, pModels->SAMPLE_RESTORE_HEIGHT, pModels->SAMPLE_RESTORE_WIDTH);
+
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::PalmObject &a, detection::PalmObject &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_HAND_BBOX_COUNT);
+    for (size_t i = 0; i < pResults->nObjSize; i++)
+    {
+        const detection::PalmObject &obj = objects[i];
+        pResults->mObjects[i].bbox.x = obj.rect.x * pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.y = obj.rect.y * pModels->SAMPLE_RESTORE_HEIGHT;
+        pResults->mObjects[i].bbox.w = obj.rect.width * pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.h = obj.rect.height * pModels->SAMPLE_RESTORE_HEIGHT;
+        pResults->mObjects[i].label = 0;
+        pResults->mObjects[i].prob = obj.prob;
+        pResults->mObjects[i].bHasBoxVertices = 1;
+        for (size_t j = 0; j < 4; j++)
+        {
+            pResults->mObjects[i].bbox_vertices[j].x = obj.vertices[j].x;
+            pResults->mObjects[i].bbox_vertices[j].y = obj.vertices[j].y;
+        }
+
+        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasBodyLmk = pResults->mObjects[i].bHasHandLmk = 0;
+
+        strcpy(pResults->mObjects[i].objname, "hand");
+    }
+}
+
 void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
 {
-    switch (pModels->mMajor.ModelType)
-    {
-    case MT_DET_YOLOV5:
-    case MT_DET_YOLOV5_FACE:
-    case MT_DET_YOLOV7:
-    case MT_DET_YOLOX:
-    case MT_DET_NANODET:
-    case MT_DET_YOLOX_PPL:
-    {
-        sample_run_joint_post_process_detection(pModels->mMajor.ModelType, &pModels->mMajor.JointAttr, pResults,
-                                                pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
-                                                pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
-    }
-    break;
-    case MT_INSEG_YOLOV5_MASK:
-    {
-        sample_run_joint_post_process_yolov5_seg(pModels->mMajor.ModelType, &pModels->mMajor.JointAttr, pResults,
-                                                 pModels->SAMPLE_ALGO_WIDTH, pModels->SAMPLE_ALGO_HEIGHT,
-                                                 pModels->SAMPLE_RESTORE_WIDTH, pModels->SAMPLE_RESTORE_HEIGHT);
-    }
-    break;
-    default:
-        break;
-    }
+    typedef void (*post_process_func)(sample_run_joint_results * pResults, sample_run_joint_models * pModels);
+    static std::map<int, post_process_func> m_func_map{
+        {MT_DET_YOLOV5, sample_run_joint_post_process_detection},
+        {MT_DET_YOLOV5_FACE, sample_run_joint_post_process_detection},
+        {MT_DET_YOLOV7, sample_run_joint_post_process_detection},
+        {MT_DET_YOLOX, sample_run_joint_post_process_detection},
+        {MT_DET_NANODET, sample_run_joint_post_process_detection},
+        {MT_DET_YOLOX_PPL, sample_run_joint_post_process_detection},
 
+        {MT_INSEG_YOLOV5_MASK, sample_run_joint_post_process_yolov5_seg},
+
+        {MT_DET_PALM_HAND, sample_run_joint_post_process_palm_hand},
+    };
+
+    auto item = m_func_map.find(pModels->mMajor.ModelType);
+
+    if (item != m_func_map.end())
+    {
+        item->second(pResults, pModels);
+    }
+    else
+    {
+        ALOGE("cannot find process func for modeltype %d", pModels->mMajor.ModelType);
+    }
+    
+    
     switch (pModels->ModelType_Main)
     {
     case MT_MLM_HUMAN_POSE_AXPPL:
@@ -319,12 +376,21 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
             pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
             pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
 
-            if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE)
+            if (pResults->mObjects[i].bHasFaceLmk)
             {
                 for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
                 {
-                    pResults->mObjects[i].face_landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
-                    pResults->mObjects[i].face_landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+                    pResults->mObjects[i].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                    pResults->mObjects[i].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+                }
+            }
+
+            if (pResults->mObjects[i].bHasBoxVertices)
+            {
+                for (size_t j = 0; j < 4; j++)
+                {
+                    pResults->mObjects[i].bbox_vertices[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                    pResults->mObjects[i].bbox_vertices[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
                 }
             }
         }

@@ -1,0 +1,18 @@
+{
+    "MODEL_TYPE": "MT_MLM_HAND_POSE",
+    "SAMPLE_IVPS_ALGO_WIDTH": 960,
+    "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "MODEL_MINOR": {
+        "MODEL_PATH": "./models/handpose.joint"
+    },
+    "MODEL_MAJOR": {
+        "MODEL_TYPE": "MT_DET_PALM_HAND",
+        "MODEL_PATH": "./models/palm_detection.joint",
+        "CLASS_NAMES": [
+            "hand"
+        ],
+        "CLASS_NUM": 1,
+        "NMS_THRESHOLD": 0.44999998807907104,
+        "PROB_THRESHOLD": 0.7000000059604645
+    }
+}

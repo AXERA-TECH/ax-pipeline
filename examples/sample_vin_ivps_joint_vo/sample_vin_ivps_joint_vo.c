@@ -184,12 +184,22 @@ static AX_VOID PrintHelp(char *testApp)
 
 int main(int argc, char *argv[])
 {
+    optind = 0;
     gLoopExit = 0;
     g_isp_force_loop_exit = 0;
     memset(&gModels, 0, sizeof(gModels));
     memset(&g_result_disp, 0, sizeof(g_result_disp));
     memset(&gCams, 0, sizeof(gCams));
-    optind = 0;
+
+    gModels.bRunJoint = AX_FALSE;
+    gModels.mMajor.JointHandle = NULL;
+    gModels.mMinor.JointHandle = NULL;
+    gModels.mMajor.ModelType = MT_UNKNOWN;
+    gModels.mMinor.ModelType = MT_UNKNOWN;
+    gModels.ModelType_Main = MT_UNKNOWN;
+    gModels.SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR;
+    gModels.SAMPLE_IVPS_ALGO_WIDTH = 960;
+    gModels.SAMPLE_IVPS_ALGO_HEIGHT = 540;
 
     AX_S32 isExit = 0, i, ch;
     AX_S32 s32Ret = 0;
@@ -334,7 +344,6 @@ int main(int argc, char *argv[])
     }
     gPipeAi_IvpsGrp = 1;
     gPipeAi_IvpsChn = 0;
-
 
     s32Ret = VoInit("dsi0@480x854@60");
     if (AX_SUCCESS != s32Ret)
