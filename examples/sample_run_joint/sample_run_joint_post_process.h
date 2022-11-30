@@ -23,6 +23,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_YOLOX_PPL,
     MT_DET_PALM_HAND,
     MT_DET_YOLOPV2,
+    MT_DET_YOLO_FASTBODY,
 
     // segmentation
     MT_SEG = 0x20,

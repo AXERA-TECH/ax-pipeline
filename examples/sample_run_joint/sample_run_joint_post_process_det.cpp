@@ -395,6 +395,135 @@ void sample_run_joint_post_process_yolopv2(sample_run_joint_results *pResults, s
     pResults->mYolopv2ll.data = ll_seg_mask.data;
 }
 
+void sample_run_joint_post_process_yolofastbody(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
+{
+    AX_U32 nOutputSize = pModels->mMajor.JointAttr.nOutputSize;
+    AX_JOINT_IOMETA_T *pOutputsInfo = pModels->mMajor.JointAttr.pOutputsInfo;
+    AX_JOINT_IO_BUFFER_T *pOutputs = pModels->mMajor.JointAttr.pOutputs;
+
+    static yolo::YoloDetectionOutput yolo{};
+    static std::vector<yolo::TMat> yolo_inputs, yolo_outputs;
+    static std::vector<float> output_buf;
+
+    static bool bInit = false;
+    if (!bInit)
+    {
+        bInit = true;
+        yolo.init(yolo::YOLO_FASTEST_BODY, NMS_THRESHOLD, PROB_THRESHOLD, 1);
+        yolo_inputs.resize(nOutputSize);
+        yolo_outputs.resize(1);
+        output_buf.resize(1000 * 6, 0);
+    }
+
+    for (uint32_t i = 0; i < nOutputSize; ++i)
+    {
+        auto &output = pOutputsInfo[i];
+        auto &info = pOutputs[i];
+
+        auto ptr = (float *)info.pVirAddr;
+
+        yolo_inputs[i].batch = output.pShape[0];
+        yolo_inputs[i].h = output.pShape[1];
+        yolo_inputs[i].w = output.pShape[2];
+        yolo_inputs[i].c = output.pShape[3];
+        yolo_inputs[i].data = ptr;
+    }
+
+    yolo_outputs[0].batch = 1;
+    yolo_outputs[0].c = 1;
+    yolo_outputs[0].h = 1000;
+    yolo_outputs[0].w = 6;
+    yolo_outputs[0].data = output_buf.data();
+
+    yolo.forward_nhwc(yolo_inputs, yolo_outputs);
+
+    std::vector<detection::Object> objects(yolo_outputs[0].h);
+    // for (size_t i = 0; i < yolo_outputs[0].h; i++)
+    // {
+    //     float *data_row = yolo_outputs[0].row((int)i);
+    //     detection::Object &object = objects[i];
+    //     object.rect.x = data_row[2] * (float)pModels->SAMPLE_ALGO_WIDTH;
+    //     object.rect.y = data_row[3] * (float)pModels->SAMPLE_ALGO_HEIGHT;
+    //     object.rect.width = (data_row[4] - data_row[2]) * (float)pModels->SAMPLE_ALGO_WIDTH;
+    //     object.rect.height = (data_row[5] - data_row[3]) * (float)pModels->SAMPLE_ALGO_HEIGHT;
+    //     object.label = (int)data_row[0];
+    //     object.prob = data_row[1];
+    // }
+
+    float scale_letterbox;
+    int resize_rows;
+    int resize_cols;
+    int letterbox_rows = pModels->SAMPLE_ALGO_HEIGHT;
+    int letterbox_cols = pModels->SAMPLE_ALGO_WIDTH;
+    int src_rows = pModels->SAMPLE_RESTORE_HEIGHT;
+    int src_cols = pModels->SAMPLE_RESTORE_WIDTH;
+    if ((letterbox_rows * 1.0 / src_rows) < (letterbox_cols * 1.0 / src_cols))
+    {
+        scale_letterbox = letterbox_rows * 1.0 / src_rows;
+    }
+    else
+    {
+        scale_letterbox = letterbox_cols * 1.0 / src_cols;
+    }
+    resize_cols = int(scale_letterbox * src_cols);
+    resize_rows = int(scale_letterbox * src_rows);
+
+    int tmp_h = (letterbox_rows - resize_rows) / 2;
+    int tmp_w = (letterbox_cols - resize_cols) / 2;
+
+    float ratio_x = (float)src_rows / resize_rows;
+    float ratio_y = (float)src_cols / resize_cols;
+
+    for (int i = 0; i < yolo_outputs[0].h; i++)
+    {
+        float *data_row = yolo_outputs[0].row((int)i);
+        detection::Object &object = objects[i];
+        object.rect.x = data_row[2] * (float)pModels->SAMPLE_ALGO_WIDTH;
+        object.rect.y = data_row[3] * (float)pModels->SAMPLE_ALGO_HEIGHT;
+        object.rect.width = (data_row[4] - data_row[2]) * (float)pModels->SAMPLE_ALGO_WIDTH;
+        object.rect.height = (data_row[5] - data_row[3]) * (float)pModels->SAMPLE_ALGO_HEIGHT;
+        object.label = (int)data_row[0];
+        object.prob = data_row[1];
+
+        float x0 = (objects[i].rect.x);
+        float y0 = (objects[i].rect.y);
+        float x1 = (objects[i].rect.x + objects[i].rect.width);
+        float y1 = (objects[i].rect.y + objects[i].rect.height);
+
+        x0 = (x0 - tmp_w) * ratio_x;
+        y0 = (y0 - tmp_h) * ratio_y;
+        x1 = (x1 - tmp_w) * ratio_x;
+        y1 = (y1 - tmp_h) * ratio_y;
+
+        x0 = std::max(std::min(x0, (float)(src_cols - 1)), 0.f);
+        y0 = std::max(std::min(y0, (float)(src_rows - 1)), 0.f);
+        x1 = std::max(std::min(x1, (float)(src_cols - 1)), 0.f);
+        y1 = std::max(std::min(y1, (float)(src_rows - 1)), 0.f);
+
+        objects[i].rect.x = x0;
+        objects[i].rect.y = y0;
+        objects[i].rect.width = x1 - x0;
+        objects[i].rect.height = y1 - y0;
+    }
+
+    pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (size_t i = 0; i < pResults->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        pResults->mObjects[i].bbox.x = obj.rect.x;
+        pResults->mObjects[i].bbox.y = obj.rect.y;
+        pResults->mObjects[i].bbox.w = obj.rect.width;
+        pResults->mObjects[i].bbox.h = obj.rect.height;
+        pResults->mObjects[i].label = obj.label;
+        pResults->mObjects[i].prob = obj.prob;
+
+        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasBodyLmk = pResults->mObjects[i].bHasHandLmk = 0;
+
+        pResults->mObjects[i].label = 0;
+        strcpy(pResults->mObjects[i].objname, "person");
+    }
+}
+
 void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
 {
     typedef void (*post_process_func)(sample_run_joint_results * pResults, sample_run_joint_models * pModels);
@@ -407,6 +536,8 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
         {MT_DET_YOLOX_PPL, sample_run_joint_post_process_detection},
 
         {MT_DET_YOLOPV2, sample_run_joint_post_process_yolopv2},
+
+        {MT_DET_YOLO_FASTBODY, sample_run_joint_post_process_yolofastbody},
 
         {MT_INSEG_YOLOV5_MASK, sample_run_joint_post_process_yolov5_seg},
 
