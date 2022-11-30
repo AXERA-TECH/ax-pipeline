@@ -7,6 +7,8 @@
 #define SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT 8
 #define SAMPLE_OBJ_NAME_MAX_LEN 16
 #define SAMPLE_MAX_HAND_BBOX_COUNT 2
+#define SAMPLE_RINGBUFFER_CACHE_COUNT 8
+#define SAMPLE_CLASS_ID_COUNT 5
 typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
 {
     MT_UNKNOWN = -1,
@@ -20,6 +22,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_NANODET,
     MT_DET_YOLOX_PPL,
     MT_DET_PALM_HAND,
+    MT_DET_YOLOPV2,
 
     // segmentation
     MT_SEG = 0x20,
@@ -79,11 +82,11 @@ typedef struct _sample_run_joint_object
     char objname[SAMPLE_OBJ_NAME_MAX_LEN];
 } sample_run_joint_object;
 
-typedef struct _sample_run_joint_pphumseg
-{
-#define SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE 192 * 192
-    unsigned char mask[SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE];
-} sample_run_joint_pphumseg;
+// typedef struct _sample_run_joint_pphumseg
+// {
+// #define SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE 192 * 192
+//     unsigned char mask[SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE];
+// } sample_run_joint_pphumseg;
 
 typedef struct _sample_run_joint_results
 {
@@ -91,7 +94,11 @@ typedef struct _sample_run_joint_results
     sample_run_joint_object mObjects[SAMPLE_MAX_BBOX_COUNT];
 
     char bPPHumSeg;
-    sample_run_joint_pphumseg mPPHumSeg;
+    sample_run_joint_mat mPPHumSeg;
+
+    char bYolopv2Mask;
+    sample_run_joint_mat mYolopv2seg;
+    sample_run_joint_mat mYolopv2ll;
 
 } sample_run_joint_results;
 
@@ -108,6 +115,9 @@ typedef struct _sample_run_joint_models
     SAMPLE_RUN_JOINT_MODEL_TYPE ModelType_Main;
 
     sample_run_joint_model_base mMajor, mMinor;
+
+    int NUM_MINOR_CLASS_ID;
+    int MINOR_CLASS_IDS[SAMPLE_CLASS_ID_COUNT];
 
     int SAMPLE_ALGO_FORMAT;
     int SAMPLE_ALGO_WIDTH, SAMPLE_ALGO_HEIGHT;

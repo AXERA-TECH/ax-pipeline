@@ -12,6 +12,9 @@
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
     "MODEL_PATH": "/root/test/install/bin/yolov5s.joint", //第一层节点
     "MODEL_MINOR": {
+        "CLASS_ID": [
+            0
+        ],
         "MODEL_PATH": "/root/test/install/bin/hrnet_256x192.joint"
     },
     "MODEL_MAJOR": {
@@ -24,7 +27,9 @@
 
 ```MODEL_MAJOR```：二级模型中的第一级模型，一般是检测模型，例如 [hrnet_pose.json](../examples/sample_run_joint/config/hrnet_pose.json) 中，此节点跟 [yolov5s.json](../examples/sample_run_joint/config/yolov5s.json) 内容是几乎一样的。
 
-```MODEL_MAJOR```：二级模型中的第二级模型，设置一些第二级模型需要的参数。比如现在命令行参数中去设置第二级模型的路径非常不优雅，所以 [hrnet_pose.json](../examples/sample_run_joint/config/hrnet_pose.json) 中，此节点设置了第二级模型的路径。
+```MODEL_MINOR```：二级模型中的第二级模型，设置一些第二级模型需要的参数。比如现在命令行参数中去设置第二级模型的路径非常不优雅，所以 [hrnet_pose.json](../examples/sample_run_joint/config/hrnet_pose.json) 中，此节点设置了第二级模型的路径。
+
+```CLASS_ID```：当一级模型为多类别检测时，可以通过这个节点来设置类别，以过滤不需要的其他类别，定义为数组时考虑到可能会有多任务的情况。
 
 ### 检测模型节点
 ```ANCHORS```：常见于基于锚点的目标检测，如果是 free-anchor 的模型，则可以不设置，例如 [yolox.json](../examples/sample_run_joint/config/yolox.json)

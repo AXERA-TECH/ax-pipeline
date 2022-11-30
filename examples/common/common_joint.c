@@ -11,7 +11,7 @@ int COMMON_JOINT_Init()
             ALOGE("sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
             return -1;
         }
-        ALOGN("load model %s success!\n", gModels.MODEL_PATH);
+        ALOGN("load model %s success,input resulotion width=%d height=%d !\n", gModels.MODEL_PATH, gModels.mMajor.JointAttr.algo_width, gModels.mMajor.JointAttr.algo_height);
         gModels.SAMPLE_ALGO_FORMAT = gModels.mMajor.JointAttr.algo_colorformat;
         gModels.SAMPLE_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_height;
         gModels.SAMPLE_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_width;
@@ -29,11 +29,12 @@ int COMMON_JOINT_Init()
                 ALOGE("pose:sample_run_joint_init failed,s32Ret:0x%x\n", s32Ret);
                 return -1;
             }
-            ALOGN("load l2 model %s success!\n", gModels.MODEL_PATH_L2);
+            ALOGN("load l2 model %s success,input resulotion width=%d height=%d!\n", gModels.MODEL_PATH_L2, gModels.mMinor.JointAttr.algo_width, gModels.mMinor.JointAttr.algo_height);
+
             break;
         default:
-            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_height;
-            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_width;
+            gModels.SAMPLE_IVPS_ALGO_WIDTH = gModels.mMajor.JointAttr.algo_width;
+            gModels.SAMPLE_IVPS_ALGO_HEIGHT = gModels.mMajor.JointAttr.algo_height;
             break;
         }
 

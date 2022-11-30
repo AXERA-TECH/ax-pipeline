@@ -56,15 +56,24 @@ make install
 6、编译完成后，生成的可执行示例存放在 `ax-pipeline/build/install/bin/` 路径下：
 
 ```shell
-ax-pipeline/buildtree$ install
+ax-pipeline/build$ tree install
 install
 └── bin
     ├── config
+    │   ├── ax_person_det.json
+    │   ├── ax_pose.json
+    │   ├── ax_pose_yolov5s.json
+    │   ├── hand_pose.json
+    │   ├── hrnet_pose.json
+    │   ├── nanodet.json
+    │   ├── palm_hand_detection.json
+    │   ├── pp_human_seg.json
+    │   ├── yolov5_seg.json
     │   ├── yolov5s.json
     │   ├── yolov5s_face.json
-    │   ├── yolov5s_face_nv12_11.sha1sum
-    │   └── yolov5s_sub_nv12_11.sha1sum
-    ├── libax_rtsp.so
+    │   ├── yolov7.json
+    │   └── yolox.json
+    ├── sample_npucv_warp
     ├── sample_vin_ivps_joint_venc_rtsp
     ├── sample_vin_ivps_joint_venc_rtsp_vo
     ├── sample_vin_ivps_joint_vo

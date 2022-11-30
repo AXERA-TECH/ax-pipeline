@@ -1,0 +1,26 @@
+{
+    "MODEL_TYPE": "MT_DET_YOLOPV2",
+    "MODEL_PATH": "./models/yolopv2.joint",
+    "ANCHORS": [
+        12,
+        16,
+        19,
+        36,
+        40,
+        28,
+        36,
+        75,
+        76,
+        55,
+        72,
+        146,
+        142,
+        110,
+        192,
+        243,
+        459,
+        401
+    ],
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}

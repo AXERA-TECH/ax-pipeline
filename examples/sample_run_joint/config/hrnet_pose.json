@@ -4,6 +4,9 @@
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
     "MODEL_PATH": "./models/yolov5s.joint",
     "MODEL_MINOR": {
+        "CLASS_ID": [
+            0
+        ],
         "MODEL_PATH": "./models/hrnet_256x192.joint"
     },
     "MODEL_MAJOR": {

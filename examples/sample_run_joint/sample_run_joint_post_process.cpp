@@ -5,7 +5,8 @@
 #include "opencv2/opencv.hpp"
 #include "npu_cv_kit/ax_npu_imgproc.h"
 #include "ax_sys_api.h"
-#include "utilities/timer.hpp"
+// #include "utilities/timer.hpp"
+#include "../utilities/ringbuffer.hpp"
 
 extern "C"
 {
@@ -29,7 +30,7 @@ static std::map<std::string, int> ModelTypeTable = {
     {"MT_MLM_HAND_POSE", MT_MLM_HAND_POSE},
     {"MT_DET_YOLOX_PPL", MT_DET_YOLOX_PPL},
     {"MT_DET_PALM_HAND", MT_DET_PALM_HAND},
-
+    {"MT_DET_YOLOPV2", MT_DET_YOLOPV2},
 };
 
 int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
@@ -151,6 +152,15 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
                 std::string hrnet_path = json_minor["MODEL_PATH"];
                 strcpy(pModels->MODEL_PATH_L2, hrnet_path.data());
             }
+            if (json_minor.contains("CLASS_ID"))
+            {
+                std::vector<int> clsids = json_minor["CLASS_ID"];
+                pModels->NUM_MINOR_CLASS_ID = MIN(clsids.size(), SAMPLE_CLASS_ID_COUNT);
+                for (int i = 0; i < pModels->NUM_MINOR_CLASS_ID; i++)
+                {
+                    pModels->MINOR_CLASS_IDS[i] = clsids[i];
+                }
+            }
         }
 
         break;
@@ -178,9 +188,24 @@ int _sample_run_joint_inference_pphumseg(sample_run_joint_models *pModels, const
     int ret = sample_run_joint_inference(pModels->mMajor.JointHandle, pstFrame, NULL);
     pResults->bPPHumSeg = 1;
     auto ptr = (float *)pModels->mMajor.JointAttr.pOutputs[0].pVirAddr;
-    for (int j = 0; j < SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE; ++j)
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_RINGBUFFER_CACHE_COUNT);
+
+    int seg_h = pModels->mMajor.JointAttr.pOutputsInfo->pShape[2];
+    int seg_w = pModels->mMajor.JointAttr.pOutputsInfo->pShape[3];
+    int seg_size = seg_h * seg_w;
+
+    cv::Mat &seg_mat = mSimpleRingBuffer.next();
+    if (seg_mat.empty())
     {
-        pResults->mPPHumSeg.mask[j] = (ptr[j] < ptr[j + SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE]) ? 255 : 0;
+        seg_mat = cv::Mat(seg_h, seg_w, CV_8UC1);
+    }
+    pResults->mPPHumSeg.h = seg_h;
+    pResults->mPPHumSeg.w = seg_w;
+    pResults->mPPHumSeg.data = seg_mat.data;
+
+    for (int j = 0; j < seg_h * seg_w; ++j)
+    {
+        pResults->mPPHumSeg.data[j] = (ptr[j] < ptr[j + seg_size]) ? 255 : 0;
     }
     return ret;
 }
@@ -195,7 +220,7 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
     AX_BOOL bHasHuman = AX_FALSE;
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
-        if (pResults->mObjects[i].label == 0)
+        if (pResults->mObjects[i].label == pModels->MINOR_CLASS_IDS[0])
         {
             if (pResults->mObjects[i].bbox.w * pResults->mObjects[i].bbox.h > HumObj.bbox.w * HumObj.bbox.h)
             {
@@ -352,6 +377,19 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
 {
     int ret;
     memset(pResults, 0, sizeof(sample_run_joint_results));
+
+#if AX_DEBUG
+    static int cnt = 0;
+    if (cnt++ % 30 == 0)
+    {
+        cv::Mat src(((AX_NPU_CV_Image *)pstFrame)->nHeight, ((AX_NPU_CV_Image *)pstFrame)->nWidth, CV_8UC3, ((AX_NPU_CV_Image *)pstFrame)->pVir);
+        char path[128];
+        sprintf(path, "debug_%05d.jpg", cnt);
+        cv::imwrite(path, src);
+        printf("save %s\n", path);
+    }
+#endif
+
     typedef int (*inference_func)(sample_run_joint_models * pModels, const void *pstFrame, sample_run_joint_results *pResults);
     static std::map<int, inference_func> m_func_map{
         {MT_DET_YOLOV5, _sample_run_joint_inference_det},
@@ -362,6 +400,7 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
         {MT_INSEG_YOLOV5_MASK, _sample_run_joint_inference_det},
         {MT_DET_YOLOX_PPL, _sample_run_joint_inference_det},
         {MT_DET_PALM_HAND, _sample_run_joint_inference_det},
+        {MT_DET_YOLOPV2, _sample_run_joint_inference_det},
 
         {MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
 

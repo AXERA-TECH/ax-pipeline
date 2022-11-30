@@ -3,6 +3,9 @@
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
     "MODEL_MINOR": {
+        "CLASS_ID": [
+            0
+        ],
         "MODEL_PATH": "./models/ax_pose.joint"
     },
     "MODEL_MAJOR": {

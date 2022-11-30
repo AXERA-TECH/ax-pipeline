@@ -249,7 +249,7 @@ void sample_run_joint_post_process_yolov5_seg(sample_run_joint_results *pResults
                   return a.rect.area() > b.rect.area();
               });
 
-    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * 6);
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
@@ -332,6 +332,69 @@ void sample_run_joint_post_process_palm_hand(sample_run_joint_results *pResults,
     }
 }
 
+void sample_run_joint_post_process_yolopv2(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
+{
+    AX_U32 nOutputSize = pModels->mMajor.JointAttr.nOutputSize;
+    AX_JOINT_IOMETA_T *pOutputsInfo = pModels->mMajor.JointAttr.pOutputsInfo;
+    AX_JOINT_IO_BUFFER_T *pOutputs = pModels->mMajor.JointAttr.pOutputs;
+
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+
+    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 2; i < nOutputSize; ++i)
+    {
+        auto &output = pOutputsInfo[i];
+        auto &info = pOutputs[i];
+
+        auto ptr = (float *)info.pVirAddr;
+
+        int32_t stride = (1 << (i - 2)) * 8;
+        generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, 80);
+    }
+
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer_seg(SAMPLE_RINGBUFFER_CACHE_COUNT), mSimpleRingBuffer_ll(SAMPLE_RINGBUFFER_CACHE_COUNT);
+    auto &da_info = pOutputs[0];
+    auto da_ptr = (float *)da_info.pVirAddr;
+    auto &ll_info = pOutputs[1];
+    auto ll_ptr = (float *)ll_info.pVirAddr;
+    cv::Mat &da_seg_mask = mSimpleRingBuffer_seg.next();
+    cv::Mat &ll_seg_mask = mSimpleRingBuffer_ll.next();
+
+    detection::get_out_bbox_yolopv2(proposals, objects, da_ptr, ll_ptr, ll_seg_mask, da_seg_mask,
+                                    NMS_THRESHOLD, pModels->mMajor.JointAttr.algo_height, pModels->mMajor.JointAttr.algo_width,
+                                    pModels->SAMPLE_RESTORE_HEIGHT, pModels->SAMPLE_RESTORE_WIDTH);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+    pResults->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (size_t i = 0; i < pResults->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        pResults->mObjects[i].bbox.x = obj.rect.x;
+        pResults->mObjects[i].bbox.y = obj.rect.y;
+        pResults->mObjects[i].bbox.w = obj.rect.width;
+        pResults->mObjects[i].bbox.h = obj.rect.height;
+        pResults->mObjects[i].label = obj.label;
+        pResults->mObjects[i].prob = obj.prob;
+
+        pResults->mObjects[i].bHasFaceLmk = pResults->mObjects[i].bHaseMask = pResults->mObjects[i].bHasBodyLmk = pResults->mObjects[i].bHasHandLmk = 0;
+
+        pResults->mObjects[i].label = 0;
+        strcpy(pResults->mObjects[i].objname, "car");
+    }
+
+    pResults->bYolopv2Mask = 1;
+    pResults->mYolopv2seg.h = da_seg_mask.rows;
+    pResults->mYolopv2seg.w = da_seg_mask.cols;
+    pResults->mYolopv2seg.data = da_seg_mask.data;
+    pResults->mYolopv2ll.h = ll_seg_mask.rows;
+    pResults->mYolopv2ll.w = ll_seg_mask.cols;
+    pResults->mYolopv2ll.data = ll_seg_mask.data;
+}
+
 void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pResults, sample_run_joint_models *pModels)
 {
     typedef void (*post_process_func)(sample_run_joint_results * pResults, sample_run_joint_models * pModels);
@@ -342,6 +405,8 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
         {MT_DET_YOLOX, sample_run_joint_post_process_detection},
         {MT_DET_NANODET, sample_run_joint_post_process_detection},
         {MT_DET_YOLOX_PPL, sample_run_joint_post_process_detection},
+
+        {MT_DET_YOLOPV2, sample_run_joint_post_process_yolopv2},
 
         {MT_INSEG_YOLOV5_MASK, sample_run_joint_post_process_yolov5_seg},
 
@@ -358,8 +423,7 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
     {
         ALOGE("cannot find process func for modeltype %d", pModels->mMajor.ModelType);
     }
-    
-    
+
     switch (pModels->ModelType_Main)
     {
     case MT_MLM_HUMAN_POSE_AXPPL:
