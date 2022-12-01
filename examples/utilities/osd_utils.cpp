@@ -104,8 +104,14 @@ static inline void draw_pose_result(cv::Mat &img, sample_run_joint_object *pObj,
         case 1:
             color = cv::Scalar(255, 0, 0, 255);
             break;
-        default:
+        case 2:
             color = cv::Scalar(255, 0, 255, 0);
+            break;
+        case 3:
+            color = cv::Scalar(255, 255, 0, 255);
+            break;
+        default:
+            color = cv::Scalar(255, 255, 255, 255);
         }
 
         int x1 = (int)(pObj->landmark[element.connection[0]].x * img.cols) + offset_x;
@@ -211,25 +217,25 @@ void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_
 
         if (results->mObjects[i].bHasBodyLmk)
         {
-            static std::vector<pose::skeleton> pairs = {{15, 13, 0},
-                                                        {13, 11, 0},
-                                                        {16, 14, 0},
-                                                        {14, 12, 0},
-                                                        {11, 12, 0},
-                                                        {5, 11, 0},
-                                                        {6, 12, 0},
-                                                        {5, 6, 0},
-                                                        {5, 7, 0},
-                                                        {6, 8, 0},
-                                                        {7, 9, 0},
-                                                        {8, 10, 0},
-                                                        {1, 2, 0},
-                                                        {0, 1, 0},
-                                                        {0, 2, 0},
-                                                        {1, 3, 0},
-                                                        {2, 4, 0},
-                                                        {0, 5, 0},
-                                                        {0, 6, 0}};
+            static std::vector<pose::skeleton> pairs = {{15, 13, 2},
+                                                        {13, 11, 2},
+                                                        {16, 14, 2},
+                                                        {14, 12, 2},
+                                                        {11, 12, 2},
+                                                        {5, 11, 2},
+                                                        {6, 12, 2},
+                                                        {5, 6, 2},
+                                                        {5, 7, 2},
+                                                        {6, 8, 2},
+                                                        {7, 9, 2},
+                                                        {8, 10, 2},
+                                                        {1, 2, 2},
+                                                        {0, 1, 2},
+                                                        {0, 2, 2},
+                                                        {1, 3, 2},
+                                                        {2, 4, 2},
+                                                        {0, 5, 2},
+                                                        {0, 6, 2}};
             draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_BODY_LMK_SIZE, offset_x, offset_y);
         }
 
@@ -300,7 +306,6 @@ int freeObjs(sample_run_joint_results *results)
 {
     results->bYolopv2Mask = 0;
     results->bPPHumSeg = 0;
-    results->nObjSize = 0;
     for (size_t i = 0; i < results->nObjSize; i++)
     {
         if (results->mObjects[i].bHaseMask && results->mObjects[i].mYolov5Mask.data)
@@ -309,6 +314,7 @@ int freeObjs(sample_run_joint_results *results)
             results->mObjects[i].mYolov5Mask.data = nullptr;
         }
     }
+    results->nObjSize = 0;
     results->mPPHumSeg.data = nullptr;
     results->mYolopv2ll.data = nullptr;
     results->mYolopv2seg.data = nullptr;

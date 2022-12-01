@@ -223,25 +223,111 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
     {
         if (pResults->mObjects[i].label == pModels->MINOR_CLASS_IDS[0])
         {
-            if (pResults->mObjects[i].bbox.w * pResults->mObjects[i].bbox.h > HumObj.bbox.w * HumObj.bbox.h)
-            {
-                HumObj.bbox.x = std::max(pResults->mObjects[i].bbox.x, 1.f);
-                HumObj.bbox.y = std::max(pResults->mObjects[i].bbox.y, 1.f);
-                HumObj.bbox.w = std::min(pResults->mObjects[i].bbox.w, pModels->SAMPLE_RESTORE_WIDTH - HumObj.bbox.x - 1);
-                HumObj.bbox.h = std::min(pResults->mObjects[i].bbox.h, pModels->SAMPLE_RESTORE_HEIGHT - HumObj.bbox.y - 1);
-                bHasHuman = AX_TRUE;
-                idx = i;
-            }
+            // if (pResults->mObjects[i].bbox.w * pResults->mObjects[i].bbox.h > HumObj.bbox.w * HumObj.bbox.h)
+            // {
+            memcpy(&HumObj, &pResults->mObjects[i], sizeof(sample_run_joint_object));
+            bHasHuman = AX_TRUE;
+            idx = i;
+            break;
+            // }
         }
     }
 
     if (bHasHuman == AX_TRUE && pModels->mMinor.JointHandle && HumObj.bbox.w > 0 && HumObj.bbox.h > 0)
     {
-        ret = sample_run_joint_inference(pModels->mMinor.JointHandle, pstFrame, &HumObj.bbox);
+        static AX_NPU_CV_Image tmp = {0};
+        if (!tmp.pVir)
+        {
+            tmp.eDtype = ((AX_NPU_CV_Image *)pstFrame)->eDtype;
+            tmp.nHeight = pModels->mMinor.JointAttr.algo_height;
+            tmp.nWidth = pModels->mMinor.JointAttr.algo_width;
+            tmp.tStride.nW = tmp.nWidth;
+            if (tmp.eDtype == AX_NPU_CV_FDT_NV12)
+            {
+                tmp.nSize = tmp.nHeight * tmp.nWidth * 3 / 2;
+            }
+            else if (tmp.eDtype == AX_NPU_CV_FDT_RGB || tmp.eDtype == AX_NPU_CV_FDT_BGR)
+            {
+                tmp.nSize = tmp.nHeight * tmp.nWidth * 3;
+            }
+            else
+            {
+                ALOGE("just only support nv12/rgb/bgr format\n");
+                return -1;
+            }
+            AX_SYS_MemAlloc(&tmp.pPhy, (void **)&tmp.pVir, tmp.nSize, 0x100, NULL);
+        }
+
+        cv::Point2f src_pts[4];
+
+        if ((HumObj.bbox.w / HumObj.bbox.h) >
+            (float(pModels->mMinor.JointAttr.algo_width) / float(pModels->mMinor.JointAttr.algo_height)))
+        {
+            float offset = ((HumObj.bbox.w * (float(pModels->mMinor.JointAttr.algo_height) / float(pModels->mMinor.JointAttr.algo_width))) - HumObj.bbox.h) / 2;
+
+            src_pts[0] = cv::Point2f(HumObj.bbox.x, HumObj.bbox.y - offset);
+            src_pts[1] = cv::Point2f(HumObj.bbox.x + HumObj.bbox.w, HumObj.bbox.y - offset);
+            src_pts[2] = cv::Point2f(HumObj.bbox.x + HumObj.bbox.w, HumObj.bbox.y + HumObj.bbox.h + offset);
+            src_pts[3] = cv::Point2f(HumObj.bbox.x, HumObj.bbox.y + HumObj.bbox.h + offset);
+        }
+        else
+        {
+            float offset = ((HumObj.bbox.h * (float(pModels->mMinor.JointAttr.algo_width) / float(pModels->mMinor.JointAttr.algo_height))) - HumObj.bbox.w) / 2;
+
+            src_pts[0] = cv::Point2f(HumObj.bbox.x - offset, HumObj.bbox.y);
+            src_pts[1] = cv::Point2f(HumObj.bbox.x + HumObj.bbox.w + offset, HumObj.bbox.y);
+            src_pts[2] = cv::Point2f(HumObj.bbox.x + HumObj.bbox.w + offset, HumObj.bbox.y + HumObj.bbox.h);
+            src_pts[3] = cv::Point2f(HumObj.bbox.x - offset, HumObj.bbox.y + HumObj.bbox.h);
+        }
+
+        cv::Point2f dst_pts[4];
+        dst_pts[0] = cv::Point2f(0, 0);
+        dst_pts[1] = cv::Point2f(pModels->mMinor.JointAttr.algo_width, 0);
+        dst_pts[2] = cv::Point2f(pModels->mMinor.JointAttr.algo_width, pModels->mMinor.JointAttr.algo_height);
+        dst_pts[3] = cv::Point2f(0, pModels->mMinor.JointAttr.algo_height);
+
+        cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
+        cv::Mat affine_trans_mat_inv;
+        cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+
+        float mat3x3[3][3] = {
+            {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
+            {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
+            {0, 0, 1}};
+        // //这里要用AX_NPU_MODEL_TYPE_1_1_2
+        ret = AX_NPU_CV_Warp(AX_NPU_MODEL_TYPE_1_1_2, (AX_NPU_CV_Image *)pstFrame, &tmp, &mat3x3[0][0], AX_NPU_CV_BILINEAR, 128);
+
+        // static int cnt = 0;
+        // if (cnt++ % 30 == 0)
+        // {
+        //     cv::Mat src(256 * 1.5, 192, CV_8UC1, tmp.pVir);
+        //     cv::Mat dst;
+        //     cv::cvtColor(src, dst, cv::COLOR_YUV2BGR_NV12);
+        //     char path[128];
+        //     sprintf(path, "debug_%05d.jpg", cnt);
+        //     cv::imwrite(path, dst);
+        //     printf("save %s\n", path);
+        // }
+
+        ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &tmp, NULL);
         sample_run_joint_post_process_pose(pModels, &HumObj);
         pResults->nObjSize = 1;
+
+        memcpy(&pResults->mObjects[0], &HumObj, sizeof(sample_run_joint_object));
         pResults->mObjects[0].bHasBodyLmk = 1;
-        memcpy(&pResults->mObjects[0].landmark[0], &HumObj.landmark[0], sizeof(HumObj.landmark));
+
+        for (int j = 0; j < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; j++)
+        {
+            /*
+            [x`]   [m00,m01,m02]   [x]   [m00*x + m01*y + m02]
+            [y`] = [m10,m11,m12] * [y] = [m10*x + m11*y + m12]
+            [1 ]   [0  ,0  ,1  ]   [1]   [          1        ]
+           */
+            int x = affine_trans_mat_inv.at<double>(0, 0) * pResults->mObjects[0].landmark[j].x + affine_trans_mat_inv.at<double>(0, 1) * pResults->mObjects[0].landmark[j].y + affine_trans_mat_inv.at<double>(0, 2);
+            int y = affine_trans_mat_inv.at<double>(1, 0) * pResults->mObjects[0].landmark[j].x + affine_trans_mat_inv.at<double>(1, 1) * pResults->mObjects[0].landmark[j].y + affine_trans_mat_inv.at<double>(1, 2);
+            pResults->mObjects[0].landmark[j].x = x;
+            pResults->mObjects[0].landmark[j].y = y;
+        }
     }
 
     for (int i = 0; i < pResults->nObjSize; i++)

@@ -42,8 +42,8 @@ void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample
         pObj->bHasBodyLmk = 1;
         for (size_t i = 0; i < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; i++)
         {
-            pObj->landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
-            pObj->landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+            pObj->landmark[i].x = ai_point_result.keypoints[i].x;
+            pObj->landmark[i].y = ai_point_result.keypoints[i].y;
         }
     }
     break;
@@ -54,8 +54,8 @@ void sample_run_joint_post_process_pose(sample_run_joint_models *pModels, sample
         pObj->bHasBodyLmk = 1;
         for (size_t i = 0; i < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; i++)
         {
-            pObj->landmark[i].x = (ai_point_result.keypoints[i].x - tmp_w) * ratio_x + pObj->bbox.x;
-            pObj->landmark[i].y = (ai_point_result.keypoints[i].y - tmp_h) * ratio_y + pObj->bbox.y;
+            pObj->landmark[i].x = ai_point_result.keypoints[i].x;
+            pObj->landmark[i].y = ai_point_result.keypoints[i].y;
         }
     }
     break;
