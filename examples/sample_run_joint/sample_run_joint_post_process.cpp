@@ -13,7 +13,11 @@ extern "C"
     //给sipeed的python包用的
     typedef int (*result_callback_for_sipeed_py)(void *, sample_run_joint_results *);
     result_callback_for_sipeed_py g_cb_results_sipeed_py = NULL;
-    int register_result_callback(result_callback_for_sipeed_py cb) { g_cb_results_sipeed_py = cb; return 0; }
+    int register_result_callback(result_callback_for_sipeed_py cb)
+    {
+        g_cb_results_sipeed_py = cb;
+        return 0;
+    }
 }
 
 static std::map<std::string, int> ModelTypeTable = {
@@ -314,9 +318,7 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
         ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &tmp, NULL);
         sample_run_joint_post_process_pose(pModels, &HumObj);
         pResults->nObjSize = 1;
-
         memcpy(&pResults->mObjects[0], &HumObj, sizeof(sample_run_joint_object));
-        pResults->mObjects[0].bHasLandmark = SAMPLE_RUN_JOINT_BODY_LMK_SIZE;
 
         for (int j = 0; j < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; j++)
         {
@@ -339,9 +341,9 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
         pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
         pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
 
-        if (pResults->mObjects[i].bHasLandmark == SAMPLE_RUN_JOINT_BODY_LMK_SIZE)
+        if (pResults->mObjects[i].nLandmark)
         {
-            for (int j = 0; j < SAMPLE_RUN_JOINT_BODY_LMK_SIZE; j++)
+            for (int j = 0; j < SAMPLE_RUN_JOINT_MAX_LMK_SIZE; j++)
             {
                 pResults->mObjects[idx].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
                 pResults->mObjects[idx].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
@@ -361,16 +363,13 @@ int _sample_run_joint_inference_animal_pose(sample_run_joint_models *pModels, co
     AX_BOOL bHasHuman = AX_FALSE;
     for (size_t i = 0; i < pResults->nObjSize; i++)
     {
-        for(int j = 0; pModels->MINOR_CLASS_IDS[j] && j < SAMPLE_CLASS_ID_COUNT; j++)
+        for (int j = 0; j < pModels->NUM_MINOR_CLASS_ID && j < SAMPLE_CLASS_ID_COUNT; j++)
         {
             if (pResults->mObjects[i].label == pModels->MINOR_CLASS_IDS[j])
             {
                 if (pResults->mObjects[i].bbox.w * pResults->mObjects[i].bbox.h > HumObj.bbox.w * HumObj.bbox.h)
                 {
-                    HumObj.bbox.x = std::max(pResults->mObjects[i].bbox.x, 1.f);
-                    HumObj.bbox.y = std::max(pResults->mObjects[i].bbox.y, 1.f);
-                    HumObj.bbox.w = std::min(pResults->mObjects[i].bbox.w, pModels->SAMPLE_RESTORE_WIDTH - HumObj.bbox.x - 1);
-                    HumObj.bbox.h = std::min(pResults->mObjects[i].bbox.h, pModels->SAMPLE_RESTORE_HEIGHT - HumObj.bbox.y - 1);
+                    memcpy(&HumObj, &pResults->mObjects[i], sizeof(sample_run_joint_object));
                     bHasHuman = AX_TRUE;
                     idx = i;
                     break; // pResults->nObjSize = 1;
@@ -384,8 +383,8 @@ int _sample_run_joint_inference_animal_pose(sample_run_joint_models *pModels, co
         ret = sample_run_joint_inference(pModels->mMinor.JointHandle, pstFrame, &HumObj.bbox);
         sample_run_joint_post_process_pose(pModels, &HumObj);
         pResults->nObjSize = 1;
-        pResults->mObjects[0].bHasLandmark = SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE;
-        memcpy(&pResults->mObjects[0].landmark[0], &HumObj.landmark[0], sizeof(HumObj.landmark));
+        memcpy(&pResults->mObjects[0], &HumObj, sizeof(sample_run_joint_object));
+        // memcpy(&pResults->mObjects[0].landmark[0], &HumObj.landmark[0], sizeof(HumObj.landmark));
     }
 
     for (int i = 0; i < pResults->nObjSize; i++)
@@ -395,9 +394,9 @@ int _sample_run_joint_inference_animal_pose(sample_run_joint_models *pModels, co
         pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
         pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
 
-        if (pResults->mObjects[i].bHasLandmark == SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE)
+        if (pResults->mObjects[i].nLandmark)
         {
-            for (int j = 0; j < SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE; j++)
+            for (int j = 0; j < SAMPLE_RUN_JOINT_MAX_LMK_SIZE; j++)
             {
                 pResults->mObjects[idx].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
                 pResults->mObjects[idx].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
@@ -506,9 +505,9 @@ int _sample_run_joint_inference_handpose(sample_run_joint_models *pModels, const
             }
         }
 
-        if (pResults->mObjects[i].bHasLandmark == SAMPLE_RUN_JOINT_HAND_LMK_SIZE)
+        if (pResults->mObjects[i].nLandmark)
         {
-            for (size_t j = 0; j < SAMPLE_RUN_JOINT_HAND_LMK_SIZE; j++)
+            for (size_t j = 0; j < SAMPLE_RUN_JOINT_MAX_LMK_SIZE; j++)
             {
                 pResults->mObjects[i].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
                 pResults->mObjects[i].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
@@ -522,7 +521,7 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
 {
     int ret;
     memset(pResults, 0, sizeof(sample_run_joint_results));
-
+    pResults->mModelType = pModels->ModelType_Main;
 #if AX_DEBUG
     static int cnt = 0;
     if (cnt++ % 30 == 0)
@@ -573,6 +572,20 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
     {
         int retcbnikeyi = g_cb_results_sipeed_py((void *)pstFrame, pResults);
     }
+
+    static int fcnt = 0;
+    static int fps = -1;
+    fcnt++;
+    static struct timespec ts1, ts2;
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
+    {
+        // printf("%s => H26X FPS:%d     \r\n", tips, fcnt);
+        fps = fcnt;
+        ts1 = ts2;
+        fcnt = 0;
+    }
+    pResults->niFps = fps;
 
     return ret;
 }

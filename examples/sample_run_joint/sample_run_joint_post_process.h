@@ -11,7 +11,7 @@
 #define SAMPLE_CLASS_ID_COUNT 5
 typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
 {
-    MT_UNKNOWN = -1,
+    MT_UNKNOWN = 0,
 
     // detection
     MT_DET = 0x10,
@@ -66,7 +66,7 @@ typedef struct _sample_run_joint_object
     int bHasBoxVertices; // bbox with rotate
     sample_run_joint_point bbox_vertices[4];
 
-    int bHasLandmark; // none 0 face 5 body 17 animal 20 hand 21
+    int nLandmark; // num of lmk
 #define SAMPLE_RUN_JOINT_FACE_LMK_SIZE 5
 #define SAMPLE_RUN_JOINT_BODY_LMK_SIZE 17
 #define SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE 20
@@ -82,14 +82,9 @@ typedef struct _sample_run_joint_object
     char objname[SAMPLE_OBJ_NAME_MAX_LEN];
 } sample_run_joint_object;
 
-// typedef struct _sample_run_joint_pphumseg
-// {
-// #define SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE 192 * 192
-//     unsigned char mask[SAMPLE_RUN_JOINT_PP_HUM_SEG_SIZE];
-// } sample_run_joint_pphumseg;
-
 typedef struct _sample_run_joint_results
 {
+    int mModelType; // SAMPLE_RUN_JOINT_MODEL_TYPE
     int nObjSize;
     sample_run_joint_object mObjects[SAMPLE_MAX_BBOX_COUNT];
 
@@ -99,6 +94,8 @@ typedef struct _sample_run_joint_results
     int bYolopv2Mask;
     sample_run_joint_mat mYolopv2seg;
     sample_run_joint_mat mYolopv2ll;
+
+    int niFps /*inference*/, noFps /*osd*/;
 
 } sample_run_joint_results;
 

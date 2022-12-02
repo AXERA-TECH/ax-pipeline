@@ -196,10 +196,10 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
 
-        pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
+        // pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
         if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE)
         {
-            pResults->mObjects[i].bHasLandmark = SAMPLE_RUN_JOINT_FACE_LMK_SIZE;
+            pResults->mObjects[i].nLandmark = SAMPLE_RUN_JOINT_FACE_LMK_SIZE;
             for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
             {
                 pResults->mObjects[i].landmark[j].x = obj.landmark[j].x;
@@ -260,9 +260,6 @@ void sample_run_joint_post_process_yolov5_seg(sample_run_joint_results *pResults
         pResults->mObjects[i].bbox.h = obj.rect.height;
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
-
-        pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
-
 
         pResults->mObjects[i].bHasMask = !obj.mask.empty();
 
@@ -327,8 +324,6 @@ void sample_run_joint_post_process_palm_hand(sample_run_joint_results *pResults,
             pResults->mObjects[i].bbox_vertices[j].y = obj.vertices[j].y;
         }
 
-        pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
-
         strcpy(pResults->mObjects[i].objname, "hand");
     }
 }
@@ -380,8 +375,6 @@ void sample_run_joint_post_process_yolopv2(sample_run_joint_results *pResults, s
         pResults->mObjects[i].bbox.h = obj.rect.height;
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
-
-        pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
 
         pResults->mObjects[i].label = 0;
         strcpy(pResults->mObjects[i].objname, "car");
@@ -517,9 +510,6 @@ void sample_run_joint_post_process_yolofastbody(sample_run_joint_results *pResul
         pResults->mObjects[i].bbox.h = obj.rect.height;
         pResults->mObjects[i].label = obj.label;
         pResults->mObjects[i].prob = obj.prob;
-
-        pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
-
         pResults->mObjects[i].label = 0;
         strcpy(pResults->mObjects[i].objname, "person");
     }
@@ -573,7 +563,7 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
             pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
             pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
 
-            if (pResults->mObjects[i].bHasLandmark == SAMPLE_RUN_JOINT_FACE_LMK_SIZE)
+            if (pResults->mModelType == MT_DET_YOLOV5_FACE)
             {
                 for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
                 {
