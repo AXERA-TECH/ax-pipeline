@@ -1,6 +1,11 @@
 # 模型支持的列表以及下载地址
 后处理是直接扣的 [ax-samples](https://github.com/AXERA-TECH/ax-samples)，后续可能会添加一些开源的车牌识别、人体姿态的多级模型示例代码，不好合到主线的也可能在分支实现（画饼）。
 
+### 备注
+- FPS 仅表示 [sample_vin_ivps_joint_vo](../examples/sample_vin_ivps_joint_vo) 在当前状态测得的速度，无法代表其他应用在其他场景及模型测得的速度
+- OSD 对 CPU 资源的占用不容小觑，在某些模型推理时可能会极大的影响模型的推理速度以及整个pipeline的运行效率，其中带有 mask 信息的模型尤为明显
+- 某些多级模型的配置文件是可以组合使用的，例如 ax_pose 既可以与 ax_person_det.joint组合使用，也可以与 yolov5s 组合使用，同理，hrnet 也可以与 ax_person_det.joint 组合使用，如 [ax_pose_yolov5s.json](../examples/sample_run_joint/config/ax_pose_yolov5s.json) 和 [hrnet_pose_ax_det.json](../examples/sample_run_joint/config/hrnet_pose_ax_det.json)
+
 |模型|FPS|[枚举值](../examples/sample_run_joint/sample_run_joint_post_process.h)|下载地址|配置文件(有则表示主线已经支持)|备注|
 |-|-|-|-|-|-|
 |yolov5|25|```MT_DET_YOLOV5```|[bgr](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s.joint) / [nv12](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s-face.joint)|[yolov5s.json](../examples/sample_run_joint/config/yolov5s.json)|[如何更换自己训练的 yolov5 模型](../docs/how_to_deploy_custom_yolov5_model.md)|
