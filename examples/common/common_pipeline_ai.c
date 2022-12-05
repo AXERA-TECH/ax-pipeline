@@ -99,16 +99,14 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
             }
             else
             {
-                g_result_disp.nObjSize = 0;
-                g_result_disp.bPPHumSeg = 0;
+                memset(&g_result_mutex, 0, sizeof(sample_run_joint_results));
             }
             pthread_mutex_unlock(&g_result_mutex);
         }
         else
         {
             pthread_mutex_lock(&g_result_mutex);
-            g_result_disp.nObjSize = 0;
-            g_result_disp.bPPHumSeg = 0;
+            memset(&g_result_mutex, 0, sizeof(sample_run_joint_results));
             pthread_mutex_unlock(&g_result_mutex);
         }
 

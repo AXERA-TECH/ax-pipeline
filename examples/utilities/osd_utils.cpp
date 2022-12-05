@@ -24,6 +24,8 @@
 #include "osd_utils.h"
 #include "../common/sample_def.h"
 #include "sstream"
+#include <map>
+#include "sample_log.h"
 
 extern "C"
 {
@@ -36,6 +38,9 @@ extern "C"
         return 0;
     }
 }
+
+static const std::vector<cv::Scalar> COCO_COLORS = {
+    {128, 56, 0, 255}, {128, 226, 255, 0}, {128, 0, 94, 255}, {128, 0, 37, 255}, {128, 0, 255, 94}, {128, 255, 226, 0}, {128, 0, 18, 255}, {128, 255, 151, 0}, {128, 170, 0, 255}, {128, 0, 255, 56}, {128, 255, 0, 75}, {128, 0, 75, 255}, {128, 0, 255, 169}, {128, 255, 0, 207}, {128, 75, 255, 0}, {128, 207, 0, 255}, {128, 37, 0, 255}, {128, 0, 207, 255}, {128, 94, 0, 255}, {128, 0, 255, 113}, {128, 255, 18, 0}, {128, 255, 0, 56}, {128, 18, 0, 255}, {128, 0, 255, 226}, {128, 170, 255, 0}, {128, 255, 0, 245}, {128, 151, 255, 0}, {128, 132, 255, 0}, {128, 75, 0, 255}, {128, 151, 0, 255}, {128, 0, 151, 255}, {128, 132, 0, 255}, {128, 0, 255, 245}, {128, 255, 132, 0}, {128, 226, 0, 255}, {128, 255, 37, 0}, {128, 207, 255, 0}, {128, 0, 255, 207}, {128, 94, 255, 0}, {128, 0, 226, 255}, {128, 56, 255, 0}, {128, 255, 94, 0}, {128, 255, 113, 0}, {128, 0, 132, 255}, {128, 255, 0, 132}, {128, 255, 170, 0}, {128, 255, 0, 188}, {128, 113, 255, 0}, {128, 245, 0, 255}, {128, 113, 0, 255}, {128, 255, 188, 0}, {128, 0, 113, 255}, {128, 255, 0, 0}, {128, 0, 56, 255}, {128, 255, 0, 113}, {128, 0, 255, 188}, {128, 255, 0, 94}, {128, 255, 0, 18}, {128, 18, 255, 0}, {128, 0, 255, 132}, {128, 0, 188, 255}, {128, 0, 245, 255}, {128, 0, 169, 255}, {128, 37, 255, 0}, {128, 255, 0, 151}, {128, 188, 0, 255}, {128, 0, 255, 37}, {128, 0, 255, 0}, {128, 255, 0, 170}, {128, 255, 0, 37}, {128, 255, 75, 0}, {128, 0, 0, 255}, {128, 255, 207, 0}, {128, 255, 0, 226}, {128, 255, 245, 0}, {128, 188, 255, 0}, {128, 0, 255, 18}, {128, 0, 255, 75}, {128, 0, 255, 151}, {128, 255, 56, 0}, {128, 245, 255, 0}};
 
 void genImg(int charlen, float fontscale, int thickness, osd_utils_img *out)
 {
@@ -134,37 +139,8 @@ static inline void draw_pose_result(cv::Mat &img, sample_run_joint_object *pObj,
     }
 }
 
-void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+void _draw_bbox(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
 {
-    static const std::vector<cv::Scalar> COCO_COLORS = {
-        {128, 56, 0, 255}, {128, 226, 255, 0}, {128, 0, 94, 255}, {128, 0, 37, 255}, {128, 0, 255, 94}, {128, 255, 226, 0}, {128, 0, 18, 255}, {128, 255, 151, 0}, {128, 170, 0, 255}, {128, 0, 255, 56}, {128, 255, 0, 75}, {128, 0, 75, 255}, {128, 0, 255, 169}, {128, 255, 0, 207}, {128, 75, 255, 0}, {128, 207, 0, 255}, {128, 37, 0, 255}, {128, 0, 207, 255}, {128, 94, 0, 255}, {128, 0, 255, 113}, {128, 255, 18, 0}, {128, 255, 0, 56}, {128, 18, 0, 255}, {128, 0, 255, 226}, {128, 170, 255, 0}, {128, 255, 0, 245}, {128, 151, 255, 0}, {128, 132, 255, 0}, {128, 75, 0, 255}, {128, 151, 0, 255}, {128, 0, 151, 255}, {128, 132, 0, 255}, {128, 0, 255, 245}, {128, 255, 132, 0}, {128, 226, 0, 255}, {128, 255, 37, 0}, {128, 207, 255, 0}, {128, 0, 255, 207}, {128, 94, 255, 0}, {128, 0, 226, 255}, {128, 56, 255, 0}, {128, 255, 94, 0}, {128, 255, 113, 0}, {128, 0, 132, 255}, {128, 255, 0, 132}, {128, 255, 170, 0}, {128, 255, 0, 188}, {128, 113, 255, 0}, {128, 245, 0, 255}, {128, 113, 0, 255}, {128, 255, 188, 0}, {128, 0, 113, 255}, {128, 255, 0, 0}, {128, 0, 56, 255}, {128, 255, 0, 113}, {128, 0, 255, 188}, {128, 255, 0, 94}, {128, 255, 0, 18}, {128, 18, 255, 0}, {128, 0, 255, 132}, {128, 0, 188, 255}, {128, 0, 245, 255}, {128, 0, 169, 255}, {128, 37, 255, 0}, {128, 255, 0, 151}, {128, 188, 0, 255}, {128, 0, 255, 37}, {128, 0, 255, 0}, {128, 255, 0, 170}, {128, 255, 0, 37}, {128, 255, 75, 0}, {128, 0, 0, 255}, {128, 255, 207, 0}, {128, 255, 0, 226}, {128, 255, 245, 0}, {128, 188, 255, 0}, {128, 0, 255, 18}, {128, 0, 255, 75}, {128, 0, 255, 151}, {128, 255, 56, 0}, {128, 245, 255, 0}};
-
-    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(out->height, out->width, CV_8UC4, (char **)&out->data) != 0))
-        return;
-    cv::Mat image(out->height, out->width, CV_8UC4, out->data);
-
-    if (results->bPPHumSeg && results->mPPHumSeg.data)
-    {
-        static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
-        cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
-        cv::Mat mask(results->mPPHumSeg.h, results->mPPHumSeg.w, CV_8UC1, results->mPPHumSeg.data);
-        cv::resize(mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
-        image.setTo(cv::Scalar(66, 0, 0, 128), tmp);
-    }
-
-    if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
-    {
-        static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
-        cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
-
-        cv::Mat seg_mask(results->mYolopv2seg.h, results->mYolopv2seg.w, CV_8UC1, results->mYolopv2seg.data);
-        cv::resize(seg_mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
-        image.setTo(cv::Scalar(66, 0, 0, 128), tmp);
-
-        cv::Mat ll_mask(results->mYolopv2ll.h, results->mYolopv2ll.w, CV_8UC1, results->mYolopv2ll.data);
-        cv::resize(ll_mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
-        image.setTo(cv::Scalar(66, 0, 128, 0), tmp);
-    }
 
     for (size_t i = 0; i < results->nObjSize; i++)
     {
@@ -218,103 +194,33 @@ void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_
             cv::putText(image, results->mObjects[i].objname, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale,
                         cv::Scalar(0, 0, 0, 255), thickness);
         }
-        switch (results->mModelType)
-        {
-        case MT_DET_YOLOV5_FACE:
-        {
-            for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
-            {
-                cv::Point p(results->mObjects[i].landmark[j].x * out->width + offset_x,
-                            results->mObjects[i].landmark[j].y * out->height + offset_y);
-                cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), 2);
-            }
-            break;
-        }
-        case MT_MLM_HUMAN_POSE_AXPPL:
-        case MT_MLM_HUMAN_POSE_HRNET:
-        {
-            static std::vector<pose::skeleton> pairs = {{15, 13, 0},
-                                                        {13, 11, 0},
-                                                        {16, 14, 0},
-                                                        {14, 12, 0},
-                                                        {11, 12, 0},
-                                                        {5, 11, 0},
-                                                        {6, 12, 0},
-                                                        {5, 6, 0},
-                                                        {5, 7, 0},
-                                                        {6, 8, 0},
-                                                        {7, 9, 0},
-                                                        {8, 10, 0},
-                                                        {1, 2, 0},
-                                                        {0, 1, 0},
-                                                        {0, 2, 0},
-                                                        {1, 3, 0},
-                                                        {2, 4, 0},
-                                                        {0, 5, 0},
-                                                        {0, 6, 0}};
-            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_BODY_LMK_SIZE, offset_x, offset_y);
-            break;
-        }
-        case MT_MLM_ANIMAL_POSE_HRNET:
-        {
-            static std::vector<pose::skeleton> pairs = {{19, 15, 0},
-                                                        {18, 14, 0},
-                                                        {17, 13, 0},
-                                                        {16, 12, 0},
-                                                        {15, 11, 0},
-                                                        {14, 10, 0},
-                                                        {13, 9, 0},
-                                                        {12, 8, 0},
-                                                        {11, 6, 0},
-                                                        {10, 6, 0},
-                                                        {9, 7, 0},
-                                                        {8, 7, 0},
-                                                        {6, 7, 0},
-                                                        {7, 5, 0},
-                                                        {5, 4, 0},
-                                                        {0, 2, 0},
-                                                        {1, 3, 0},
-                                                        {0, 1, 0},
-                                                        {0, 4, 0},
-                                                        {1, 4, 0}};
-            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE, offset_x, offset_y);
-            break;
-        }
-        case MT_MLM_HAND_POSE:
-        {
-            for (size_t j = 0; j < SAMPLE_RUN_JOINT_HAND_LMK_SIZE; j++)
-            {
-                cv::Point p(results->mObjects[i].landmark[j].x * out->width + offset_x,
-                            results->mObjects[i].landmark[j].y * out->height + offset_y);
-                cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), 2);
-            }
-            static std::vector<pose::skeleton> hand_pairs = {{0, 1, 0},
-                                                             {1, 2, 0},
-                                                             {2, 3, 0},
-                                                             {3, 4, 0},
-                                                             {0, 5, 1},
-                                                             {5, 6, 1},
-                                                             {6, 7, 1},
-                                                             {7, 8, 1},
-                                                             {0, 9, 2},
-                                                             {9, 10, 2},
-                                                             {10, 11, 2},
-                                                             {11, 12, 2},
-                                                             {0, 13, 3},
-                                                             {13, 14, 3},
-                                                             {14, 15, 3},
-                                                             {15, 16, 3},
-                                                             {0, 17, 4},
-                                                             {17, 18, 4},
-                                                             {18, 19, 4},
-                                                             {19, 20, 4}};
-            draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
-            break;
-        }
+    }
+}
 
-        default:
-            break;
+void _draw_yolov5_face(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
+        {
+            cv::Point p(results->mObjects[i].landmark[j].x * out->width + offset_x,
+                        results->mObjects[i].landmark[j].y * out->height + offset_y);
+            cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), 2);
         }
+    }
+}
+
+void _draw_yolov5_seg(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        cv::Rect rect(results->mObjects[i].bbox.x * out->width + offset_x,
+                      results->mObjects[i].bbox.y * out->height + offset_y,
+                      results->mObjects[i].bbox.w * out->width,
+                      results->mObjects[i].bbox.h * out->height);
+
         if (results->mObjects[i].bHasMask && results->mObjects[i].mYolov5Mask.data)
         {
             cv::Mat mask(results->mObjects[i].mYolov5Mask.h, results->mObjects[i].mYolov5Mask.w, CV_8U, results->mObjects[i].mYolov5Mask.data);
@@ -335,12 +241,201 @@ void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_
             }
         }
     }
+}
 
+void _draw_yolopv2(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
+    {
+        static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
+        cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
+
+        cv::Mat seg_mask(results->mYolopv2seg.h, results->mYolopv2seg.w, CV_8UC1, results->mYolopv2seg.data);
+        cv::resize(seg_mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
+        image.setTo(cv::Scalar(66, 0, 0, 128), tmp);
+
+        cv::Mat ll_mask(results->mYolopv2ll.h, results->mYolopv2ll.w, CV_8UC1, results->mYolopv2ll.data);
+        cv::resize(ll_mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
+        image.setTo(cv::Scalar(66, 0, 128, 0), tmp);
+    }
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+}
+
+void _draw_human_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        static std::vector<pose::skeleton> hand_pairs = {{0, 1, 0},
+                                                         {1, 2, 0},
+                                                         {2, 3, 0},
+                                                         {3, 4, 0},
+                                                         {0, 5, 1},
+                                                         {5, 6, 1},
+                                                         {6, 7, 1},
+                                                         {7, 8, 1},
+                                                         {0, 9, 2},
+                                                         {9, 10, 2},
+                                                         {10, 11, 2},
+                                                         {11, 12, 2},
+                                                         {0, 13, 3},
+                                                         {13, 14, 3},
+                                                         {14, 15, 3},
+                                                         {15, 16, 3},
+                                                         {0, 17, 4},
+                                                         {17, 18, 4},
+                                                         {18, 19, 4},
+                                                         {19, 20, 4}};
+        draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+    }
+}
+
+void _draw_hand_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        static std::vector<pose::skeleton> hand_pairs = {{0, 1, 0},
+                                                         {1, 2, 0},
+                                                         {2, 3, 0},
+                                                         {3, 4, 0},
+                                                         {0, 5, 1},
+                                                         {5, 6, 1},
+                                                         {6, 7, 1},
+                                                         {7, 8, 1},
+                                                         {0, 9, 2},
+                                                         {9, 10, 2},
+                                                         {10, 11, 2},
+                                                         {11, 12, 2},
+                                                         {0, 13, 3},
+                                                         {13, 14, 3},
+                                                         {14, 15, 3},
+                                                         {15, 16, 3},
+                                                         {0, 17, 4},
+                                                         {17, 18, 4},
+                                                         {18, 19, 4},
+                                                         {19, 20, 4}};
+        draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+    }
+}
+
+void _draw_animal_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        static std::vector<pose::skeleton> pairs = {{19, 15, 0},
+                                                    {18, 14, 0},
+                                                    {17, 13, 0},
+                                                    {16, 12, 0},
+                                                    {15, 11, 0},
+                                                    {14, 10, 0},
+                                                    {13, 9, 0},
+                                                    {12, 8, 0},
+                                                    {11, 6, 0},
+                                                    {10, 6, 0},
+                                                    {9, 7, 0},
+                                                    {8, 7, 0},
+                                                    {6, 7, 0},
+                                                    {7, 5, 0},
+                                                    {5, 4, 0},
+                                                    {0, 2, 0},
+                                                    {1, 3, 0},
+                                                    {0, 1, 0},
+                                                    {0, 4, 0},
+                                                    {1, 4, 0}};
+        draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE, offset_x, offset_y);
+    }
+}
+
+void _draw_pphumseg(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    if (results->bPPHumSeg && results->mPPHumSeg.data)
+    {
+        static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
+        cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
+        cv::Mat mask(results->mPPHumSeg.h, results->mPPHumSeg.w, CV_8UC1, results->mPPHumSeg.data);
+        cv::resize(mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
+        image.setTo(cv::Scalar(66, 0, 0, 128), tmp);
+    }
+}
+
+void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    static std::map<int, std::string> m_map{
+        {MT_DET_YOLOV5, "yolov5"},
+        {MT_DET_YOLOX_PPL, "ax_person_det"},
+        {MT_DET_PALM_HAND, "palm_hand_det"},
+        {MT_DET_YOLOV7, "yolov7"},
+        {MT_DET_YOLOX, "yolox"},
+        {MT_DET_NANODET, "nanodet"},
+        {MT_DET_YOLO_FASTBODY, "yolo_fastbody"},
+
+        {MT_DET_YOLOV5_FACE, "yolov5_face"},
+        {MT_INSEG_YOLOV5_MASK, "yolov5_seg"},
+
+        {MT_DET_YOLOPV2, "yolopv2"},
+
+        {MT_SEG_PPHUMSEG, "pp_human_seg"},
+
+        {MT_MLM_HUMAN_POSE_HRNET, "hrnet_human_pose"},
+        {MT_MLM_HUMAN_POSE_AXPPL, "ax_human_pose"},
+
+        {MT_MLM_ANIMAL_POSE_HRNET, "hrnet_animal_pose"},
+        {MT_MLM_HAND_POSE, "hand_pose"},
+    };
     static char common_info[128];
-    sprintf(common_info, "fps:%d", results->niFps);
+    auto item = m_map.find(results->mModelType);
+
+    if (item != m_map.end())
+    {
+        sprintf(common_info, "%s fps:%02d", item->second.c_str(), results->niFps);
+    }
+    else
+    {
+        sprintf(common_info, "%s fps:%02d", "unknown", results->niFps);
+    }
+    
     cv::Size label_size = cv::getTextSize(common_info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness, NULL);
     cv::putText(image, common_info, cv::Point(0, label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5,
                 cv::Scalar(255, 0, 255, 255), thickness);
+}
+
+void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
+{
+    typedef void (*draw_func)(cv::Mat & image, osd_utils_img * out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y);
+    static std::map<int, draw_func> m_func_map{
+        {MT_DET_YOLOV5, _draw_bbox},
+        {MT_DET_YOLOX_PPL, _draw_bbox},
+        {MT_DET_PALM_HAND, _draw_bbox},
+        {MT_DET_YOLOV7, _draw_bbox},
+        {MT_DET_YOLOX, _draw_bbox},
+        {MT_DET_NANODET, _draw_bbox},
+        {MT_DET_YOLO_FASTBODY, _draw_bbox},
+
+        {MT_DET_YOLOV5_FACE, _draw_yolov5_face},
+        {MT_INSEG_YOLOV5_MASK, _draw_yolov5_seg},
+
+        {MT_DET_YOLOPV2, _draw_yolopv2},
+
+        {MT_SEG_PPHUMSEG, _draw_pphumseg},
+
+        {MT_MLM_HUMAN_POSE_HRNET, _draw_human_pose},
+        {MT_MLM_HUMAN_POSE_AXPPL, _draw_human_pose},
+
+        {MT_MLM_ANIMAL_POSE_HRNET, _draw_animal_pose},
+        {MT_MLM_HAND_POSE, _draw_hand_pose},
+    };
+
+    cv::Mat image(out->height, out->width, CV_8UC4, out->data);
+
+    auto item = m_func_map.find(results->mModelType);
+
+    if (item != m_func_map.end())
+    {
+        item->second(image, out, fontscale, thickness, results, offset_x, offset_y);
+    }
+    _draw_fps(image, out, fontscale, thickness, results, offset_x, offset_y);
 }
 
 int freeObjs(sample_run_joint_results *results)
