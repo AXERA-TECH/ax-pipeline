@@ -10,7 +10,7 @@
 
 extern "C"
 {
-    //给sipeed的python包用的
+    // 给sipeed的python包用的
     typedef int (*result_callback_for_sipeed_py)(void *, sample_run_joint_results *);
     result_callback_for_sipeed_py g_cb_results_sipeed_py = NULL;
     int register_result_callback(result_callback_for_sipeed_py cb)
@@ -37,6 +37,7 @@ static std::map<std::string, int> ModelTypeTable = {
     {"MT_DET_PALM_HAND", MT_DET_PALM_HAND},
     {"MT_DET_YOLOPV2", MT_DET_YOLOPV2},
     {"MT_DET_YOLO_FASTBODY", MT_DET_YOLO_FASTBODY},
+    {"MT_DET_LICENSE_PLATE", MT_DET_LICENSE_PLATE},
 };
 
 int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
@@ -104,6 +105,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_DET_YOLOX_PPL:
     case MT_INSEG_YOLOV5_MASK:
     case MT_DET_PALM_HAND:
+    case MT_DET_LICENSE_PLATE:
         sample_parse_param_det(json_file_path);
         pModels->mMajor.ModelType = pModels->ModelType_Main;
         break;
@@ -546,6 +548,7 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
         {MT_DET_PALM_HAND, _sample_run_joint_inference_det},
         {MT_DET_YOLOPV2, _sample_run_joint_inference_det},
         {MT_DET_YOLO_FASTBODY, _sample_run_joint_inference_det},
+        {MT_DET_LICENSE_PLATE, _sample_run_joint_inference_det},
 
         {MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
 

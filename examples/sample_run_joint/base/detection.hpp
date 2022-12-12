@@ -372,7 +372,7 @@ namespace detection
     }
 
     static void generate_proposals_yolov5_face(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
-                                               int letterbox_cols, int letterbox_rows, const float *anchors, float prob_threshold_unsigmoid)
+                                               int letterbox_cols, int letterbox_rows, const float *anchors, float prob_threshold_unsigmoid, int num_landmark)
     {
         int anchor_num = 3;
         int feat_w = letterbox_cols / stride;
@@ -396,7 +396,7 @@ namespace detection
                 {
                     if (feature_ptr[4] < prob_threshold_unsigmoid)
                     {
-                        feature_ptr += (cls_num + 5 + 10);
+                        feature_ptr += (cls_num + 5 + num_landmark * 2);
                         continue;
                     }
 
@@ -405,7 +405,7 @@ namespace detection
                     float class_score = -FLT_MAX;
                     for (int s = 0; s <= cls_num - 1; s++)
                     {
-                        float score = feature_ptr[s + 5 + 10];
+                        float score = feature_ptr[s + 5 + num_landmark * 2];
                         if (score > class_score)
                         {
                             class_index = s;
@@ -442,7 +442,7 @@ namespace detection
                         obj.prob = final_score;
 
                         const float *landmark_ptr = feature_ptr + 5;
-                        for (int l = 0; l < 5; l++)
+                        for (int l = 0; l < num_landmark; l++)
                         {
                             float lx = landmark_ptr[l * 2 + 0];
                             float ly = landmark_ptr[l * 2 + 1];
@@ -454,7 +454,7 @@ namespace detection
                         objects.push_back(obj);
                     }
 
-                    feature_ptr += (cls_num + 5 + 10);
+                    feature_ptr += (cls_num + 5 + num_landmark * 2);
                 }
             }
         }

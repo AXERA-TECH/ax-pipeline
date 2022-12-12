@@ -370,6 +370,7 @@ void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thicknes
         {MT_DET_YOLOX, "yolox"},
         {MT_DET_NANODET, "nanodet"},
         {MT_DET_YOLO_FASTBODY, "yolo_fastbody"},
+        {MT_DET_LICENSE_PLATE, "yolo_license_plate"},
 
         {MT_DET_YOLOV5_FACE, "yolov5_face"},
         {MT_INSEG_YOLOV5_MASK, "yolov5_seg"},
@@ -412,6 +413,7 @@ void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_
         {MT_DET_YOLOX, _draw_bbox},
         {MT_DET_NANODET, _draw_bbox},
         {MT_DET_YOLO_FASTBODY, _draw_bbox},
+        {MT_DET_LICENSE_PLATE, _draw_bbox},
 
         {MT_DET_YOLOV5_FACE, _draw_yolov5_face},
         {MT_INSEG_YOLOV5_MASK, _draw_yolov5_seg},

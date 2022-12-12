@@ -24,6 +24,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_PALM_HAND,
     MT_DET_YOLOPV2,
     MT_DET_YOLO_FASTBODY,
+    MT_DET_LICENSE_PLATE,
 
     // segmentation
     MT_SEG = 0x20,
@@ -67,6 +68,7 @@ typedef struct _sample_run_joint_object
     sample_run_joint_point bbox_vertices[4];
 
     int nLandmark; // num of lmk
+#define SAMPLE_RUN_JOINT_PLATE_LMK_SIZE 4
 #define SAMPLE_RUN_JOINT_FACE_LMK_SIZE 5
 #define SAMPLE_RUN_JOINT_BODY_LMK_SIZE 17
 #define SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE 20

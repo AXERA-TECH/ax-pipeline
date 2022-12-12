@@ -150,7 +150,10 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
             generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, CLASS_NUM);
             break;
         case MT_DET_YOLOV5_FACE:
-            generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid);
+            generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_RUN_JOINT_FACE_LMK_SIZE);
+            break;
+        case MT_DET_LICENSE_PLATE:
+            generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_RUN_JOINT_PLATE_LMK_SIZE);
             break;
         case MT_DET_YOLOV7:
             generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data() + i * 6, CLASS_NUM);
@@ -201,6 +204,15 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
         {
             pResults->mObjects[i].nLandmark = SAMPLE_RUN_JOINT_FACE_LMK_SIZE;
             for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
+            {
+                pResults->mObjects[i].landmark[j].x = obj.landmark[j].x;
+                pResults->mObjects[i].landmark[j].y = obj.landmark[j].y;
+            }
+        }
+        else if (pModels->mMajor.ModelType == MT_DET_LICENSE_PLATE)
+        {
+            pResults->mObjects[i].nLandmark = SAMPLE_RUN_JOINT_PLATE_LMK_SIZE;
+            for (size_t j = 0; j < SAMPLE_RUN_JOINT_PLATE_LMK_SIZE; j++)
             {
                 pResults->mObjects[i].landmark[j].x = obj.landmark[j].x;
                 pResults->mObjects[i].landmark[j].y = obj.landmark[j].y;
@@ -525,6 +537,7 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
         {MT_DET_YOLOX, sample_run_joint_post_process_detection},
         {MT_DET_NANODET, sample_run_joint_post_process_detection},
         {MT_DET_YOLOX_PPL, sample_run_joint_post_process_detection},
+        {MT_DET_LICENSE_PLATE, sample_run_joint_post_process_detection},
 
         {MT_DET_YOLOPV2, sample_run_joint_post_process_yolopv2},
 
@@ -570,6 +583,17 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
                     pResults->mObjects[i].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
                     pResults->mObjects[i].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
                 }
+            }
+            else if (pResults->mModelType == MT_DET_LICENSE_PLATE)
+            {
+                for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_PLATE_LMK_SIZE; j++)
+                {
+                    pResults->mObjects[i].bbox_vertices[j].x = pResults->mObjects[i].landmark[j].x;
+                    pResults->mObjects[i].bbox_vertices[j].y = pResults->mObjects[i].landmark[j].y;
+                    pResults->mObjects[i].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                    pResults->mObjects[i].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+                }
+                pResults->mObjects[i].bHasBoxVertices = 1;
             }
 
             if (pResults->mObjects[i].bHasBoxVertices)
