@@ -19,15 +19,15 @@ function(targetlink name)
     target_link_libraries(${name} PRIVATE ax_run_joint ax_interpreter_external ax_interpreter ax_sys axsyslog stdc++fs)
     target_link_libraries(${name} PRIVATE ax_venc ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp)
     target_link_libraries(${name} PRIVATE sns_os04a10 sns_os04a10_master sns_os04a10_slave sns_gc4653)
+
+    target_link_libraries(${name} PRIVATE sample_run_joint)
 endfunction()
 
 file(GLOB SRC_LIST "*.c")
 file(GLOB SRC_LIST_COMMON "../common/common_joint.c" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c")
-file(GLOB SRC_LIST_SAMPLE_RUN_JOINT "../sample_run_joint/*.cpp")
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}
     ${SRC_LIST_COMMON}
-    ${SRC_LIST_SAMPLE_RUN_JOINT}
 )
 
 add_executable(${SampleName}
