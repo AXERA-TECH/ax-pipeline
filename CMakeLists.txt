@@ -43,6 +43,7 @@ if (SIPY_BUILD)
     set(SIPY_VERSION ${SIPY_SOVERSION}.0.3)
 endif()
 
+add_subdirectory(examples/sample_run_joint)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo_new)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
