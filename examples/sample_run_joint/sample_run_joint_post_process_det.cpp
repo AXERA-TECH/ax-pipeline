@@ -203,7 +203,7 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
         pResults->mObjects[i].prob = obj.prob;
 
         // pResults->mObjects[i].bHasLandmark = pResults->mObjects[i].bHasMask = 0;
-        if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE)
+        if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE || pModels->mMajor.ModelType == MT_DET_YOLOV7_FACE)
         {
             pResults->mObjects[i].nLandmark = SAMPLE_RUN_JOINT_FACE_LMK_SIZE;
             for (size_t j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
@@ -627,7 +627,7 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
             pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
             pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
 
-            if (pResults->mModelType == MT_DET_YOLOV5_FACE)
+            if (pModels->mMajor.ModelType == MT_DET_YOLOV5_FACE || pModels->mMajor.ModelType == MT_DET_YOLOV7_FACE)
             {
                 for (AX_U8 j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
                 {

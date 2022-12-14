@@ -107,6 +107,8 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_DET_YOLOX_PPL:
     case MT_INSEG_YOLOV5_MASK:
     case MT_DET_PALM_HAND:
+    case MT_DET_YOLOV7_FACE:
+    case MT_DET_YOLOV7_PALM_HAND:
     case MT_DET_LICENSE_PLATE:
         sample_parse_param_det(json_file_path);
         pModels->mMajor.ModelType = pModels->ModelType_Main;
