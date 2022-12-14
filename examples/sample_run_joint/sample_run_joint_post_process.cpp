@@ -38,6 +38,8 @@ static std::map<std::string, int> ModelTypeTable = {
     {"MT_DET_YOLOPV2", MT_DET_YOLOPV2},
     {"MT_DET_YOLO_FASTBODY", MT_DET_YOLO_FASTBODY},
     {"MT_DET_LICENSE_PLATE", MT_DET_LICENSE_PLATE},
+    {"MT_DET_YOLOV7_FACE", MT_DET_YOLOV7_FACE},
+    {"MT_DET_YOLOV7_PALM_HAND", MT_DET_YOLOV7_PALM_HAND},
 };
 
 int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
@@ -549,6 +551,8 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
         {MT_DET_YOLOPV2, _sample_run_joint_inference_det},
         {MT_DET_YOLO_FASTBODY, _sample_run_joint_inference_det},
         {MT_DET_LICENSE_PLATE, _sample_run_joint_inference_det},
+        {MT_DET_YOLOV7_FACE, _sample_run_joint_inference_det},
+        {MT_DET_YOLOV7_PALM_HAND, _sample_run_joint_inference_det},
 
         {MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
 

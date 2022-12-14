@@ -23,3 +23,5 @@
 |yolopv2|-|```MT_DET_YOLOPV2```|再等等|[yolopv2.json](../examples/sample_run_joint/config/yolopv2.json)|感谢 [FeiGeChuanShu](https://github.com/FeiGeChuanShu) 适配到爱芯派平台|
 |yolo-fastbody|43|```MT_DET_YOLO_FASTBODY```|[yolo-fastbody](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolo-fastbody.joint)|[yolo_fastbody.json](../examples/sample_run_joint/config/yolo_fastbody.json) |-|
 |license-plate-detect|25|```MT_DET_LICENSE_PLATE```|[license_plate_det](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/license_plate_det.joint)|[yolov5s_license_plate.json](../examples/sample_run_joint/config/yolov5s_license_plate.json) |-|
+|yolov7-face|-|```MT_DET_YOLOV7_FACE```|-|[yolov7_face.json](../examples/sample_run_joint/config/yolov7_face.json) |-|
+|yolov7-plam-hand|-|```MT_DET_YOLOV7_PALM_HAND```|-|[yolov7_palm_hand.json](../examples/sample_run_joint/config/yolov7_palm_hand.json) |-|
