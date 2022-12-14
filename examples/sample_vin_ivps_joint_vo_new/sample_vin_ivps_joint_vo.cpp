@@ -198,6 +198,7 @@ AX_VOID __sigExit(int iSigNo)
 {
     // ALOGN("Catch signal %d!\n", iSigNo);
     gLoopExit = 1;
+    sleep(1);
     return;
 }
 

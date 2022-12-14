@@ -1,4 +1,4 @@
-set(SampleName sample_vin_ivps_joint_venc_rtsp_new)
+set(SampleName sample_h264_ivps_joint_vo_new)
 
 # opencv
 set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
@@ -24,13 +24,13 @@ function(targetlink name)
     target_link_libraries(${name} PRIVATE ax_venc ax_vdec ax_vo ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp)
     target_link_libraries(${name} PRIVATE sns_os04a10 sns_os04a10_master sns_os04a10_slave sns_gc4653)
 
+    target_link_libraries(${name} PRIVATE sample_run_joint)
+
     # openssl
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/openssl/lib)
 
     # rtsp
     target_include_directories(${name} PRIVATE ../rtsp/inc)
-
-    target_link_libraries(${name} PRIVATE sample_run_joint)
 endfunction()
 
 file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.cpp" "../utilities/*.c")

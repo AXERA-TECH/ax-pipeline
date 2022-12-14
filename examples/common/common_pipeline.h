@@ -1,10 +1,34 @@
+/*
+ * AXERA is pleased to support the open source community by making ax-samples available.
+ *
+ * Copyright (c) 2022, AXERA Semiconductor (Shanghai) Co., Ltd. All rights reserved.
+ *
+ * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * https://opensource.org/licenses/BSD-3-Clause
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ */
+
+/*
+ * Author: ZHEQIUSHUI
+ */
+
 #ifndef _PIPELINE_COMMON_H_
 #define _PIPELINE_COMMON_H_
+
+#ifndef VDEC_LINK_MODE
+#define VDEC_LINK_MODE 1
+#endif
 
 typedef enum
 {
     pi_none = 0x00,
-    // user send frame
+    // user send frame,unsupport yet
     pi_user,
     // link to vin
     pi_vin,
@@ -73,6 +97,13 @@ typedef struct
 
 typedef struct
 {
+    int n_vdec_grp;  // less than 64
+    int n_vdec_type; //0-h264  1-mjpg(unsupport yet)
+} pipeline_vdec_config_t;
+
+
+typedef struct
+{
     int pipeid; //pipeline 的 id
     pipeline_output_e m_output_type; //输出的类型
     //图像或者buffer的一些参数
@@ -103,7 +134,7 @@ typedef struct
 #define MAX_VIN_CHN_COUNT 3
     int n_vin_chn; // less than 3
 #define MAX_VDEC_GRP_COUNT 16
-    int n_vdec_grp; // less than 16
+    pipeline_vdec_config_t m_vdec_attr; // less than 16
 
     pipeline_ivps_config_t m_ivps_attr;
 
