@@ -27,9 +27,11 @@
 #include <map>
 #include "sample_log.h"
 
+#include "MultikeyMap.h"
+
 extern "C"
 {
-    //给sipeed的python包用的
+    // 给sipeed的python包用的
     typedef int (*display_callback_for_sipeed_py)(int, int, int, char **);
     display_callback_for_sipeed_py g_cb_display_sipeed_py = NULL;
     int register_display_callback(display_callback_for_sipeed_py cb)
@@ -38,6 +40,8 @@ extern "C"
         return 0;
     }
 }
+
+typedef void (*draw_func)(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y);
 
 static const std::vector<cv::Scalar> COCO_COLORS = {
     {128, 56, 0, 255}, {128, 226, 255, 0}, {128, 0, 94, 255}, {128, 0, 37, 255}, {128, 0, 255, 94}, {128, 255, 226, 0}, {128, 0, 18, 255}, {128, 255, 151, 0}, {128, 170, 0, 255}, {128, 0, 255, 56}, {128, 255, 0, 75}, {128, 0, 75, 255}, {128, 0, 255, 169}, {128, 255, 0, 207}, {128, 75, 255, 0}, {128, 207, 0, 255}, {128, 37, 0, 255}, {128, 0, 207, 255}, {128, 94, 0, 255}, {128, 0, 255, 113}, {128, 255, 18, 0}, {128, 255, 0, 56}, {128, 18, 0, 255}, {128, 0, 255, 226}, {128, 170, 255, 0}, {128, 255, 0, 245}, {128, 151, 255, 0}, {128, 132, 255, 0}, {128, 75, 0, 255}, {128, 151, 0, 255}, {128, 0, 151, 255}, {128, 132, 0, 255}, {128, 0, 255, 245}, {128, 255, 132, 0}, {128, 226, 0, 255}, {128, 255, 37, 0}, {128, 207, 255, 0}, {128, 0, 255, 207}, {128, 94, 255, 0}, {128, 0, 226, 255}, {128, 56, 255, 0}, {128, 255, 94, 0}, {128, 255, 113, 0}, {128, 0, 132, 255}, {128, 255, 0, 132}, {128, 255, 170, 0}, {128, 255, 0, 188}, {128, 113, 255, 0}, {128, 245, 0, 255}, {128, 113, 0, 255}, {128, 255, 188, 0}, {128, 0, 113, 255}, {128, 255, 0, 0}, {128, 0, 56, 255}, {128, 255, 0, 113}, {128, 0, 255, 188}, {128, 255, 0, 94}, {128, 255, 0, 18}, {128, 18, 255, 0}, {128, 0, 255, 132}, {128, 0, 188, 255}, {128, 0, 245, 255}, {128, 0, 169, 255}, {128, 37, 255, 0}, {128, 255, 0, 151}, {128, 188, 0, 255}, {128, 0, 255, 37}, {128, 0, 255, 0}, {128, 255, 0, 170}, {128, 255, 0, 37}, {128, 255, 75, 0}, {128, 0, 0, 255}, {128, 255, 207, 0}, {128, 255, 0, 226}, {128, 255, 245, 0}, {128, 188, 255, 0}, {128, 0, 255, 18}, {128, 0, 255, 75}, {128, 0, 255, 151}, {128, 255, 56, 0}, {128, 245, 255, 0}};
@@ -360,45 +364,49 @@ void _draw_pphumseg(cv::Mat &image, osd_utils_img *out, float fontscale, int thi
     }
 }
 
+static codepi::MultikeyMap<std::string, int, draw_func> mDrawtable{
+    {"null", MT_UNKNOWN, nullptr},
+    {"yolov5", MT_DET_YOLOV5, _draw_bbox},
+    {"ax_person_det", MT_DET_YOLOX_PPL, _draw_bbox},
+    {"palm_hand_det", MT_DET_PALM_HAND, _draw_bbox},
+    {"yolov7", MT_DET_YOLOV7, _draw_bbox},
+    {"yolov7_face", MT_DET_YOLOV7_FACE, _draw_yolov5_face},
+    {"yolov7_palm_hand", MT_DET_YOLOV7_PALM_HAND, _draw_bbox},
+    {"yolox", MT_DET_YOLOX, _draw_bbox},
+    {"nanodet", MT_DET_NANODET, _draw_bbox},
+    {"yolo_fastbody", MT_DET_YOLO_FASTBODY, _draw_bbox},
+    {"yolo_license_plate", MT_DET_LICENSE_PLATE, _draw_bbox},
+    {"yolov5_face", MT_DET_YOLOV5_FACE, _draw_yolov5_face},
+    {"yolov5_seg", MT_INSEG_YOLOV5_MASK, _draw_yolov5_seg},
+    {"yolopv2", MT_DET_YOLOPV2, _draw_yolopv2},
+    {"pp_human_seg", MT_SEG_PPHUMSEG, _draw_pphumseg},
+    {"hrnet_human_pose", MT_MLM_HUMAN_POSE_HRNET, _draw_human_pose},
+    {"ax_human_pose", MT_MLM_HUMAN_POSE_AXPPL, _draw_human_pose},
+    {"hrnet_animal_pose", MT_MLM_ANIMAL_POSE_HRNET, _draw_animal_pose},
+    {"hand_pose", MT_MLM_HAND_POSE, _draw_hand_pose},
+};
+
 void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
 {
-    static std::map<int, std::string> m_map{
-        {MT_DET_YOLOV5, "yolov5"},
-        {MT_DET_YOLOX_PPL, "ax_person_det"},
-        {MT_DET_PALM_HAND, "palm_hand_det"},
-        {MT_DET_YOLOV7, "yolov7"},
-        {MT_DET_YOLOV7_FACE, "yolov7-face"},
-        {MT_DET_YOLOV7_PALM_HAND, "yolov7-palm-hand"},
-        {MT_DET_YOLOX, "yolox"},
-        {MT_DET_NANODET, "nanodet"},
-        {MT_DET_YOLO_FASTBODY, "yolo_fastbody"},
-        {MT_DET_LICENSE_PLATE, "yolo_license_plate"},
-
-        {MT_DET_YOLOV5_FACE, "yolov5_face"},
-        {MT_INSEG_YOLOV5_MASK, "yolov5_seg"},
-
-        {MT_DET_YOLOPV2, "yolopv2"},
-
-        {MT_SEG_PPHUMSEG, "pp_human_seg"},
-
-        {MT_MLM_HUMAN_POSE_HRNET, "hrnet_human_pose"},
-        {MT_MLM_HUMAN_POSE_AXPPL, "ax_human_pose"},
-
-        {MT_MLM_ANIMAL_POSE_HRNET, "hrnet_animal_pose"},
-        {MT_MLM_HAND_POSE, "hand_pose"},
-    };
     static char common_info[128];
-    auto item = m_map.find(results->mModelType);
+    // auto item = m_map.find(results->mModelType);
 
-    if (item != m_map.end())
+    if (mDrawtable.contain(results->mModelType))
     {
-        sprintf(common_info, "%s fps:%02d", item->second.c_str(), results->niFps);
+        int mt = results->mModelType;
+        auto match_vec = mDrawtable.get2(mt);
+        if (match_vec.size() > 1)
+        {
+            ALOGE("[%d] multi define in mDrawtable,please check mDrawtable", mt);
+            return;
+        }
+        sprintf(common_info, "%s fps:%02d", match_vec[0]->key1.c_str(), results->niFps);
     }
     else
     {
         sprintf(common_info, "%s fps:%02d", "unknown", results->niFps);
     }
-    
+
     cv::Size label_size = cv::getTextSize(common_info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness, NULL);
     cv::putText(image, common_info, cv::Point(0, label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5,
                 cv::Scalar(255, 0, 255, 255), thickness);
@@ -406,40 +414,22 @@ void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thicknes
 
 void drawResults(osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
 {
-    typedef void (*draw_func)(cv::Mat & image, osd_utils_img * out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y);
-    static std::map<int, draw_func> m_func_map{
-        {MT_DET_YOLOV5, _draw_bbox},
-        {MT_DET_YOLOX_PPL, _draw_bbox},
-        {MT_DET_PALM_HAND, _draw_bbox},
-        {MT_DET_YOLOV7, _draw_bbox},
-        {MT_DET_YOLOV7_FACE, _draw_yolov5_face},
-        {MT_DET_YOLOV7_PALM_HAND, _draw_bbox},
-        {MT_DET_YOLOX, _draw_bbox},
-        {MT_DET_NANODET, _draw_bbox},
-        {MT_DET_YOLO_FASTBODY, _draw_bbox},
-        {MT_DET_LICENSE_PLATE, _draw_bbox},
-
-        {MT_DET_YOLOV5_FACE, _draw_yolov5_face},
-        {MT_INSEG_YOLOV5_MASK, _draw_yolov5_seg},
-
-        {MT_DET_YOLOPV2, _draw_yolopv2},
-
-        {MT_SEG_PPHUMSEG, _draw_pphumseg},
-
-        {MT_MLM_HUMAN_POSE_HRNET, _draw_human_pose},
-        {MT_MLM_HUMAN_POSE_AXPPL, _draw_human_pose},
-
-        {MT_MLM_ANIMAL_POSE_HRNET, _draw_animal_pose},
-        {MT_MLM_HAND_POSE, _draw_hand_pose},
-    };
 
     cv::Mat image(out->height, out->width, CV_8UC4, out->data);
 
-    auto item = m_func_map.find(results->mModelType);
-
-    if (item != m_func_map.end())
+    if (mDrawtable.contain(results->mModelType) && results->mModelType != MT_UNKNOWN)
     {
-        item->second(image, out, fontscale, thickness, results, offset_x, offset_y);
+        int mt = results->mModelType;
+        auto match_vec = mDrawtable.get2(mt);
+        if (match_vec.size() > 1)
+        {
+            ALOGE("[%d] multi define in mDrawtable,please check mDrawtable", mt);
+            return;
+        }
+        if (match_vec[0]->val != nullptr)
+            match_vec[0]->val(image, out, fontscale, thickness, results, offset_x, offset_y);
+        else
+            ALOGE("[%s] draw func got null", match_vec[0]->key1.c_str());
     }
     _draw_fps(image, out, fontscale, thickness, results, offset_x, offset_y);
 }

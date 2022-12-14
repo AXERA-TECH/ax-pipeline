@@ -7,7 +7,7 @@
 #include "ax_sys_api.h"
 // #include "utilities/timer.hpp"
 #include "../utilities/ringbuffer.hpp"
-
+#include "../utilities/MultikeyMap.h"
 extern "C"
 {
     // 给sipeed的python包用的
@@ -20,174 +20,7 @@ extern "C"
     }
 }
 
-static std::map<std::string, int> ModelTypeTable = {
-    {"MT_UNKNOWN", MT_UNKNOWN},
-    {"MT_DET_YOLOV5", MT_DET_YOLOV5},
-    {"MT_DET_YOLOV5_FACE", MT_DET_YOLOV5_FACE},
-    {"MT_DET_YOLOV7", MT_DET_YOLOV7},
-    {"MT_DET_YOLOX", MT_DET_YOLOX},
-    {"MT_DET_NANODET", MT_DET_NANODET},
-    {"MT_SEG_PPHUMSEG", MT_SEG_PPHUMSEG},
-    {"MT_INSEG_YOLOV5_MASK", MT_INSEG_YOLOV5_MASK},
-    {"MT_MLM_HUMAN_POSE_AXPPL", MT_MLM_HUMAN_POSE_AXPPL},
-    {"MT_MLM_HUMAN_POSE_HRNET", MT_MLM_HUMAN_POSE_HRNET},
-    {"MT_MLM_ANIMAL_POSE_HRNET", MT_MLM_ANIMAL_POSE_HRNET},
-    {"MT_MLM_HAND_POSE", MT_MLM_HAND_POSE},
-    {"MT_DET_YOLOX_PPL", MT_DET_YOLOX_PPL},
-    {"MT_DET_PALM_HAND", MT_DET_PALM_HAND},
-    {"MT_DET_YOLOPV2", MT_DET_YOLOPV2},
-    {"MT_DET_YOLO_FASTBODY", MT_DET_YOLO_FASTBODY},
-    {"MT_DET_LICENSE_PLATE", MT_DET_LICENSE_PLATE},
-    {"MT_DET_YOLOV7_FACE", MT_DET_YOLOV7_FACE},
-    {"MT_DET_YOLOV7_PALM_HAND", MT_DET_YOLOV7_PALM_HAND},
-};
-
-int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
-{
-    std::ifstream f(json_file_path);
-    if (f.fail())
-    {
-        return MT_UNKNOWN;
-    }
-    auto jsondata = nlohmann::json::parse(f);
-
-    f.close();
-    // update_val(jsondata, "MODEL_TYPE", &mt);
-    if (jsondata.contains("MODEL_TYPE"))
-    {
-        if (jsondata["MODEL_TYPE"].is_number_integer())
-        {
-            int mt = -1;
-            mt = jsondata["MODEL_TYPE"];
-            pModels->ModelType_Main = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
-        }
-        else if (jsondata["MODEL_TYPE"].is_string())
-        {
-            std::string strModelType = jsondata["MODEL_TYPE"];
-
-            auto item = ModelTypeTable.find(strModelType);
-
-            if (item != ModelTypeTable.end())
-            {
-                int mt = item->second;
-                pModels->ModelType_Main = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
-            }
-        }
-
-        pModels->mMajor.ModelType = pModels->ModelType_Main;
-    }
-
-    if (jsondata.contains("MODEL_PATH"))
-    {
-        std::string path = jsondata["MODEL_PATH"];
-        if (!path.empty())
-        {
-            strcpy(pModels->MODEL_PATH, path.data());
-            pModels->bRunJoint = AX_TRUE;
-        }
-    }
-
-    if (jsondata.contains("SAMPLE_IVPS_ALGO_WIDTH"))
-    {
-        pModels->SAMPLE_IVPS_ALGO_WIDTH = jsondata["SAMPLE_IVPS_ALGO_WIDTH"];
-    }
-
-    if (jsondata.contains("SAMPLE_IVPS_ALGO_HEIGHT"))
-    {
-        pModels->SAMPLE_IVPS_ALGO_HEIGHT = jsondata["SAMPLE_IVPS_ALGO_HEIGHT"];
-    }
-
-    switch (pModels->ModelType_Main)
-    {
-    case MT_DET_YOLOV5:
-    case MT_DET_YOLOV5_FACE:
-    case MT_DET_YOLOV7:
-    case MT_DET_YOLOX:
-    case MT_DET_NANODET:
-    case MT_DET_YOLOX_PPL:
-    case MT_INSEG_YOLOV5_MASK:
-    case MT_DET_PALM_HAND:
-    case MT_DET_YOLOV7_FACE:
-    case MT_DET_YOLOV7_PALM_HAND:
-    case MT_DET_LICENSE_PLATE:
-        sample_parse_param_det(json_file_path);
-        pModels->mMajor.ModelType = pModels->ModelType_Main;
-        break;
-    case MT_SEG_PPHUMSEG:
-        pModels->mMajor.ModelType = pModels->ModelType_Main;
-        break;
-    case MT_MLM_HUMAN_POSE_AXPPL:
-    case MT_MLM_HUMAN_POSE_HRNET:
-    case MT_MLM_ANIMAL_POSE_HRNET:
-    case MT_MLM_HAND_POSE:
-        if (jsondata.contains("MODEL_MAJOR"))
-        {
-            nlohmann::json json_major = jsondata["MODEL_MAJOR"];
-            if (json_major.contains("MODEL_TYPE"))
-            {
-                if (json_major["MODEL_TYPE"].is_number_integer())
-                {
-                    int mt = -1;
-                    mt = json_major["MODEL_TYPE"];
-                    pModels->mMajor.ModelType = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
-                }
-                else if (json_major["MODEL_TYPE"].is_string())
-                {
-                    std::string strModelType = json_major["MODEL_TYPE"];
-
-                    auto item = ModelTypeTable.find(strModelType);
-
-                    if (item != ModelTypeTable.end())
-                    {
-                        int mt = item->second;
-                        pModels->mMajor.ModelType = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
-                    }
-                }
-            }
-
-            if (json_major.contains("MODEL_PATH"))
-            {
-                std::string path = json_major["MODEL_PATH"];
-                if (!path.empty())
-                {
-                    strcpy(pModels->MODEL_PATH, path.data());
-                    pModels->bRunJoint = AX_TRUE;
-                }
-            }
-
-            sample_set_param_det(&json_major);
-        }
-        if (jsondata.contains("MODEL_MINOR"))
-        {
-            nlohmann::json json_minor = jsondata["MODEL_MINOR"];
-            if (json_minor.contains("MODEL_PATH"))
-            {
-                std::string hrnet_path = json_minor["MODEL_PATH"];
-                strcpy(pModels->MODEL_PATH_L2, hrnet_path.data());
-            }
-            if (json_minor.contains("CLASS_ID"))
-            {
-                std::vector<int> clsids = json_minor["CLASS_ID"];
-                pModels->NUM_MINOR_CLASS_ID = MIN(clsids.size(), SAMPLE_CLASS_ID_COUNT);
-                for (int i = 0; i < pModels->NUM_MINOR_CLASS_ID; i++)
-                {
-                    pModels->MINOR_CLASS_IDS[i] = clsids[i];
-                }
-            }
-        }
-
-        break;
-    default:
-        break;
-    }
-
-    if (pModels->ModelType_Main == MT_UNKNOWN)
-    {
-        pModels->bRunJoint = AX_FALSE;
-    }
-
-    return 0;
-}
+typedef int (*inference_func)(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults);
 
 int _sample_run_joint_inference_det(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults)
 {
@@ -523,6 +356,208 @@ int _sample_run_joint_inference_handpose(sample_run_joint_models *pModels, const
     return ret;
 }
 
+static codepi::MultikeyMap<std::string, int, inference_func> ModelTypeTable = {
+    {"MT_UNKNOWN", MT_UNKNOWN, nullptr},
+    {"MT_DET_YOLOV5", MT_DET_YOLOV5, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV5_FACE", MT_DET_YOLOV5_FACE, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV7", MT_DET_YOLOV7, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOX", MT_DET_YOLOX, _sample_run_joint_inference_det},
+    {"MT_DET_NANODET", MT_DET_NANODET, _sample_run_joint_inference_det},
+    {"MT_INSEG_YOLOV5_MASK", MT_INSEG_YOLOV5_MASK, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOX_PPL", MT_DET_YOLOX_PPL, _sample_run_joint_inference_det},
+    {"MT_DET_PALM_HAND", MT_DET_PALM_HAND, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOPV2", MT_DET_YOLOPV2, _sample_run_joint_inference_det},
+    {"MT_DET_YOLO_FASTBODY", MT_DET_YOLO_FASTBODY, _sample_run_joint_inference_det},
+    {"MT_DET_LICENSE_PLATE", MT_DET_LICENSE_PLATE, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV7_FACE", MT_DET_YOLOV7_FACE, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV7_PALM_HAND", MT_DET_YOLOV7_PALM_HAND, _sample_run_joint_inference_det},
+    {"MT_SEG_PPHUMSEG", MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
+    {"MT_MLM_HUMAN_POSE_HRNET", MT_MLM_HUMAN_POSE_HRNET, _sample_run_joint_inference_human_pose},
+    {"MT_MLM_ANIMAL_POSE_HRNET", MT_MLM_ANIMAL_POSE_HRNET, _sample_run_joint_inference_animal_pose},
+    {"MT_MLM_HUMAN_POSE_AXPPL", MT_MLM_HUMAN_POSE_AXPPL, _sample_run_joint_inference_human_pose},
+    {"MT_MLM_HAND_POSE", MT_MLM_HAND_POSE, _sample_run_joint_inference_handpose},
+};
+
+int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
+{
+    std::ifstream f(json_file_path);
+    if (f.fail())
+    {
+        return MT_UNKNOWN;
+    }
+    auto jsondata = nlohmann::json::parse(f);
+
+    f.close();
+    // update_val(jsondata, "MODEL_TYPE", &mt);
+    if (jsondata.contains("MODEL_TYPE"))
+    {
+        if (jsondata["MODEL_TYPE"].is_number_integer())
+        {
+            int mt = -1;
+            mt = jsondata["MODEL_TYPE"];
+            if (ModelTypeTable.contain(mt))
+            {
+                pModels->ModelType_Main = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
+            }
+            else
+            {
+                pModels->ModelType_Main = MT_UNKNOWN;
+            }
+        }
+        else if (jsondata["MODEL_TYPE"].is_string())
+        {
+            std::string strModelType = jsondata["MODEL_TYPE"];
+
+            // auto item = ModelTypeTable.find(strModelType);
+
+            if (ModelTypeTable.contain(strModelType))
+            {
+                auto match_vec = ModelTypeTable.get1(strModelType);
+                if (match_vec.size() > 1)
+                {
+                    ALOGE("[%s] multi define in ModelTypeTable,please check ModelTypeTable", strModelType.c_str());
+                    return -1;
+                }
+                pModels->ModelType_Main = (SAMPLE_RUN_JOINT_MODEL_TYPE)match_vec[0]->key2;
+            }
+            else
+            {
+                pModels->ModelType_Main = MT_UNKNOWN;
+            }
+        }
+
+        pModels->mMajor.ModelType = pModels->ModelType_Main;
+    }
+
+    if (jsondata.contains("MODEL_PATH"))
+    {
+        std::string path = jsondata["MODEL_PATH"];
+        if (!path.empty())
+        {
+            strcpy(pModels->MODEL_PATH, path.data());
+            pModels->bRunJoint = AX_TRUE;
+        }
+    }
+
+    if (jsondata.contains("SAMPLE_IVPS_ALGO_WIDTH"))
+    {
+        pModels->SAMPLE_IVPS_ALGO_WIDTH = jsondata["SAMPLE_IVPS_ALGO_WIDTH"];
+    }
+
+    if (jsondata.contains("SAMPLE_IVPS_ALGO_HEIGHT"))
+    {
+        pModels->SAMPLE_IVPS_ALGO_HEIGHT = jsondata["SAMPLE_IVPS_ALGO_HEIGHT"];
+    }
+
+    switch (pModels->ModelType_Main)
+    {
+    case MT_DET_YOLOV5:
+    case MT_DET_YOLOV5_FACE:
+    case MT_DET_YOLOV7:
+    case MT_DET_YOLOX:
+    case MT_DET_NANODET:
+    case MT_DET_YOLOX_PPL:
+    case MT_INSEG_YOLOV5_MASK:
+    case MT_DET_PALM_HAND:
+    case MT_DET_YOLOV7_FACE:
+    case MT_DET_YOLOV7_PALM_HAND:
+    case MT_DET_LICENSE_PLATE:
+        sample_parse_param_det(json_file_path);
+        pModels->mMajor.ModelType = pModels->ModelType_Main;
+        break;
+    case MT_SEG_PPHUMSEG:
+        pModels->mMajor.ModelType = pModels->ModelType_Main;
+        break;
+    case MT_MLM_HUMAN_POSE_AXPPL:
+    case MT_MLM_HUMAN_POSE_HRNET:
+    case MT_MLM_ANIMAL_POSE_HRNET:
+    case MT_MLM_HAND_POSE:
+        if (jsondata.contains("MODEL_MAJOR"))
+        {
+            nlohmann::json json_major = jsondata["MODEL_MAJOR"];
+            if (json_major.contains("MODEL_TYPE"))
+            {
+                if (json_major["MODEL_TYPE"].is_number_integer())
+                {
+                    int mt = -1;
+                    mt = json_major["MODEL_TYPE"];
+                    // pModels->mMajor.ModelType = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
+
+                    if (ModelTypeTable.contain(mt))
+                    {
+                        pModels->mMajor.ModelType = (SAMPLE_RUN_JOINT_MODEL_TYPE)mt;
+                    }
+                    else
+                    {
+                        pModels->mMajor.ModelType = MT_UNKNOWN;
+                    }
+                }
+                else if (json_major["MODEL_TYPE"].is_string())
+                {
+                    std::string strModelType = json_major["MODEL_TYPE"];
+
+                    if (ModelTypeTable.contain(strModelType))
+                    {
+                        auto match_vec = ModelTypeTable.get1(strModelType);
+                        if (match_vec.size() > 1)
+                        {
+                            ALOGE("[%s] multi define in ModelTypeTable,please check ModelTypeTable", strModelType.c_str());
+                            return -1;
+                        }
+                        pModels->mMajor.ModelType = (SAMPLE_RUN_JOINT_MODEL_TYPE)match_vec[0]->key2;
+                    }
+                    else
+                    {
+                        pModels->mMajor.ModelType = MT_UNKNOWN;
+                    }
+                }
+            }
+
+            if (json_major.contains("MODEL_PATH"))
+            {
+                std::string path = json_major["MODEL_PATH"];
+                if (!path.empty())
+                {
+                    strcpy(pModels->MODEL_PATH, path.data());
+                    pModels->bRunJoint = AX_TRUE;
+                }
+            }
+
+            sample_set_param_det(&json_major);
+        }
+        if (jsondata.contains("MODEL_MINOR"))
+        {
+            nlohmann::json json_minor = jsondata["MODEL_MINOR"];
+            if (json_minor.contains("MODEL_PATH"))
+            {
+                std::string hrnet_path = json_minor["MODEL_PATH"];
+                strcpy(pModels->MODEL_PATH_L2, hrnet_path.data());
+            }
+            if (json_minor.contains("CLASS_ID"))
+            {
+                std::vector<int> clsids = json_minor["CLASS_ID"];
+                pModels->NUM_MINOR_CLASS_ID = MIN(clsids.size(), SAMPLE_CLASS_ID_COUNT);
+                for (int i = 0; i < pModels->NUM_MINOR_CLASS_ID; i++)
+                {
+                    pModels->MINOR_CLASS_IDS[i] = clsids[i];
+                }
+            }
+        }
+
+        break;
+    default:
+        ALOGE("unkown model type %d", pModels->ModelType_Main);
+        break;
+    }
+
+    if (pModels->ModelType_Main == MT_UNKNOWN)
+    {
+        pModels->bRunJoint = AX_FALSE;
+    }
+
+    return 0;
+}
+
 int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults)
 {
     int ret;
@@ -540,36 +575,18 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
     }
 #endif
 
-    typedef int (*inference_func)(sample_run_joint_models * pModels, const void *pstFrame, sample_run_joint_results *pResults);
-    static std::map<int, inference_func> m_func_map{
-        {MT_DET_YOLOV5, _sample_run_joint_inference_det},
-        {MT_DET_YOLOV5_FACE, _sample_run_joint_inference_det},
-        {MT_DET_YOLOV7, _sample_run_joint_inference_det},
-        {MT_DET_YOLOX, _sample_run_joint_inference_det},
-        {MT_DET_NANODET, _sample_run_joint_inference_det},
-        {MT_INSEG_YOLOV5_MASK, _sample_run_joint_inference_det},
-        {MT_DET_YOLOX_PPL, _sample_run_joint_inference_det},
-        {MT_DET_PALM_HAND, _sample_run_joint_inference_det},
-        {MT_DET_YOLOPV2, _sample_run_joint_inference_det},
-        {MT_DET_YOLO_FASTBODY, _sample_run_joint_inference_det},
-        {MT_DET_LICENSE_PLATE, _sample_run_joint_inference_det},
-        {MT_DET_YOLOV7_FACE, _sample_run_joint_inference_det},
-        {MT_DET_YOLOV7_PALM_HAND, _sample_run_joint_inference_det},
-
-        {MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
-
-        {MT_MLM_HUMAN_POSE_HRNET, _sample_run_joint_inference_human_pose},
-        {MT_MLM_ANIMAL_POSE_HRNET, _sample_run_joint_inference_animal_pose},
-        {MT_MLM_HUMAN_POSE_AXPPL, _sample_run_joint_inference_human_pose},
-
-        {MT_MLM_HAND_POSE, _sample_run_joint_inference_handpose},
-    };
-
-    auto item = m_func_map.find(pModels->ModelType_Main);
-
-    if (item != m_func_map.end())
+    if (ModelTypeTable.contain(pModels->ModelType_Main))
     {
-        ret = item->second(pModels, pstFrame, pResults);
+        int mt = pModels->ModelType_Main;
+        auto func = ModelTypeTable.get2(mt);
+        if (func[0]->val != nullptr)
+        {
+            ret = func[0]->val(pModels, pstFrame, pResults);
+        }
+        else
+        {
+            ALOGE("[%s] func pointer is null", func[0]->key1.c_str());
+        }
     }
     else
     {
