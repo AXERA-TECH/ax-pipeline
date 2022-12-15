@@ -78,35 +78,36 @@ typedef struct
     int n_ivps_width;
     int n_ivps_height;
 
-    int b_ivps_mirror;  // 镜像
-    int b_ivps_flip;    // 翻转
+    int b_ivps_mirror; // 镜像
+    int b_ivps_flip;   // 翻转
 
-    int b_letterbox;    // 填充，一般用于ai检测
+    int b_letterbox; // 填充，一般用于ai检测
 
     int n_fifo_count; // [0]表示不输出，[1-4]表示队列的个数，大于[0]则可以在调用回调输出图像
 } pipeline_ivps_config_t;
 
 typedef struct
 {
-    int n_venc_chn; // less than 64
+#define MAX_VENC_CHN_COUNT 64
+    int n_venc_chn; // 少于64 并且不能重复
     // int n_bitrate;
     // int n_gop;
 
-    char end_point[32];  //rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
+    char end_point[32]; // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
 } pipeline_venc_config_t;
 
 typedef struct
 {
-    int n_vdec_grp;  // less than 64
-    int n_vdec_type; //0-h264  1-mjpg(unsupport yet)
+#define MAX_VDEC_GRP_COUNT 16
+    int n_vdec_grp;  // 少于 16，允许重复
+    int n_vdec_type; // 0-h264  1-mjpg(unsupport yet)
 } pipeline_vdec_config_t;
-
 
 typedef struct
 {
-    int pipeid; //pipeline 的 id
-    pipeline_output_e m_output_type; //输出的类型
-    //图像或者buffer的一些参数
+    int pipeid;                      // pipeline 的 id
+    pipeline_output_e m_output_type; // 输出的类型
+    // 图像或者buffer的一些参数
     int n_width, n_height, n_size, n_stride;
     int d_type; // AX_NPU_CV_FrameDataType
     void *p_vir;
@@ -120,20 +121,20 @@ typedef void (*pipeline_frame_callback_func)(pipeline_buffer_t *buf);
 
 typedef struct
 {
-    int enable; //是否启用
-    int pipeid; //pipeline的id，重复创建会失败
-    pipeline_input_e m_input_type; //输入类型，暂时只支持pi_vin
-    pipeline_output_e m_output_type; //输出类型，暂时不支持po_venc_mjpg，po_vo_sipeed_maix3_screen只能创建一次
+    int enable;                      // 是否启用
+    int pipeid;                      // pipeline的id，重复创建会失败
+    pipeline_input_e m_input_type;   // 输入类型，暂时只支持pi_vin
+    pipeline_output_e m_output_type; // 输出类型，暂时不支持po_venc_mjpg，po_vo_sipeed_maix3_screen只能创建一次
 
     // 可以用来控制线程退出（如果有的话）
-    volatile int n_loog_exit; 
+    volatile int n_loog_exit;
 
 // for input
 #define MAX_VIN_PIPE_COUNT 4
     int n_vin_pipe; // less than 4
 #define MAX_VIN_CHN_COUNT 3
     int n_vin_chn; // less than 3
-#define MAX_VDEC_GRP_COUNT 16
+
     pipeline_vdec_config_t m_vdec_attr; // less than 16
 
     pipeline_ivps_config_t m_ivps_attr;
@@ -151,7 +152,7 @@ extern "C"
     int create_pipeline(pipeline_t *pipe);
     int destory_pipeline(pipeline_t *pipe);
 
-    int user_input(pipeline_t *pipe, pipeline_buffer_t *buf);//暂时不能用
+    int user_input(pipeline_t *pipe, pipeline_buffer_t *buf); // 暂时不能用
 #if __cplusplus
 }
 #endif
