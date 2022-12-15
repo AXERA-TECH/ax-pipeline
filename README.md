@@ -38,14 +38,17 @@
 - [简化版本 pipeline 构建 api](docs/new_pipeline.md)
   
 ### 示例
-- [sample_vin_joint](examples/sample_vin_joint)
-- [sample_vin_ivps_joint_vo](examples/sample_vin_ivps_joint_vo)
-- [sample_vin_ivps_joint_venc_rtsp](examples/sample_vin_ivps_joint_venc_rtsp)
-- [sample_vin_ivps_joint_venc_rtsp_vo](examples/sample_vin_ivps_joint_venc_rtsp_vo)
-- [sample_vin_ivps_joint_vo_new](examples/sample_vin_ivps_joint_vo_new)
-- [sample_vin_ivps_joint_venc_rtsp_new](examples/sample_vin_ivps_joint_venc_rtsp_new)
-- [sample_vin_ivps_joint_venc_rtsp_vo_new](examples/sample_vin_ivps_joint_venc_rtsp_vo_new)
-- [sample_h264_ivps_joint_vo](examples/sample_h264_ivps_joint_vo)
+| 示例 | 简介|
+|-|-|
+| [sample_vin_joint](examples/sample_vin_joint) |直接从 ISP 获取 NV12 数据进行 NPU 推理|
+| [sample_vin_ivps_joint_vo](examples/sample_vin_ivps_joint_vo) |IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_vin_ivps_joint_venc_rtsp](examples/sample_vin_ivps_joint_venc_rtsp) |IVPS 出三路视频，两路用作 RTSP 推流，一路用作 NPU 推理|
+| [sample_vin_ivps_joint_venc_rtsp_vo](examples/sample_vin_ivps_joint_venc_rtsp_vo) |IVPS 出三路视频，一路用作 RTSP 推流，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_vin_ivps_joint_vo_new](examples/sample_vin_ivps_joint_vo_new) |同 ```sample_vin_ivps_joint_vo```|
+| [sample_vin_ivps_joint_venc_rtsp_new](examples/sample_vin_ivps_joint_venc_rtsp_new) |同 ```sample_vin_ivps_joint_venc_rtsp```|
+| [sample_vin_ivps_joint_venc_rtsp_vo_new](examples/sample_vin_ivps_joint_venc_rtsp_vo_new) |同 ```sample_vin_ivps_joint_venc_rtsp_vo```|
+| [sample_h264_ivps_joint_vo](examples/sample_h264_ivps_joint_vo) |读取 h264 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_vin_ivps_joint_vo_h265_new](examples/sample_vin_ivps_joint_vo_h265_new) |IVPS 出三路视频，一路用作屏幕显示，一路用作 h265 文件保存，一路用作 NPU 推理|
 
 ### DEMO视频
 https://user-images.githubusercontent.com/46700201/198552009-b55a5776-fc5a-4725-9906-d37548385359.mp4

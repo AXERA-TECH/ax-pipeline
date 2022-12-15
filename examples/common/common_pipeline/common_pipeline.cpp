@@ -149,6 +149,7 @@ int create_pipeline(pipeline_t *pipe)
 {
     if (pipe->enable == 0)
     {
+        ALOGE("PIPE-%d doesn`t enable", pipe->pipeid);
         return -1;
     }
 
