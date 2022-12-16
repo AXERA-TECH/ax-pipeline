@@ -127,8 +127,11 @@ int _create_ivps_grp(pipeline_t *pipe);
 int _destore_ivps_grp(pipeline_t *pipe);
 int _create_venc_chn(pipeline_t *pipe);
 int _destore_venc_grp(pipeline_t *pipe);
+
 int _create_vdec_grp(pipeline_t *pipe);
 int _destore_vdec_grp(pipeline_t *pipe);
+int _create_jvdec_grp(pipeline_t *pipe);
+int _destore_jvdec_grp(pipeline_t *pipe);
 
 bool check_rtsp_session_pipeid(int pipeid)
 {
@@ -223,7 +226,8 @@ int create_pipeline(pipeline_t *pipe)
         AX_SYS_Link(&srcMod, &dstMod);
     }
     break;
-    case pi_vdec:
+    case pi_vdec_h264:
+    case pi_vdec_jpeg:
     {
         if (pipeline_handle.ivps_grp.size() == 0)
         {
@@ -440,7 +444,8 @@ int destory_pipeline(pipeline_t *pipe)
         }
     }
     break;
-    case pi_vdec:
+    case pi_vdec_h264:
+    case pi_vdec_jpeg:
     {
         AX_MOD_INFO_S srcMod, dstMod;
         srcMod.enModId = AX_ID_VDEC;
@@ -454,7 +459,8 @@ int destory_pipeline(pipeline_t *pipe)
 
         if (contain(pipeline_handle.vdec_grp, pipe->m_vdec_attr.n_vdec_grp))
         {
-            _destore_vdec_grp(pipe);
+            if (pipe->m_input_type == pi_vdec_h264)
+                _destore_vdec_grp(pipe);
             erase(pipeline_handle.vdec_grp, pipe->m_vdec_attr.n_vdec_grp);
         }
         if (pipeline_handle.vdec_grp.size() == 0)
@@ -572,7 +578,7 @@ int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
     {
     }
     break;
-    case pi_vdec:
+    case pi_vdec_h264:
     {
         AX_VDEC_STREAM_S stream = {0};
         int unsigned long long pts = 0;
@@ -587,7 +593,24 @@ int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
             ALOGE("AX_VDEC_SendStream 0x%x", ret);
         }
     }
-
+    break;
+    case pi_vdec_jpeg:
+    {
+        _create_jvdec_grp(pipe);
+        AX_VDEC_STREAM_S stream = {0};
+        int unsigned long long pts = 0;
+        stream.u64PTS = pts++;
+        stream.u32Len = buf->n_size;
+        stream.pu8Addr = (unsigned char *)buf->p_vir;
+        stream.bEndOfFrame = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
+        stream.bEndOfStream = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
+        int ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
+        if (ret != 0)
+        {
+            ALOGE("AX_VDEC_SendStream 0x%x", ret);
+        }
+        _destore_jvdec_grp(pipe);
+    }
     break;
     default:
         break;

@@ -1,3 +1,6 @@
 [submodule "axpi_bsp_sdk"]
 	path = axpi_bsp_sdk
 	url = https://github.com/sipeed/axpi_bsp_sdk.git
+[submodule "examples/sample_v4l2_ivps_joint_vo/libv4l2cpp"]
+	path = examples/sample_v4l2_ivps_joint_vo/libv4l2cpp
+	url = https://github.com/mpromonet/libv4l2cpp.git

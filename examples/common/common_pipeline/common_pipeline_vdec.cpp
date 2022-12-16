@@ -103,82 +103,133 @@ int _create_vdec_grp(pipeline_t *pipe)
 {
     AX_VDEC_GRP_ATTR_S gGrpAttr;
     memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
-    if (pipe->m_vdec_attr.n_vdec_type == 0)
+    switch (pipe->m_input_type)
+    {
+    case pi_vdec_h264:
     {
         gGrpAttr.enType = PT_H264;
         gGrpAttr.u32PicWidth = 1920;
         gGrpAttr.u32PicHeight = 1080;
+        gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
+        gGrpAttr.u32FrameBufCnt = 10;
+#if VDEC_LINK_MODE
+        gGrpAttr.enLinkMode = AX_LINK_MODE;
+#endif
+        AX_POOL s32PoolId;
+        AX_U32 FrameSize = 0;
+
+        AX_S32 ret = AX_VDEC_CreateGrp(pipe->m_vdec_attr.n_vdec_grp, &gGrpAttr);
+        if (ret != AX_SUCCESS)
+        {
+            ALOGE("AX_VDEC_CreateGrp error: 0x%x\n", ret);
+            return -1;
+        }
+
+        FrameSize = AX_VDEC_GetPicBufferSize(1920, 1088, PT_H264); // 3655712;
+        printf("Get pool mem size is %d\n", FrameSize);
+        ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
+        if (ret != AX_SUCCESS)
+        {
+            printf("FramePoolInit failed! Error:%x\n", ret);
+            return -1;
+        }
+        pipe->m_vdec_attr.poolid = s32PoolId;
+        ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp);
+        if (ret != AX_SUCCESS)
+        {
+            ALOGE("AX_VDEC_StartRecvStream error: 0x%x\n", ret);
+            AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
+            return -1;
+        }
+#if !VDEC_LINK_MODE
+        pthread_t tid = 0;
+        if (0 != pthread_create(&tid, NULL, _vdec_get_frame_thread, pipe))
+        {
+            return -1;
+        }
+        pthread_detach(tid);
+#endif
     }
-    else
+    break;
+    case pi_vdec_jpeg:
     {
-        gGrpAttr.enType = PT_MJPEG;
-        gGrpAttr.enMode = VIDEO_MODE_FRAME;
-        gGrpAttr.u32PicWidth = 4096;
-        gGrpAttr.u32PicHeight = 4096;
+        AX_U32 FrameSize = 0;
+        FrameSize = AX_VDEC_GetPicBufferSize(4096, 4096, PT_JPEG); // 3655712;
+        printf("Get pool mem size is %d\n", FrameSize);
+
+        AX_S32 s32Ret = AX_SUCCESS;
+        /* vdec use pool to alloc output buffer */
+        AX_POOL_CONFIG_T stPoolConfig = {0};
+        AX_POOL s32PoolId;
+
+        memset(&stPoolConfig, 0, sizeof(AX_POOL_CONFIG_T));
+        stPoolConfig.MetaSize = 512;
+        stPoolConfig.BlkCnt = 10;
+        stPoolConfig.BlkSize = FrameSize;
+        stPoolConfig.CacheMode = POOL_CACHE_MODE_NONCACHE;
+        memset(stPoolConfig.PartitionName, 0, sizeof(stPoolConfig.PartitionName));
+        strcpy((AX_CHAR *)stPoolConfig.PartitionName, "anonymous");
+
+        s32PoolId = AX_POOL_CreatePool(&stPoolConfig);
+        if (AX_INVALID_POOLID == s32PoolId)
+        {
+            printf("Create pool err.\n");
+            return AX_ERR_VDEC_NULL_PTR;
+        }
+        pipe->m_vdec_attr.poolid = s32PoolId;
+    }
+    break;
+    default:
+        break;
     }
 
-    // gGrpAttr.enMode = VIDEO_MODE_STREAM;
-    // gGrpAttr.stVdecVideoAttr.eOutOrder = VIDEO_OUTPUT_ORDER_DEC;
-    // gGrpAttr.u32PicWidth = 1920;
-    // gGrpAttr.u32PicHeight = 1080;
+    return 0;
+}
+
+int _destore_jvdec_grp(pipeline_t *pipe)
+{
+    int ret = AX_VDEC_StopRecvStream(pipe->m_vdec_attr.n_vdec_grp);
+
+    ret = AX_VDEC_DetachPool(pipe->m_vdec_attr.n_vdec_grp);
+    // AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+
+    ret = AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
+    return 0;
+}
+
+int _destore_vdec_grp(pipeline_t *pipe)
+{
+    _destore_jvdec_grp(pipe);
+    AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+
+    return 0;
+}
+
+int _create_jvdec_grp(pipeline_t *pipe)
+{
+    AX_VDEC_GRP_ATTR_S gGrpAttr;
+    memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
+
+    gGrpAttr.enType = PT_JPEG;
+    gGrpAttr.u32PicWidth = 1920;
+    gGrpAttr.u32PicHeight = 1080;
     gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
-    // gGrpAttr.u32FrameBufSize = 10 * 1024 * 1024;
     gGrpAttr.u32FrameBufCnt = 10;
 #if VDEC_LINK_MODE
     gGrpAttr.enLinkMode = AX_LINK_MODE;
 #endif
-
-    // AX_POOL_CONFIG_T stPoolConfig = {0};
-    AX_POOL s32PoolId;
-    AX_U32 FrameSize = 0;
-
-    // FrameSize = AX_VDEC_GetPicBufferSize(1920, 1088, PT_H264);
-    // ALOGN("Get pool mem size is %d\n", FrameSize);
-
-    // memset(&stPoolConfig, 0, sizeof(AX_POOL_CONFIG_T));
-    // stPoolConfig.MetaSize = 1024;
-    // stPoolConfig.BlkCnt = 10;
-    // stPoolConfig.BlkSize = FrameSize;
-    // stPoolConfig.CacheMode = POOL_CACHE_MODE_NONCACHE;
-    // memset(stPoolConfig.PartitionName, 0, sizeof(stPoolConfig.PartitionName));
-    // strcpy((AX_CHAR *)stPoolConfig.PartitionName, "anonymous");
-
-    // s32PoolId = AX_POOL_CreatePool(&stPoolConfig);
-    // if (AX_INVALID_POOLID == s32PoolId)
-    // {
-    //     ALOGE("AX_POOL_CreatePool err.\n");
-    //     return -1;
-    // }
-
-    // gGrpAttr.u32FrameBufSize = FrameSize;
-
     AX_S32 ret = AX_VDEC_CreateGrp(pipe->m_vdec_attr.n_vdec_grp, &gGrpAttr);
     if (ret != AX_SUCCESS)
     {
         ALOGE("AX_VDEC_CreateGrp error: 0x%x\n", ret);
         return -1;
     }
-
-    FrameSize = AX_VDEC_GetPicBufferSize(1920, 1088, PT_H264); // 3655712;
-    printf("Get pool mem size is %d\n", FrameSize);
-    ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
+    ret = AX_VDEC_AttachPool(pipe->m_vdec_attr.n_vdec_grp, pipe->m_vdec_attr.poolid);
     if (ret != AX_SUCCESS)
     {
-        printf("FramePoolInit failed! Error:%x\n", ret);
-        return -1;
+        AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+        printf("Attach pool err. %x\n", ret);
     }
-
-    // AX_VDEC_SetDisplayMode(pipe->n_vdec_grp, VIDEO_DISPLAY_MODE_PLAYBACK);
-
-    /*init pool memory for jdec*/
-    // ret = AX_VDEC_AttachPool(pipe->n_vdec_grp, s32PoolId);
-    // if (ret != AX_SUCCESS)
-    // {
-    //     AX_POOL_MarkDestroyPool(s32PoolId);
-    //     ALOGE("AX_VDEC_AttachPool error: %d\n", ret);
-    //     AX_VDEC_DestroyGrp(pipe->n_vdec_grp);
-    //     return -1;
-    // }
 
     ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp);
     if (ret != AX_SUCCESS)
@@ -187,24 +238,4 @@ int _create_vdec_grp(pipeline_t *pipe)
         AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
         return -1;
     }
-#if !VDEC_LINK_MODE
-    pthread_t tid = 0;
-    if (0 != pthread_create(&tid, NULL, _vdec_get_frame_thread, pipe))
-    {
-        return -1;
-    }
-    pthread_detach(tid);
-#endif
-
-    return 0;
-}
-
-int _destore_vdec_grp(pipeline_t *pipe)
-{
-    int ret = AX_VDEC_StopRecvStream(pipe->m_vdec_attr.n_vdec_grp);
-
-    ret = AX_VDEC_DetachPool(pipe->m_vdec_attr.n_vdec_grp);
-
-    ret = AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
-    return 0;
 }

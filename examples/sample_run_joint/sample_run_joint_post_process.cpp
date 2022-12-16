@@ -245,6 +245,123 @@ int _sample_run_joint_inference_animal_pose(sample_run_joint_models *pModels, co
     return ret;
 }
 
+int _sample_run_joint_inference_license_plate_recognition(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults)
+{
+    int ret = sample_run_joint_inference(pModels->mMajor.JointHandle, pstFrame, NULL);
+    sample_run_joint_post_process_det_single_func(pResults, pModels);
+    for (int i = 0; i < pResults->nObjSize; i++)
+    {
+        static AX_NPU_CV_Image tmp = {0};
+        if (!tmp.pVir)
+        {
+            tmp.eDtype = ((AX_NPU_CV_Image *)pstFrame)->eDtype;
+            tmp.nHeight = pModels->mMinor.JointAttr.algo_height;
+            tmp.nWidth = pModels->mMinor.JointAttr.algo_width;
+            tmp.tStride.nW = tmp.nWidth;
+            if (tmp.eDtype == AX_NPU_CV_FDT_NV12)
+            {
+                tmp.nSize = tmp.nHeight * tmp.nWidth * 3 / 2;
+            }
+            else if (tmp.eDtype == AX_NPU_CV_FDT_RGB || tmp.eDtype == AX_NPU_CV_FDT_BGR)
+            {
+                tmp.nSize = tmp.nHeight * tmp.nWidth * 3;
+            }
+            else
+            {
+                ALOGE("just only support nv12/rgb/bgr format\n");
+                return -1;
+            }
+            AX_SYS_MemAlloc(&tmp.pPhy, (void **)&tmp.pVir, tmp.nSize, 0x100, NULL);
+        }
+
+        sample_run_joint_object &object = pResults->mObjects[i];
+
+        cv::Point2f src_pts[4];
+        src_pts[0] = cv::Point2f(object.bbox_vertices[0].x, object.bbox_vertices[0].y);
+        src_pts[1] = cv::Point2f(object.bbox_vertices[1].x, object.bbox_vertices[1].y);
+        src_pts[2] = cv::Point2f(object.bbox_vertices[2].x, object.bbox_vertices[2].y);
+        src_pts[3] = cv::Point2f(object.bbox_vertices[3].x, object.bbox_vertices[3].y);
+
+        cv::Point2f dst_pts[4];
+        dst_pts[0] = cv::Point2f(0, 0);
+        dst_pts[1] = cv::Point2f(pModels->mMinor.JointAttr.algo_width, 0);
+        dst_pts[2] = cv::Point2f(pModels->mMinor.JointAttr.algo_width, pModels->mMinor.JointAttr.algo_height);
+        dst_pts[3] = cv::Point2f(0, pModels->mMinor.JointAttr.algo_height);
+
+        cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
+        cv::Mat affine_trans_mat_inv;
+        cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+
+        float mat3x3[3][3] = {
+            {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
+            {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
+            {0, 0, 1}};
+        // //这里要用AX_NPU_MODEL_TYPE_1_1_2
+        ret = AX_NPU_CV_Warp(AX_NPU_MODEL_TYPE_1_1_2, (AX_NPU_CV_Image *)pstFrame, &tmp, &mat3x3[0][0], AX_NPU_CV_BILINEAR, 128);
+
+        static const std::vector<std::string> plate_string = {
+            "#", "京", "沪", "津", "渝", "冀", "晋", "蒙", "辽", "吉", "黑", "苏", "浙", "皖",
+            "闽", "赣", "鲁", "豫", "鄂", "湘", "粤", "桂", "琼", "川", "贵", "云", "藏", "陕",
+            "甘", "青", "宁", "新", "学", "警", "港", "澳", "挂", "使", "领", "民", "航", "深",
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+            "A", "B", "C", "D", "E", "F", "G", "H",
+            "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
+
+        ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &tmp, nullptr);
+
+        // 1x1x21x78
+        float *outputdata = (float *)pModels->mMinor.JointAttr.pOutputs[0].pVirAddr;
+        float argmax_data[21];
+        float argmax_idx[21];
+
+        for (int row = 0; row < 21; row++)
+        {
+            argmax_data[row] = outputdata[0];
+            argmax_idx[row] = 0;
+            for (int col = 0; col < 78; col++)
+            {
+                if (outputdata[0] > argmax_data[row])
+                {
+                    argmax_data[row] = outputdata[0];
+                    argmax_idx[row] = col;
+                }
+                outputdata += 1;
+            }
+        }
+
+        std::string plate = "";
+        std::string pre_str = "#";
+        for (int i = 0; i < 21; i++)
+        {
+            int index = argmax_idx[i];
+            if (plate_string[index] != "#" && plate_string[index] != pre_str)
+                plate += plate_string[index];
+            pre_str = plate_string[index];
+        }
+        // return plate;
+        // ALOGI("%s %d",plate.c_str(),plate.length());
+        sprintf(pResults->mObjects[i].objname, plate.c_str());
+    }
+
+    for (int i = 0; i < pResults->nObjSize; i++)
+    {
+        pResults->mObjects[i].bbox.x /= pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.y /= pModels->SAMPLE_RESTORE_HEIGHT;
+        pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
+
+        if (pResults->mObjects[i].bHasBoxVertices)
+        {
+            for (size_t j = 0; j < 4; j++)
+            {
+                pResults->mObjects[i].bbox_vertices[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                pResults->mObjects[i].bbox_vertices[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+            }
+        }
+    }
+    return ret;
+}
+
 int _sample_run_joint_inference_handpose(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults)
 {
     static AX_NPU_CV_Image _pstFrame = {0};
@@ -368,7 +485,7 @@ static codepi::MultikeyMap<std::string, int, inference_func> ModelTypeTable = {
     {"MT_DET_PALM_HAND", MT_DET_PALM_HAND, _sample_run_joint_inference_det},
     {"MT_DET_YOLOPV2", MT_DET_YOLOPV2, _sample_run_joint_inference_det},
     {"MT_DET_YOLO_FASTBODY", MT_DET_YOLO_FASTBODY, _sample_run_joint_inference_det},
-    {"MT_DET_LICENSE_PLATE", MT_DET_LICENSE_PLATE, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV5_LICENSE_PLATE", MT_DET_YOLOV5_LICENSE_PLATE, _sample_run_joint_inference_det},
     {"MT_DET_YOLOV7_FACE", MT_DET_YOLOV7_FACE, _sample_run_joint_inference_det},
     {"MT_DET_YOLOV7_PALM_HAND", MT_DET_YOLOV7_PALM_HAND, _sample_run_joint_inference_det},
     {"MT_SEG_PPHUMSEG", MT_SEG_PPHUMSEG, _sample_run_joint_inference_pphumseg},
@@ -376,6 +493,7 @@ static codepi::MultikeyMap<std::string, int, inference_func> ModelTypeTable = {
     {"MT_MLM_ANIMAL_POSE_HRNET", MT_MLM_ANIMAL_POSE_HRNET, _sample_run_joint_inference_animal_pose},
     {"MT_MLM_HUMAN_POSE_AXPPL", MT_MLM_HUMAN_POSE_AXPPL, _sample_run_joint_inference_human_pose},
     {"MT_MLM_HAND_POSE", MT_MLM_HAND_POSE, _sample_run_joint_inference_handpose},
+    {"MT_MLM_VEHICLE_LICENSE_RECOGNITION", MT_MLM_VEHICLE_LICENSE_RECOGNITION, _sample_run_joint_inference_license_plate_recognition},
 };
 
 int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
@@ -461,7 +579,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_DET_PALM_HAND:
     case MT_DET_YOLOV7_FACE:
     case MT_DET_YOLOV7_PALM_HAND:
-    case MT_DET_LICENSE_PLATE:
+    case MT_DET_YOLOV5_LICENSE_PLATE:
         sample_parse_param_det(json_file_path);
         pModels->mMajor.ModelType = pModels->ModelType_Main;
         break;
@@ -472,6 +590,8 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     case MT_MLM_HUMAN_POSE_HRNET:
     case MT_MLM_ANIMAL_POSE_HRNET:
     case MT_MLM_HAND_POSE:
+    case MT_MLM_FACE_RECOGNITION:
+    case MT_MLM_VEHICLE_LICENSE_RECOGNITION:
         if (jsondata.contains("MODEL_MAJOR"))
         {
             nlohmann::json json_major = jsondata["MODEL_MAJOR"];

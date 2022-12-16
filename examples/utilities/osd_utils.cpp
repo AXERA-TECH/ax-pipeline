@@ -145,13 +145,16 @@ static inline void draw_pose_result(cv::Mat &img, sample_run_joint_object *pObj,
 
 void _draw_bbox(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)
 {
-
+    int x, y;
+    cv::Size label_size;
+    int baseLine = 0;
     for (size_t i = 0; i < results->nObjSize; i++)
     {
         cv::Rect rect(results->mObjects[i].bbox.x * out->width + offset_x,
                       results->mObjects[i].bbox.y * out->height + offset_y,
                       results->mObjects[i].bbox.w * out->width,
                       results->mObjects[i].bbox.h * out->height);
+        label_size = cv::getTextSize(results->mObjects[i].objname, cv::FONT_HERSHEY_SIMPLEX, fontscale, thickness, &baseLine);
         if (results->mObjects[i].bHasBoxVertices)
         {
             cv::line(image,
@@ -170,6 +173,9 @@ void _draw_bbox(cv::Mat &image, osd_utils_img *out, float fontscale, int thickne
                      cv::Point(results->mObjects[i].bbox_vertices[3].x * out->width + offset_x, results->mObjects[i].bbox_vertices[3].y * out->height + offset_y),
                      cv::Point(results->mObjects[i].bbox_vertices[0].x * out->width + offset_x, results->mObjects[i].bbox_vertices[0].y * out->height + offset_y),
                      cv::Scalar(128, 0, 0, 255), thickness * 2, 8, 0);
+
+            x = results->mObjects[i].bbox_vertices[0].x * out->width + offset_x;
+            y = results->mObjects[i].bbox_vertices[0].y * out->height + offset_y - label_size.height - baseLine;
         }
         else
         {
@@ -182,22 +188,20 @@ void _draw_bbox(cv::Mat &image, osd_utils_img *out, float fontscale, int thickne
                 cv::rectangle(image, rect, cv::Scalar(255, 128, 128, 128), thickness);
             }
 
-            int baseLine = 0;
-            cv::Size label_size = cv::getTextSize(results->mObjects[i].objname, cv::FONT_HERSHEY_SIMPLEX, fontscale, thickness, &baseLine);
-
-            int x = rect.x;
-            int y = rect.y - label_size.height - baseLine;
-            if (y < 0)
-                y = 0;
-            if (x + label_size.width > image.cols)
-                x = image.cols - label_size.width;
-
-            cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-                          cv::Scalar(255, 255, 255, 255), -1);
-
-            cv::putText(image, results->mObjects[i].objname, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale,
-                        cv::Scalar(0, 0, 0, 255), thickness);
+            x = rect.x;
+            y = rect.y - label_size.height - baseLine;
         }
+        
+        if (y < 0)
+            y = 0;
+        if (x + label_size.width > image.cols)
+            x = image.cols - label_size.width;
+
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+                      cv::Scalar(255, 255, 255, 255), -1);
+
+        cv::putText(image, results->mObjects[i].objname, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale,
+                    cv::Scalar(0, 0, 0, 255), thickness);
     }
 }
 
@@ -375,7 +379,7 @@ static codepi::MultikeyMap<std::string, int, draw_func> mDrawtable{
     {"yolox", MT_DET_YOLOX, _draw_bbox},
     {"nanodet", MT_DET_NANODET, _draw_bbox},
     {"yolo_fastbody", MT_DET_YOLO_FASTBODY, _draw_bbox},
-    {"yolo_license_plate", MT_DET_LICENSE_PLATE, _draw_bbox},
+    {"yolo_license_plate", MT_DET_YOLOV5_LICENSE_PLATE, _draw_bbox},
     {"yolov5_face", MT_DET_YOLOV5_FACE, _draw_yolov5_face},
     {"yolov5_seg", MT_INSEG_YOLOV5_MASK, _draw_yolov5_seg},
     {"yolopv2", MT_DET_YOLOPV2, _draw_yolopv2},
@@ -384,6 +388,7 @@ static codepi::MultikeyMap<std::string, int, draw_func> mDrawtable{
     {"ax_human_pose", MT_MLM_HUMAN_POSE_AXPPL, _draw_human_pose},
     {"hrnet_animal_pose", MT_MLM_ANIMAL_POSE_HRNET, _draw_animal_pose},
     {"hand_pose", MT_MLM_HAND_POSE, _draw_hand_pose},
+    {"license_plate_recognition", MT_MLM_VEHICLE_LICENSE_RECOGNITION, _draw_bbox},
 };
 
 void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)

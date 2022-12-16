@@ -33,7 +33,8 @@ typedef enum
     // link to vin
     pi_vin,
     // link to vdec
-    pi_vdec,
+    pi_vdec_h264,
+    pi_vdec_jpeg,
 } pipeline_input_e;
 
 typedef enum
@@ -74,7 +75,7 @@ typedef struct
     // 0-0 1-90 2-180 3-270
     int n_ivps_rotate;
 
-    // must be even number
+    // must be even number，必须是偶数
     int n_ivps_width;
     int n_ivps_height;
 
@@ -90,9 +91,6 @@ typedef struct
 {
 #define MAX_VENC_CHN_COUNT 64
     int n_venc_chn; // 少于64 并且不能重复
-    // int n_bitrate;
-    // int n_gop;
-
     char end_point[32]; // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
 } pipeline_venc_config_t;
 
@@ -100,7 +98,7 @@ typedef struct
 {
 #define MAX_VDEC_GRP_COUNT 16
     int n_vdec_grp;  // 少于 16，允许重复
-    int n_vdec_type; // 0-h264  1-mjpg(unsupport yet)
+    int poolid;      //internal variable,dont touch，内部使用，不要有任何操作
 } pipeline_vdec_config_t;
 
 typedef struct
@@ -135,7 +133,7 @@ typedef struct
 #define MAX_VIN_CHN_COUNT 3
     int n_vin_chn; // less than 3
 
-    pipeline_vdec_config_t m_vdec_attr; // less than 16
+    pipeline_vdec_config_t m_vdec_attr;
 
     pipeline_ivps_config_t m_ivps_attr;
 
@@ -152,7 +150,7 @@ extern "C"
     int create_pipeline(pipeline_t *pipe);
     int destory_pipeline(pipeline_t *pipe);
 
-    int user_input(pipeline_t *pipe, pipeline_buffer_t *buf); // 暂时不能用
+    int user_input(pipeline_t *pipe, pipeline_buffer_t *buf); 
 #if __cplusplus
 }
 #endif
