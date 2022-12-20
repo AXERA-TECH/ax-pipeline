@@ -155,6 +155,9 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
         case MT_DET_YOLOV5_LICENSE_PLATE:
             generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_RUN_JOINT_PLATE_LMK_SIZE);
             break;
+        case MT_DET_YOLOV6:
+            generate_proposals_yolov6(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, CLASS_NUM);
+        break;
         case MT_DET_YOLOV7:
             generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data() + i * 6, CLASS_NUM);
             break;
@@ -611,6 +614,7 @@ void sample_run_joint_post_process_det_single_func(sample_run_joint_results *pRe
     static std::map<int, post_process_func> m_func_map{
         {MT_DET_YOLOV5, sample_run_joint_post_process_detection},
         {MT_DET_YOLOV5_FACE, sample_run_joint_post_process_detection},
+        {MT_DET_YOLOV6, sample_run_joint_post_process_detection},
         {MT_DET_YOLOV7, sample_run_joint_post_process_detection},
         {MT_DET_YOLOX, sample_run_joint_post_process_detection},
         {MT_DET_NANODET, sample_run_joint_post_process_detection},

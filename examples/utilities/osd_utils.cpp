@@ -373,6 +373,7 @@ static codepi::MultikeyMap<std::string, int, draw_func> mDrawtable{
     {"yolov5", MT_DET_YOLOV5, _draw_bbox},
     {"ax_person_det", MT_DET_YOLOX_PPL, _draw_bbox},
     {"palm_hand_det", MT_DET_PALM_HAND, _draw_bbox},
+    {"yolov6", MT_DET_YOLOV6, _draw_bbox},
     {"yolov7", MT_DET_YOLOV7, _draw_bbox},
     {"yolov7_face", MT_DET_YOLOV7_FACE, _draw_yolov5_face},
     {"yolov7_palm_hand", MT_DET_YOLOV7_PALM_HAND, _draw_bbox},

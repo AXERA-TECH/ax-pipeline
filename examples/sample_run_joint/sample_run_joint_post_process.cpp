@@ -478,6 +478,7 @@ static codepi::MultikeyMap<std::string, int, inference_func> ModelTypeTable = {
     {"MT_DET_YOLOV5", MT_DET_YOLOV5, _sample_run_joint_inference_det},
     {"MT_DET_YOLOV5_FACE", MT_DET_YOLOV5_FACE, _sample_run_joint_inference_det},
     {"MT_DET_YOLOV7", MT_DET_YOLOV7, _sample_run_joint_inference_det},
+    {"MT_DET_YOLOV6", MT_DET_YOLOV6, _sample_run_joint_inference_det},
     {"MT_DET_YOLOX", MT_DET_YOLOX, _sample_run_joint_inference_det},
     {"MT_DET_NANODET", MT_DET_NANODET, _sample_run_joint_inference_det},
     {"MT_INSEG_YOLOV5_MASK", MT_INSEG_YOLOV5_MASK, _sample_run_joint_inference_det},
@@ -571,6 +572,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     {
     case MT_DET_YOLOV5:
     case MT_DET_YOLOV5_FACE:
+    case MT_DET_YOLOV6:
     case MT_DET_YOLOV7:
     case MT_DET_YOLOX:
     case MT_DET_NANODET:
