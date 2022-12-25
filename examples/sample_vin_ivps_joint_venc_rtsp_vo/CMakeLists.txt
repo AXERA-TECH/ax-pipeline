@@ -19,6 +19,8 @@ function(targetlink name)
 
     target_link_libraries(${name} PRIVATE pthread dl) # ax620a use this
 
+    target_link_libraries(${name} PRIVATE sample_run_joint)
+
     # target_link_libraries (sample_vin_ivps_joint_venc_rtsp_vo PRIVATE pthread dl stdc++fs) # ax620u use this
     target_link_libraries(${name} PRIVATE ax_run_joint ax_interpreter_external ax_interpreter ax_sys axsyslog stdc++fs)
     target_link_libraries(${name} PRIVATE ax_venc ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp ax_vo)
@@ -30,7 +32,6 @@ function(targetlink name)
     # rtsp
     target_include_directories(${name} PRIVATE ../rtsp/inc)
 
-    target_link_libraries(${name} PRIVATE sample_run_joint)
 endfunction()
 
 file(GLOB SRC_LIST "*.c" "pipe/*.c" "../utilities/*.cpp" "../utilities/*.c")
