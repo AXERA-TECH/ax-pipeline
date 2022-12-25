@@ -718,22 +718,24 @@ int sample_run_joint_inference_single_func(sample_run_joint_models *pModels, con
 
     if (g_cb_results_sipeed_py)
     {
-        int retcbnikeyi = g_cb_results_sipeed_py((void *)pstFrame, pResults);
+        ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);
     }
 
-    static int fcnt = 0;
-    static int fps = -1;
-    fcnt++;
-    static struct timespec ts1, ts2;
-    clock_gettime(CLOCK_MONOTONIC, &ts2);
-    if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
     {
-        // printf("%s => H26X FPS:%d     \r\n", tips, fcnt);
-        fps = fcnt;
-        ts1 = ts2;
-        fcnt = 0;
+        static int fcnt = 0;
+        static int fps = -1;
+        fcnt++;
+        static struct timespec ts1, ts2;
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
+        {
+            // printf("%s => H26X FPS:%d     \r\n", tips, fcnt);
+            fps = fcnt;
+            ts1 = ts2;
+            fcnt = 0;
+        }
+        pResults->niFps = fps;
     }
-    pResults->niFps = fps;
 
     return ret;
 }

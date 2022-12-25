@@ -89,7 +89,7 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
         {
             static sample_run_joint_results pResults;
 
-            sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &pResults);
+            ret = sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &pResults);
 
             pthread_mutex_lock(&g_result_mutex);
 
@@ -97,18 +97,18 @@ AX_VOID *GetFrameThread(AX_VOID *pArg)
             {
                 memcpy(&g_result_disp, &pResults, sizeof(sample_run_joint_results));
             }
-            else
-            {
-                memset(&g_result_mutex, 0, sizeof(sample_run_joint_results));
-            }
+            // else
+            // {
+            //     memset(&pResults, 0, sizeof(sample_run_joint_results));
+            // }
             pthread_mutex_unlock(&g_result_mutex);
         }
-        else
-        {
-            pthread_mutex_lock(&g_result_mutex);
-            memset(&g_result_mutex, 0, sizeof(sample_run_joint_results));
-            pthread_mutex_unlock(&g_result_mutex);
-        }
+        // else
+        // {
+        //     pthread_mutex_lock(&g_result_mutex);
+        //     memset(&pResults, 0, sizeof(sample_run_joint_results));
+        //     pthread_mutex_unlock(&g_result_mutex);
+        // }
 
         ret = AX_IVPS_ReleaseChnFrame(gPipeAi_IvpsGrp, gPipeAi_IvpsChn, &tVideoFrame);
     }
