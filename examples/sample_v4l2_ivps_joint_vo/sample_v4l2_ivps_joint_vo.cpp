@@ -157,8 +157,6 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t-p: yolov5 param file path\n");
     printf("\t-m: Joint model path\n");
 
-    printf("\t-f: h264 file:\n");
-
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
     exit(0);
@@ -184,20 +182,15 @@ int main(int argc, char *argv[])
     AX_S32 isExit = 0, i, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
-    char h26xfile[512];
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:f:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:m:r:h")) != -1)
     {
         switch (ch)
         {
-        case 'f':
-            strcpy(h26xfile, optarg);
-            ALOGI("file input %s", h26xfile);
-            break;
         case 'm':
             strcpy(gModels.MODEL_PATH, optarg);
             gModels.bRunJoint = AX_TRUE;

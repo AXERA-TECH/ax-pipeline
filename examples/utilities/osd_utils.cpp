@@ -390,6 +390,7 @@ static codepi::MultikeyMap<std::string, int, draw_func> mDrawtable{
     {"hrnet_animal_pose", MT_MLM_ANIMAL_POSE_HRNET, _draw_animal_pose},
     {"hand_pose", MT_MLM_HAND_POSE, _draw_hand_pose},
     {"license_plate_recognition", MT_MLM_VEHICLE_LICENSE_RECOGNITION, _draw_bbox},
+    {"face_recognition", MT_MLM_FACE_RECOGNITION, _draw_bbox},
 };
 
 void _draw_fps(cv::Mat &image, osd_utils_img *out, float fontscale, int thickness, sample_run_joint_results *results, int offset_x, int offset_y)

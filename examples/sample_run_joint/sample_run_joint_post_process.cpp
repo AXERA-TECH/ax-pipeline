@@ -8,6 +8,7 @@
 // #include "utilities/timer.hpp"
 #include "../utilities/ringbuffer.hpp"
 #include "../utilities/MultikeyMap.h"
+#include "utilities/mat_pixel_affine.h"
 extern "C"
 {
     // 给sipeed的python包用的
@@ -19,6 +20,17 @@ extern "C"
         return 0;
     }
 }
+
+float FACE_RECOGNITION_THRESHOLD = 0.4f;
+
+struct sample_run_joint_faceid
+{
+    std::string name;
+    std::string path;
+    std::vector<float> feat;
+};
+
+std::vector<sample_run_joint_faceid> face_ids;
 
 typedef int (*inference_func)(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults);
 
@@ -68,13 +80,10 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
     {
         if (pResults->mObjects[i].label == pModels->MINOR_CLASS_IDS[0])
         {
-            // if (pResults->mObjects[i].bbox.w * pResults->mObjects[i].bbox.h > HumObj.bbox.w * HumObj.bbox.h)
-            // {
             memcpy(&HumObj, &pResults->mObjects[i], sizeof(sample_run_joint_object));
             bHasHuman = AX_TRUE;
             idx = i;
             break;
-            // }
         }
     }
 
@@ -142,17 +151,6 @@ int _sample_run_joint_inference_human_pose(sample_run_joint_models *pModels, con
         // //这里要用AX_NPU_MODEL_TYPE_1_1_2
         ret = AX_NPU_CV_Warp(AX_NPU_MODEL_TYPE_1_1_2, (AX_NPU_CV_Image *)pstFrame, &tmp, &mat3x3[0][0], AX_NPU_CV_BILINEAR, 128);
 
-        // static int cnt = 0;
-        // if (cnt++ % 30 == 0)
-        // {
-        //     cv::Mat src(256 * 1.5, 192, CV_8UC1, tmp.pVir);
-        //     cv::Mat dst;
-        //     cv::cvtColor(src, dst, cv::COLOR_YUV2BGR_NV12);
-        //     char path[128];
-        //     sprintf(path, "debug_%05d.jpg", cnt);
-        //     cv::imwrite(path, dst);
-        //     printf("save %s\n", path);
-        // }
 
         ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &tmp, NULL);
         sample_run_joint_post_process_pose(pModels, &HumObj);
@@ -239,6 +237,194 @@ int _sample_run_joint_inference_animal_pose(sample_run_joint_models *pModels, co
             {
                 pResults->mObjects[idx].landmark[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
                 pResults->mObjects[idx].landmark[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
+            }
+        }
+    }
+    return ret;
+}
+
+void _normalize(float *feature, int feature_len)
+{
+    float sum = 0;
+    for (int it = 0; it < feature_len; it++)
+        sum += feature[it] * feature[it];
+    sum = sqrt(sum);
+    for (int it = 0; it < feature_len; it++)
+        feature[it] /= sum;
+}
+
+double _calcSimilar(float *feature1, float *feature2, int feature_len)
+{
+    // assert(feature1.size() == feature2.size());
+    double sim = 0.0;
+    for (int i = 0; i < feature_len; i++)
+        sim += feature1[i] * feature2[i];
+    sim = sim < 0 ? 0 : sim > 1 ? 1
+                                : sim;
+    return sim;
+}
+
+void align_face(sample_run_joint_object &obj, AX_NPU_CV_Image *npu_image, AX_NPU_CV_Image &npu_image_face_align)
+{
+    // static float target[10] = {30.2946, 51.6963,
+    //                            65.5318, 51.5014,
+    //                            48.0252, 71.7366,
+    //                            33.5493, 92.3655,
+    //                            62.7299, 92.2041};
+    static float target[10] = {38.2946, 51.6963,
+                               73.5318, 51.5014,
+                               56.0252, 71.7366,
+                               41.5493, 92.3655,
+                               70.7299, 92.2041};
+    float _tmp[10] = {obj.landmark[0].x, obj.landmark[0].y,
+                      obj.landmark[1].x, obj.landmark[1].y,
+                      obj.landmark[2].x, obj.landmark[2].y,
+                      obj.landmark[3].x, obj.landmark[3].y,
+                      obj.landmark[4].x, obj.landmark[4].y};
+    float _m[6], _m_inv[6];
+    get_affine_transform(_tmp, target, 5, _m);
+    invert_affine_transform(_m, _m_inv);
+
+    float mat3x3[3][3] = {
+        {_m_inv[0], _m_inv[1], _m_inv[2]},
+        {_m_inv[3], _m_inv[4], _m_inv[5]},
+        {0, 0, 1}};
+    // //这里要用AX_NPU_MODEL_TYPE_1_1_2
+    npu_image_face_align.eDtype = npu_image->eDtype;
+    if (npu_image_face_align.eDtype == AX_NPU_CV_FDT_RGB || npu_image_face_align.eDtype == AX_NPU_CV_FDT_BGR)
+    {
+        npu_image_face_align.nSize = 112 * 112 * 3;
+    }
+    else if (npu_image_face_align.eDtype == AX_NPU_CV_FDT_NV12 || npu_image_face_align.eDtype == AX_NPU_CV_FDT_NV21)
+    {
+        npu_image_face_align.nSize = 112 * 112 * 1.5;
+    }
+    else
+    {
+        ALOGE("just only support BGR/RGB/NV12 format");
+    }
+    int ret = AX_NPU_CV_Warp(AX_NPU_MODEL_TYPE_1_1_2, npu_image, &npu_image_face_align, &mat3x3[0][0], AX_NPU_CV_BILINEAR, 128);
+}
+
+int _sample_run_joint_inference_face_recognition(sample_run_joint_models *pModels, const void *pstFrame, sample_run_joint_results *pResults)
+{
+    static bool b_face_database_init = false;
+
+    static AX_NPU_CV_Image npu_image_face_align;
+
+    if (!b_face_database_init)
+    {
+        npu_image_face_align.nWidth = npu_image_face_align.nHeight = npu_image_face_align.tStride.nW = 112;
+        AX_SYS_MemAlloc((AX_U64 *)&npu_image_face_align.pPhy, (void **)&npu_image_face_align.pVir, 112 * 112 * 3, 0x100, (AX_S8 *)"SAMPLE-CV");
+
+        for (size_t i = 0; i < face_ids.size(); i++)
+        {
+            auto &faceid = face_ids[i];
+            cv::Mat image = cv::imread(faceid.path);
+            if (image.empty())
+            {
+                ALOGE("image %s cannot open,name %s register failed", faceid.path.c_str(), faceid.name.c_str());
+                continue;
+            }
+            AX_NPU_CV_Image npu_image;
+            npu_image.eDtype = AX_NPU_CV_FDT_BGR;
+            npu_image.nHeight = image.rows;
+            npu_image.nWidth = image.cols;
+            npu_image.tStride.nW = npu_image.nWidth;
+            npu_image.nSize = npu_image.nWidth * npu_image.nHeight * 3;
+            AX_SYS_MemAlloc((AX_U64 *)&npu_image.pPhy, (void **)&npu_image.pVir, npu_image.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
+            memcpy(npu_image.pVir, image.data, npu_image.nSize);
+
+            int ret = sample_run_joint_inference(pModels->mMajor.JointHandle, &npu_image, NULL);
+            sample_run_joint_results Results = {0};
+
+            int tmp_width = pModels->SAMPLE_RESTORE_WIDTH;
+            int tmp_height = pModels->SAMPLE_RESTORE_HEIGHT;
+            pModels->SAMPLE_RESTORE_WIDTH = npu_image.nWidth;
+            pModels->SAMPLE_RESTORE_HEIGHT = npu_image.nHeight;
+            sample_run_joint_post_process_det_single_func(&Results, pModels);
+            pModels->SAMPLE_RESTORE_WIDTH = tmp_width;
+            pModels->SAMPLE_RESTORE_HEIGHT = tmp_height;
+
+            if (Results.nObjSize)
+            {
+                sample_run_joint_object &obj = Results.mObjects[0];
+
+                align_face(obj, &npu_image, npu_image_face_align);
+
+                ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &npu_image_face_align, nullptr);
+
+                faceid.feat.resize(SAMPLE_FACE_FEAT_LEN);
+                memcpy(faceid.feat.data(), pModels->mMinor.JointAttr.pOutputs[0].pVirAddr, SAMPLE_FACE_FEAT_LEN * sizeof(float));
+                _normalize(faceid.feat.data(), SAMPLE_FACE_FEAT_LEN);
+            }
+
+            AX_SYS_MemFree(npu_image.pPhy, npu_image.pVir);
+        }
+
+        b_face_database_init = true;
+    }
+
+    int ret = sample_run_joint_inference(pModels->mMajor.JointHandle, pstFrame, NULL);
+    sample_run_joint_post_process_det_single_func(pResults, pModels);
+    float feat[SAMPLE_FACE_FEAT_LEN];
+    for (int i = 0; i < pResults->nObjSize; i++)
+    {
+        sample_run_joint_object &obj = pResults->mObjects[i];
+        align_face(obj, (AX_NPU_CV_Image *)pstFrame, npu_image_face_align);
+
+        ret = sample_run_joint_inference(pModels->mMinor.JointHandle, &npu_image_face_align, nullptr);
+
+        memcpy(&feat[0], pModels->mMinor.JointAttr.pOutputs[0].pVirAddr, SAMPLE_FACE_FEAT_LEN * 4);
+        _normalize(feat, SAMPLE_FACE_FEAT_LEN);
+        int maxidx = -1;
+        float max_score = 0;
+        for (size_t j = 0; j < face_ids.size(); j++)
+        {
+            if (face_ids[j].feat.size() != SAMPLE_FACE_FEAT_LEN)
+            {
+                continue;
+            }
+            float sim = _calcSimilar(feat, face_ids[j].feat.data(), SAMPLE_FACE_FEAT_LEN);
+            if (sim > max_score && sim > FACE_RECOGNITION_THRESHOLD)
+            {
+                maxidx = j;
+                max_score = sim;
+            }
+        }
+
+        if (maxidx >= 0)
+        {
+            if (max_score >= FACE_RECOGNITION_THRESHOLD)
+            {
+                memset(obj.objname, 0, SAMPLE_OBJ_NAME_MAX_LEN);
+                int len = MIN(SAMPLE_OBJ_NAME_MAX_LEN - 1, face_ids[maxidx].name.size());
+                memcpy(&obj.objname[0], face_ids[maxidx].name.data(), len);
+            }
+            else
+            {
+                sprintf(obj.objname, "unknow");
+            }
+        }
+        else
+        {
+            sprintf(obj.objname, "unknow");
+        }
+    }
+
+    for (int i = 0; i < pResults->nObjSize; i++)
+    {
+        pResults->mObjects[i].bbox.x /= pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.y /= pModels->SAMPLE_RESTORE_HEIGHT;
+        pResults->mObjects[i].bbox.w /= pModels->SAMPLE_RESTORE_WIDTH;
+        pResults->mObjects[i].bbox.h /= pModels->SAMPLE_RESTORE_HEIGHT;
+
+        if (pResults->mObjects[i].bHasBoxVertices)
+        {
+            for (size_t j = 0; j < 4; j++)
+            {
+                pResults->mObjects[i].bbox_vertices[j].x /= pModels->SAMPLE_RESTORE_WIDTH;
+                pResults->mObjects[i].bbox_vertices[j].y /= pModels->SAMPLE_RESTORE_HEIGHT;
             }
         }
     }
@@ -495,7 +681,7 @@ static codepi::MultikeyMap<std::string, int, inference_func> ModelTypeTable = {
     {"MT_MLM_HUMAN_POSE_AXPPL", MT_MLM_HUMAN_POSE_AXPPL, _sample_run_joint_inference_human_pose},
     {"MT_MLM_HAND_POSE", MT_MLM_HAND_POSE, _sample_run_joint_inference_handpose},
     {"MT_MLM_VEHICLE_LICENSE_RECOGNITION", MT_MLM_VEHICLE_LICENSE_RECOGNITION, _sample_run_joint_inference_license_plate_recognition},
-};
+    {"MT_MLM_FACE_RECOGNITION", MT_MLM_FACE_RECOGNITION, _sample_run_joint_inference_face_recognition}};
 
 int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *pModels)
 {
@@ -663,6 +849,22 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
                 {
                     pModels->MINOR_CLASS_IDS[i] = clsids[i];
                 }
+            }
+            if (json_minor.contains("FACE_DATABASE"))
+            {
+                nlohmann::json database = json_minor["FACE_DATABASE"];
+                for (nlohmann::json::iterator it = database.begin(); it != database.end(); ++it)
+                {
+                    ALOGI("name:%s path:%s", it.key().c_str(), it.value().get<std::string>().c_str());
+                    sample_run_joint_faceid faceid;
+                    faceid.path = it.value();
+                    faceid.name = it.key();
+                    face_ids.push_back(faceid);
+                }
+            }
+            if (json_minor.contains("FACE_RECOGNITION_THRESHOLD"))
+            {
+                FACE_RECOGNITION_THRESHOLD = json_minor["FACE_RECOGNITION_THRESHOLD"];
             }
         }
 

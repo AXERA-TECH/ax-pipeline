@@ -10,7 +10,7 @@ function(targetlink name)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include/npu_cv_kit)
 endfunction()
 
-file(GLOB SRC_LIST "*.cpp")
+file(GLOB SRC_LIST "*.cpp" "utilities/*.cpp")
 
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}

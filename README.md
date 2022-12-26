@@ -2,6 +2,8 @@
 **AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
 
 ## 更新日志
+```2022-12-26``` 新增人脸识别
+
 ```2022-12-16``` 新增 usb 相机输入的 sample。新增车牌检测、车牌识别，详情请查阅 [ModelZoo](docs/modelzoo.md)
 
 ```2022-12-14``` 新增 h264 文件输入 pipeline，新增yolov7-face、yolov7-palm-hand
