@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
             s_sample_framerate = (AX_S32)atoi(optarg);
             if (s_sample_framerate <= 0)
             {
-                s_sample_framerate = 60;
+                s_sample_framerate = 30;
             }
             break;
         case 'h':

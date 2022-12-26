@@ -25,7 +25,7 @@
 
 IVPS_REGION_PARAM_T g_arrRgnThreadParam[SAMPLE_REGION_COUNT];
 
-AX_S32 s_sample_framerate = 60;
+AX_S32 s_sample_framerate = 30;
 
 CAMERA_T gCams[MAX_CAMERAS] = {0};
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
             s_sample_framerate = (AX_S32)atoi(optarg);
             if (s_sample_framerate <= 0)
             {
-                s_sample_framerate = 60;
+                s_sample_framerate = 30;
             }
             break;
         case 'h':
