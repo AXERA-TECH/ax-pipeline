@@ -25,6 +25,8 @@
 #include "../utilities/osd_utils.h"
 #include "../utilities/sample_log.h"
 
+#include "RTSP/include/RTSPClient.h"
+
 #include "ax_ivps_api.h"
 #include "npu_cv_kit/ax_npu_imgproc.h"
 
@@ -140,153 +142,29 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-#define NAL_CODED_SLICE_CRA 21
-#define NAL_CODED_SLICE_IDR 5
-
-typedef struct _SAMPLE_BSPARSER
+static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
 {
-    FILE *fInput;
-    AX_S32 sSize;
-} SAMPLE_BSPARSER_T;
+    pipeline_t *pipe = (pipeline_t *)arg;
+    pipeline_buffer_t buf_h264;
 
-typedef enum _SAMPLE_BSBOUNDAR_YTYPE
-{
-    BSPARSER_NO_BOUNDARY = 0,
-    BSPARSER_BOUNDARY = 1,
-    BSPARSER_BOUNDARY_NON_SLICE_NAL = 2
-} SAMPLE_BSBOUNDAR_YTYPE_E;
-
-static AX_S32 FindNextStartCode(SAMPLE_BSPARSER_T *tBsInfo, AX_U32 *uZeroCount)
-{
-    AX_S32 i;
-    AX_S32 sStart = ftello(tBsInfo->fInput);
-    *uZeroCount = 0;
-
-    /* Scan for the beginning of the packet. */
-    for (i = 0; i < tBsInfo->sSize && i < tBsInfo->sSize - sStart; i++)
+    switch (frame_type)
     {
-        AX_U8 byte;
-        AX_S32 ret_val = fgetc(tBsInfo->fInput);
-        if (ret_val == EOF)
-            return ftello(tBsInfo->fInput);
-        byte = (unsigned char)ret_val;
-        switch (byte)
-        {
-        case 0:
-            *uZeroCount = *uZeroCount + 1;
-            break;
-        case 1:
-            /* If there's more than three leading zeros, consider only three
-             * of them to be part of this packet and the rest to be part of
-             * the previous packet. */
-            if (*uZeroCount > 3)
-                *uZeroCount = 3;
-            if (*uZeroCount >= 2)
-            {
-                return ftello(tBsInfo->fInput) - *uZeroCount - 1;
-            }
-            *uZeroCount = 0;
-            break;
-        default:
-            *uZeroCount = 0;
-            break;
-        }
+    case FRAME_TYPE_VIDEO:
+        buf_h264.p_vir = buf;
+        buf_h264.n_size = len;
+        user_input(pipe, &buf_h264);
+        printf("\rbuf len : %d", len);
+        fflush(stdout);
+        break;
+    case FRAME_TYPE_AUDIO:
+        printf("audio\n");
+        break;
+    case FRAME_TYPE_ETC:
+        printf("etc\n");
+        break;
+    default:
+        break;
     }
-    return ftello(tBsInfo->fInput);
-}
-
-AX_U32 CheckAccessUnitBoundaryH264(FILE *fInput, AX_S32 sNalBegin)
-{
-    AX_U32 uBoundary = BSPARSER_NO_BOUNDARY;
-    AX_U32 uNalType, uVal;
-
-    AX_S32 sStart = ftello(fInput);
-
-    fseeko(fInput, sNalBegin, SEEK_SET);
-    uNalType = (getc(fInput) & 0x1F);
-
-    if (uNalType > NAL_CODED_SLICE_IDR)
-        uBoundary = BSPARSER_BOUNDARY_NON_SLICE_NAL;
-    else
-    {
-        uVal = getc(fInput);
-        /* Check if first mb in slice is 0(ue(v)). */
-        if (uVal & 0x80)
-            uBoundary = BSPARSER_BOUNDARY;
-    }
-
-    fseeko(fInput, sStart, SEEK_SET);
-    return uBoundary;
-}
-
-AX_S32 StreamParserReadFrameH264(SAMPLE_BSPARSER_T *tBsInfo, AX_U8 *sBuffer,
-                                 AX_S32 *sSize)
-{
-    AX_S32 sBegin, sEnd, sStrmLen;
-    AX_U32 sReadLen;
-    AX_U32 uZeroCount = 0;
-
-    AX_U32 uTmp = 0;
-    AX_S32 sNalBegin;
-    /* TODO(min): to extract exact one frame instead of a NALU */
-
-    sBegin = FindNextStartCode(tBsInfo, &uZeroCount);
-    sNalBegin = sBegin + uZeroCount + 1;
-    uTmp = CheckAccessUnitBoundaryH264(tBsInfo->fInput, sNalBegin);
-    sEnd = sNalBegin = FindNextStartCode(tBsInfo, &uZeroCount);
-
-    if (sEnd != sBegin && uTmp != BSPARSER_BOUNDARY_NON_SLICE_NAL)
-    {
-        do
-        {
-            sEnd = sNalBegin;
-            sNalBegin += uZeroCount + 1;
-
-            /* Check access unit boundary for next NAL */
-            uTmp = CheckAccessUnitBoundaryH264(tBsInfo->fInput, sNalBegin);
-            if (uTmp == BSPARSER_NO_BOUNDARY)
-            {
-                sNalBegin = FindNextStartCode(tBsInfo, &uZeroCount);
-            }
-            else if (uTmp == BSPARSER_BOUNDARY_NON_SLICE_NAL)
-            {
-                do
-                {
-                    sNalBegin = FindNextStartCode(tBsInfo, &uZeroCount);
-                    if (sEnd == sNalBegin)
-                        break;
-                    sEnd = sNalBegin;
-                    sNalBegin += uZeroCount + 1;
-                    uTmp = CheckAccessUnitBoundaryH264(tBsInfo->fInput, sNalBegin);
-                } while (uTmp == BSPARSER_BOUNDARY_NON_SLICE_NAL);
-
-                if (sEnd == sNalBegin)
-                {
-                    break;
-                }
-                else if (uTmp == BSPARSER_NO_BOUNDARY)
-                {
-                    sNalBegin = FindNextStartCode(tBsInfo, &uZeroCount);
-                }
-            }
-        } while (uTmp != BSPARSER_BOUNDARY);
-    }
-
-    if (sEnd == sBegin)
-    {
-        return 0; /* End of stream */
-    }
-    fseeko(tBsInfo->fInput, sBegin, SEEK_SET);
-    if (*sSize < sEnd - sBegin)
-    {
-        *sSize = sEnd - sBegin;
-        return 0; /* Insufficient buffer size */
-    }
-
-    sStrmLen = sEnd - sBegin;
-    sReadLen = fread(sBuffer, 1, sStrmLen, tBsInfo->fInput);
-
-    return sReadLen;
 }
 
 // 允许外部调用
@@ -304,7 +182,7 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t-p: yolov5 param file path\n");
     printf("\t-m: Joint model path\n");
 
-    printf("\t-f: h264 file\n");
+    printf("\t-f: rtsp url\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -331,7 +209,7 @@ int main(int argc, char *argv[])
     AX_S32 isExit = 0, i, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
-    char h26xfile[512];
+    char rtsp_url[512];
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
 
@@ -342,8 +220,8 @@ int main(int argc, char *argv[])
         switch (ch)
         {
         case 'f':
-            strcpy(h26xfile, optarg);
-            ALOGI("file input %s", h26xfile);
+            strcpy(rtsp_url, optarg);
+            ALOGI("rtsp url : %s", rtsp_url);
             break;
         case 'm':
             strcpy(gModels.MODEL_PATH, optarg);
@@ -498,45 +376,23 @@ int main(int argc, char *argv[])
     }
 
     {
-        SAMPLE_BSPARSER_T tStreamInfo = {0};
-        int sSize = 3 * 1024 * 1024;
-        std::vector<unsigned char> cbuffer(sSize);
-        // unsigned char *cbuffer = new unsigned char[1024 * 1024];
-        pipeline_buffer_t buf_h26x = {0};
-        buf_h26x.p_vir = cbuffer.data();
-
-        FILE *fInput = NULL;
-        fInput = fopen(h26xfile, "rb");
-        if (fInput == NULL)
+        RTSPClient *rtspClient = new RTSPClient();
+        if (rtspClient->openURL(rtsp_url, 1, 2) == 0)
         {
-            ALOGE("Unable to open input file\n");
-            goto EXIT_6;
+            if (rtspClient->playURL(frameHandlerFunc, &pipelines[0], NULL, NULL) == 0)
+            {
+                while (!gLoopExit)
+                {
+                    usleep(1000 * 1000);
+                }
+            }
         }
-        fseek(fInput, 0L, SEEK_END);
-        AX_S32 sLen = ftell(fInput);
-        rewind(fInput);
-
-        tStreamInfo.fInput = fInput;
-        tStreamInfo.sSize = sLen;
-
-        AX_U32 sReadLen = 0;
-        while (!gLoopExit)
-        {
-            sReadLen = StreamParserReadFrameH264(&tStreamInfo, cbuffer.data(), &sSize);
-            buf_h26x.p_vir = cbuffer.data();
-            buf_h26x.n_size = sReadLen;
-            if (sReadLen == 0)
-                break;
-            else
-                user_input(&pipelines[0], &buf_h26x);
-            usleep(10 * 1000);
-        }
-        ALOGN("h264 file decode finish,quit the loop");
+        rtspClient->closeURL();
+        delete rtspClient;
         gLoopExit = 1;
         sleep(1);
         pipeline_buffer_t end_buf = {0};
         user_input(&pipelines[0], &end_buf);
-        fclose(fInput);
     }
 
     // s32Ret = SysRun();

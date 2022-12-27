@@ -4,3 +4,6 @@
 [submodule "examples/sample_v4l2_ivps_joint_vo/libv4l2cpp"]
 	path = examples/sample_v4l2_ivps_joint_vo/libv4l2cpp
 	url = https://github.com/mpromonet/libv4l2cpp.git
+[submodule "examples/sample_rtsp_ivps_joint_vo/RTSP"]
+	path = examples/sample_rtsp_ivps_joint_vo/RTSP
+	url = https://github.com/ZHEQIUSHUI/RTSP.git
