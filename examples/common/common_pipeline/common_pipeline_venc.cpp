@@ -206,7 +206,7 @@ int _create_venc_chn(pipeline_t *pipe)
 
     config.stRCInfo.eRCType = VENC_RC_VBR;
     config.nGOP = 50;
-    config.nBitrate = 5000;
+    config.nBitrate = 2000;
     config.stRCInfo.nMinQp = 10;
     config.stRCInfo.nMaxQp = 51;
     config.stRCInfo.nMinIQp = 10;
