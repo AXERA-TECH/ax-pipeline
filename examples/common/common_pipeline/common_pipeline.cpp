@@ -564,7 +564,7 @@ int destory_pipeline(pipeline_t *pipe)
     }
 }
 
-int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
+int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
 {
     if (!contain(pipeline_handle.pipeid_pipe, pipe->pipeid))
     {
@@ -576,6 +576,59 @@ int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
     {
     case pi_user:
     {
+        AX_VIDEO_FRAME_INFO_S frameInfo = {0};
+
+        AX_U32 uiPicSize = (buf->n_width * buf->n_height) * 3 / 2;
+        AX_BLK blk_id = AX_POOL_GetBlock(frameInfo.u32PoolId, uiPicSize, NULL);
+        if (AX_INVALID_BLOCKID == blk_id)
+        {
+            printf("AX_POOL_GetBlock AX_POOL_GetBlockfailed! \n");
+            return -1;
+        }
+
+        frameInfo.bEof = AX_TRUE;
+        frameInfo.enModId = AX_ID_IVPS;
+        frameInfo.stVFrame.u32BlkId[0] = blk_id;
+        frameInfo.stVFrame.u32Width = buf->n_width;
+        frameInfo.stVFrame.u32Height = buf->n_height;
+        frameInfo.stVFrame.enImgFormat = AX_YUV420_SEMIPLANAR;
+        frameInfo.stVFrame.enVscanFormat = AX_VSCAN_FORMAT_RASTER;
+        frameInfo.stVFrame.enCompressMode = AX_COMPRESS_MODE_NONE;
+        frameInfo.stVFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(blk_id);
+        frameInfo.stVFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(blk_id);
+        frameInfo.stVFrame.u32PicStride[0] = buf->n_width;
+        frameInfo.stVFrame.u64PhyAddr[1] = frameInfo.stVFrame.u64PhyAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        frameInfo.stVFrame.u64PhyAddr[2] = 0;
+        frameInfo.stVFrame.u64VirAddr[1] = frameInfo.stVFrame.u64VirAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        frameInfo.stVFrame.u64VirAddr[2] = 0;
+        frameInfo.u32PoolId = AX_POOL_Handle2PoolId(blk_id);
+
+        memcpy((void *)frameInfo.stVFrame.u64VirAddr[0], buf->p_vir, uiPicSize);
+        int ret;
+        std::vector<int> tmp_;
+
+        for (int i = 0; i < pipe_cnt; i++)
+        {
+            if (!contain(tmp_, pipe[i].m_ivps_attr.n_ivps_grp))
+            {
+                ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
+                if (ret != 0)
+                {
+                    ALOGE("AX_IVPS_SendFrame 0x%x", ret);
+                }
+                tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
+            }
+        }
+
+        AX_U32 PoolId = frameInfo.u32PoolId;
+
+        AX_BLK BlkId = frameInfo.stVFrame.u32BlkId[0];
+        ret = AX_POOL_ReleaseBlock(BlkId);
+        if (ret != 0)
+        {
+            printf("AX_POOL_ReleaseBlock fail!Error Code:0x%X\n", ret);
+            return -1;
+        }
     }
     break;
     case pi_vdec_h264:
@@ -587,11 +640,29 @@ int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
         stream.pu8Addr = (unsigned char *)buf->p_vir;
         stream.bEndOfFrame = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
         stream.bEndOfStream = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
-        int ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, 200);
-        if (ret != 0)
+
+        int ret;
+        std::vector<int> tmp_;
+
+        for (int i = 0; i < pipe_cnt; i++)
         {
-            ALOGE("AX_VDEC_SendStream 0x%x", ret);
+            if (!contain(tmp_, pipe[i].m_vdec_attr.n_vdec_grp))
+            {
+                ret = AX_VDEC_SendStream(pipe[i].m_vdec_attr.n_vdec_grp, &stream, 200);
+                if (ret != 0)
+                {
+                    ALOGE("AX_VDEC_SendStream 0x%x", ret);
+                }
+                tmp_.push_back(pipe[i].m_vdec_attr.n_vdec_grp);
+            }
         }
+
+        // int ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, 200);
+        // if (ret != 0)
+        // {
+        //     ALOGE("AX_VDEC_SendStream 0x%x", ret);
+        //     return -1;
+        // }
     }
     break;
     case pi_vdec_jpeg:
@@ -604,11 +675,28 @@ int user_input(pipeline_t *pipe, pipeline_buffer_t *buf)
         stream.pu8Addr = (unsigned char *)buf->p_vir;
         stream.bEndOfFrame = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
         stream.bEndOfStream = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
-        int ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
-        if (ret != 0)
+
+        int ret;
+        std::vector<int> tmp_;
+
+        for (int i = 0; i < pipe_cnt; i++)
         {
-            ALOGE("AX_VDEC_SendStream 0x%x", ret);
+            if (!contain(tmp_, pipe[i].m_vdec_attr.n_vdec_grp))
+            {
+                ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
+                if (ret != 0)
+                {
+                    ALOGE("AX_VDEC_SendStream 0x%x", ret);
+                }
+                tmp_.push_back(pipe[i].m_vdec_attr.n_vdec_grp);
+            }
         }
+        // int ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
+        // if (ret != 0)
+        // {
+        //     ALOGE("AX_VDEC_SendStream 0x%x", ret);
+        //     return -1;
+        // }
         _destore_jvdec_grp(pipe);
     }
     break;

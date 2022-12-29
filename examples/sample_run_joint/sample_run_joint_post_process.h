@@ -15,7 +15,7 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_UNKNOWN = 0,
 
     // detection
-    MT_DET = 0x10,
+    MT_DET = 0x10000,
     MT_DET_YOLOV5,
     MT_DET_YOLOV5_FACE,
     MT_DET_YOLOV5_LICENSE_PLATE,
@@ -31,15 +31,15 @@ typedef enum __SAMPLE_RUN_JOINT_MODEL_TYPE
     MT_DET_YOLO_FASTBODY,
 
     // segmentation
-    MT_SEG = 0x20,
+    MT_SEG = 0x20000,
     MT_SEG_PPHUMSEG,
 
     // instance segmentation
-    MT_INSEG = 0x30,
+    MT_INSEG = 0x30000,
     MT_INSEG_YOLOV5_MASK,
 
     // multi level model
-    MT_MLM = 0x40,
+    MT_MLM = 0x40000,
     MT_MLM_HUMAN_POSE_AXPPL,
     MT_MLM_HUMAN_POSE_HRNET,
     MT_MLM_ANIMAL_POSE_HRNET,

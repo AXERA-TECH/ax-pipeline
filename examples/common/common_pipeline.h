@@ -90,15 +90,15 @@ typedef struct
 typedef struct
 {
 #define MAX_VENC_CHN_COUNT 64
-    int n_venc_chn; // 少于64 并且不能重复
+    int n_venc_chn;     // 少于64 并且不能重复
     char end_point[32]; // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
 } pipeline_venc_config_t;
 
 typedef struct
 {
 #define MAX_VDEC_GRP_COUNT 16
-    int n_vdec_grp;  // 少于 16，允许重复
-    int poolid;      //internal variable,dont touch，内部使用，不要有任何操作
+    int n_vdec_grp; // 少于 16，允许重复
+    int poolid;     // internal variable,dont touch，内部使用，不要有任何操作
 } pipeline_vdec_config_t;
 
 typedef struct
@@ -150,7 +150,7 @@ extern "C"
     int create_pipeline(pipeline_t *pipe);
     int destory_pipeline(pipeline_t *pipe);
 
-    int user_input(pipeline_t *pipe, pipeline_buffer_t *buf); 
+    int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf);
 #if __cplusplus
 }
 #endif

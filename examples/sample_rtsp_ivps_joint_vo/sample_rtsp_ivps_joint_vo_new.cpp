@@ -152,7 +152,7 @@ static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t times
     case FRAME_TYPE_VIDEO:
         buf_h264.p_vir = buf;
         buf_h264.n_size = len;
-        user_input(pipe, &buf_h264);
+        user_input(pipe, 1, &buf_h264);
         printf("\rbuf len : %d", len);
         fflush(stdout);
         break;
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
         gLoopExit = 1;
         sleep(1);
         pipeline_buffer_t end_buf = {0};
-        user_input(&pipelines[0], &end_buf);
+        user_input(&pipelines[0], 1, &end_buf);
     }
 
     // s32Ret = SysRun();

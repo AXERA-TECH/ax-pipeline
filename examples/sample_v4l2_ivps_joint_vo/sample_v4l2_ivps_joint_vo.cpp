@@ -37,7 +37,7 @@
 #include "vector"
 #include "map"
 
-#include "libv4l2cpp/inc/V4l2Capture.h"
+#include "V4l2Capture.h"
 
 #define pipe_count 2
 
@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
             {
                 buf_mjpg.n_size = videoCapture->read((char *)buf_mjpg.p_vir, sSize);
                 buf_mjpg.p_vir = cbuffer.data();
-                user_input(&pipelines[0], &buf_mjpg);
+                user_input(&pipelines[0], 1, &buf_mjpg);
             }
             else
             {
@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
             }
         }
         pipeline_buffer_t end_buf = {0};
-        user_input(&pipelines[0], &end_buf);
+        user_input(&pipelines[0], 1, &end_buf);
         delete videoCapture;
     }
 
