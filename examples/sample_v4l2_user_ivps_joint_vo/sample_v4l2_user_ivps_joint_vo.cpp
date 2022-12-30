@@ -163,6 +163,22 @@ static AX_VOID PrintHelp(char *testApp)
     exit(0);
 }
 
+// struct timeval old, now;
+
+// static void cap_set()
+// {
+//     // return;
+//     gettimeofday(&old, NULL);
+// }
+
+// static void cap_get(const char *tips)
+// {
+//     // return;
+//     gettimeofday(&now, NULL);
+//     if (now.tv_usec > old.tv_usec)
+//         printf("%20s - %5ld ms\r\n", tips, (now.tv_usec - old.tv_usec) / 1000);
+// }
+
 int main(int argc, char *argv[])
 {
     optind = 0;
@@ -283,6 +299,7 @@ int main(int argc, char *argv[])
         pipe0.m_input_type = pi_user;
         pipe0.m_output_type = po_vo_sipeed_maix3_screen;
         pipe0.n_loog_exit = 0; // 可以用来控制线程退出（如果有的话）
+        pipe0.m_vdec_attr.n_vdec_grp = 0; // 可以重复
 
         pipeline_t &pipe1 = pipelines[1];
         {
@@ -311,6 +328,7 @@ int main(int argc, char *argv[])
             break;
         }
         pipe1.n_loog_exit = 0;
+        pipe1.m_vdec_attr.n_vdec_grp = 0;
         pipe1.output_func = ai_inference_func; // 图像输出的回调函数
 
         for (size_t i = 0; i < pipe_count; i++)
@@ -368,6 +386,7 @@ int main(int argc, char *argv[])
                 buf_mjpg.n_size = videoCapture->read((char *)buf_mjpg.p_vir, sSize);
                 buf_mjpg.p_vir = cbuffer.data();
 
+                // cap_set();
                 auto ret = libyuv::MJPGToNV12((uint8_t *)buf_mjpg.p_vir,
                                               buf_mjpg.n_size,
                                               nv12buffer.data(),
@@ -387,11 +406,12 @@ int main(int argc, char *argv[])
                     buf_nv12.n_size = buf_mjpg.n_width * buf_mjpg.n_height * 3 / 2;
                     user_input(&pipelines[0], pipe_count, &buf_nv12);
                 }
+                // cap_get("libyuv::MJPGToNV12")
             }
             else
             {
                 // ALOGN("read 不到");
-                usleep(100 * 1000);
+                usleep(30 * 1000);
             }
         }
         pipeline_buffer_t end_buf = {0};
