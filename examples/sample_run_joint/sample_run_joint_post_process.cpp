@@ -757,6 +757,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     switch (pModels->ModelType_Main)
     {
     case MT_DET_YOLOV5:
+    case MT_DET_YOLOPV2:
     case MT_DET_YOLOV5_FACE:
     case MT_DET_YOLOV6:
     case MT_DET_YOLOV7:

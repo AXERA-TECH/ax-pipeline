@@ -191,7 +191,7 @@ void _draw_bbox(cv::Mat &image, osd_utils_img *out, float fontscale, int thickne
             x = rect.x;
             y = rect.y - label_size.height - baseLine;
         }
-        
+
         if (y < 0)
             y = 0;
         if (x + label_size.width > image.cols)
@@ -274,27 +274,26 @@ void _draw_human_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int t
     _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
     for (size_t i = 0; i < results->nObjSize; i++)
     {
-        static std::vector<pose::skeleton> hand_pairs = {{0, 1, 0},
-                                                         {1, 2, 0},
-                                                         {2, 3, 0},
-                                                         {3, 4, 0},
-                                                         {0, 5, 1},
-                                                         {5, 6, 1},
-                                                         {6, 7, 1},
-                                                         {7, 8, 1},
-                                                         {0, 9, 2},
-                                                         {9, 10, 2},
-                                                         {10, 11, 2},
-                                                         {11, 12, 2},
-                                                         {0, 13, 3},
-                                                         {13, 14, 3},
-                                                         {14, 15, 3},
-                                                         {15, 16, 3},
-                                                         {0, 17, 4},
-                                                         {17, 18, 4},
-                                                         {18, 19, 4},
-                                                         {19, 20, 4}};
-        draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+        static std::vector<pose::skeleton> pairs = {{15, 13, 0},
+                                                    {13, 11, 0},
+                                                    {16, 14, 0},
+                                                    {14, 12, 0},
+                                                    {11, 12, 0},
+                                                    {5, 11, 0},
+                                                    {6, 12, 0},
+                                                    {5, 6, 0},
+                                                    {5, 7, 0},
+                                                    {6, 8, 0},
+                                                    {7, 9, 0},
+                                                    {8, 10, 0},
+                                                    {1, 2, 0},
+                                                    {0, 1, 0},
+                                                    {0, 2, 0},
+                                                    {1, 3, 0},
+                                                    {2, 4, 0},
+                                                    {0, 5, 0},
+                                                    {0, 6, 0}};
+        draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
     }
 }
 
