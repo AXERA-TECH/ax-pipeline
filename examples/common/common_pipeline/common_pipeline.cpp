@@ -34,7 +34,7 @@
 #include "map"
 #include "unistd.h"
 
-#define RTSP_PORT 7554
+#define RTSP_PORT 8554
 
 typedef struct
 {
