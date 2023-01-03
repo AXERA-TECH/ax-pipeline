@@ -169,7 +169,7 @@ static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t times
 }
 
 // 允许外部调用
-AX_VOID __sigExit(int iSigNo)
+extern "C" AX_VOID __sigExit(int iSigNo)
 {
     // ALOGN("Catch signal %d!\n", iSigNo);
     gLoopExit = 1;
