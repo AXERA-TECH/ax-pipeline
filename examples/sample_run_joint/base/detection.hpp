@@ -730,43 +730,48 @@ namespace detection
         }
     }
 
-    static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, float *feat_ptr, float prob_threshold, std::vector<Object> &objects, int wxc)
+    static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, float *feat_ptr, float prob_threshold, std::vector<Object> &objects, int wxc, int num_class)
     {
         const int num_grid = 3549;
-        const int num_class = 1;
+        // const int num_class = 3;
         const int num_anchors = grid_strides.size();
 
         for (int anchor_idx = 0; anchor_idx < num_anchors; anchor_idx++)
         {
-
-            float box_objectness = feat_ptr[4 * wxc + anchor_idx];
-            float box_cls_score = feat_ptr[5 * wxc + anchor_idx];
-            float box_prob = box_objectness * box_cls_score;
-            if (box_prob > prob_threshold)
+            for (int class_idx = 0; class_idx < num_class; class_idx++)
             {
-                Object obj;
-                // printf("%d,%d\n",num_anchors,anchor_idx);
-                const int grid0 = grid_strides[anchor_idx].grid0;   // 0
-                const int grid1 = grid_strides[anchor_idx].grid1;   // 0
-                const int stride = grid_strides[anchor_idx].stride; // 8
-                // yolox/models/yolo_head.py decode logic
-                //  outputs[..., :2] = (outputs[..., :2] + grids) * strides
-                //  outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides
-                float x_center = (feat_ptr[0 + anchor_idx] + grid0) * stride;
-                float y_center = (feat_ptr[1 * wxc + anchor_idx] + grid1) * stride;
-                float w = exp(feat_ptr[2 * wxc + anchor_idx]) * stride;
-                float h = exp(feat_ptr[3 * wxc + anchor_idx]) * stride;
-                float x0 = x_center - w * 0.5f;
-                float y0 = y_center - h * 0.5f;
-                obj.rect.x = x0;
-                obj.rect.y = y0;
-                obj.rect.width = w;
-                obj.rect.height = h;
-                obj.label = 0;
-                obj.prob = box_prob;
+                float box_objectness = feat_ptr[4 * wxc + anchor_idx];
+                float box_cls_score = feat_ptr[(5 + class_idx) * wxc + anchor_idx];
+                float box_prob = box_objectness * box_cls_score;
+                if (box_prob > prob_threshold)
+                {
+                    Object obj;
+                    // printf("%d,%d\n",num_anchors,anchor_idx);
+                    const int grid0 = grid_strides[anchor_idx].grid0;   // 0
+                    const int grid1 = grid_strides[anchor_idx].grid1;   // 0
+                    const int stride = grid_strides[anchor_idx].stride; // 8
+                    // yolox/models/yolo_head.py decode logic
+                    //  outputs[..., :2] = (outputs[..., :2] + grids) * strides
+                    //  outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides
+                    float x_center = (feat_ptr[0 + anchor_idx] + grid0) * stride;
+                    float y_center = (feat_ptr[1 * wxc + anchor_idx] + grid1) * stride;
+                    float w = exp(feat_ptr[2 * wxc + anchor_idx]) * stride;
+                    float h = exp(feat_ptr[3 * wxc + anchor_idx]) * stride;
+                    float x0 = x_center - w * 0.5f;
+                    float y0 = y_center - h * 0.5f;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = w;
+                    obj.rect.height = h;
+                    obj.label = class_idx;
+                    obj.prob = box_prob;
 
-                objects.push_back(obj);
+                    objects.push_back(obj);
+                }
             }
+
+            // // bbox loop
+            // feat_ptr += 1;
         } // point anchor loop
     }
 

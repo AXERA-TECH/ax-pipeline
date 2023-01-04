@@ -353,8 +353,8 @@ int main(int argc, char *argv[])
             config2.n_ivps_grp = 2;    // 重复的会创建失败
             config2.n_ivps_rotate = 0; // 旋转90度，现在rtsp流是竖着的画面了
             config2.n_ivps_fps = s_sample_framerate;
-            config2.n_ivps_width = 960;
-            config2.n_ivps_height = 540;
+            config2.n_ivps_width = 1920;
+            config2.n_ivps_height = 1080;
             config2.n_osd_rgn = 1;
         }
         pipe2.enable = 1;

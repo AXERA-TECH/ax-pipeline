@@ -157,7 +157,7 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
             break;
         case MT_DET_YOLOV6:
             generate_proposals_yolov6(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, CLASS_NUM);
-        break;
+            break;
         case MT_DET_YOLOV7:
             generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, ANCHORS.data() + i * 6, CLASS_NUM);
             break;
@@ -179,7 +179,7 @@ void sample_run_joint_post_process_detection(sample_run_joint_results *pResults,
             int wxc = output.pShape[2] * output.pShape[3];
             static std::vector<std::vector<int>> stride_ppl = {{8}, {16}, {32}};
             generate_grids_and_stride(pModels->mMajor.JointAttr.algo_width, pModels->mMajor.JointAttr.algo_height, stride_ppl[i], grid_stride);
-            generate_yolox_proposals(grid_stride, ptr, PROB_THRESHOLD, proposals, wxc);
+            generate_yolox_proposals(grid_stride, ptr, PROB_THRESHOLD, proposals, wxc, CLASS_NUM);
         }
         break;
         default:

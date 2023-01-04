@@ -1,0 +1,12 @@
+{
+    "MODEL_TYPE": "MT_DET_YOLOX_PPL",
+    "MODEL_PATH": "./models/ax_ax620a_bvc_algo_model_V1.0.0.joint",
+    "CLASS_NAMES": [
+        "person",
+        "vehicle",
+        "cycle"
+    ],
+    "CLASS_NUM": 3,
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}
