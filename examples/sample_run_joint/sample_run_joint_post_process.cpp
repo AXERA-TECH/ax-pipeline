@@ -327,7 +327,7 @@ int _sample_run_joint_inference_face_recognition(sample_run_joint_models *pModel
                 continue;
             }
             AX_NPU_CV_Image npu_image;
-            npu_image.eDtype = AX_NPU_CV_FDT_BGR;
+            npu_image.eDtype = AX_NPU_CV_FDT_RGB;
             npu_image.nHeight = image.rows;
             npu_image.nWidth = image.cols;
             npu_image.tStride.nW = npu_image.nWidth;
