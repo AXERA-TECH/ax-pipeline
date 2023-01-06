@@ -394,7 +394,10 @@ int main(int argc, char *argv[])
             config1.n_ivps_fps = 60;
             config1.n_ivps_width = gModels.SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
-            config1.b_letterbox = 1;
+            if (gModels.ModelType_Main != MT_SEG_PPHUMSEG)
+            {
+                config1.b_letterbox = 1;
+            }
             config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
         }
         pipe1.enable = 1;
@@ -421,9 +424,9 @@ int main(int argc, char *argv[])
         pipeline_t &pipe2 = pipelines[2];
         {
             pipeline_ivps_config_t &config2 = pipe2.m_ivps_attr;
-            config2.n_ivps_grp = 2; // 重复的会创建失败
-            config2.n_ivps_rotate = 1; //爱芯派的屏幕是竖着的，所以需要旋转90度
-            config2.n_ivps_fps = 60;   //爱芯派的屏幕必须要60fps，分辨率也必须为854*480
+            config2.n_ivps_grp = 2;    // 重复的会创建失败
+            config2.n_ivps_rotate = 1; // 爱芯派的屏幕是竖着的，所以需要旋转90度
+            config2.n_ivps_fps = 60;   // 爱芯派的屏幕必须要60fps，分辨率也必须为854*480
             config2.n_ivps_width = 854;
             config2.n_ivps_height = 480;
             config2.n_osd_rgn = 1;
