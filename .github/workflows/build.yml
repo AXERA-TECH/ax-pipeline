@@ -41,6 +41,6 @@ jobs:
           tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
           export PATH=$PATH:gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
           arm-linux-gnueabihf-gcc -v
-          cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
           make -j8
           make install
