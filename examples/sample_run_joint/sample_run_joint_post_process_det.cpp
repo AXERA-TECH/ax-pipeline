@@ -55,7 +55,7 @@ int sample_get_model_type(char *json_file_path)
     std::ifstream f(json_file_path);
     if (f.fail())
     {
-        return MT_UNKNOWN;
+        return -1;
     }
     auto jsondata = nlohmann::json::parse(f);
     int mt = -1;

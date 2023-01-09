@@ -1,0 +1,6 @@
+{
+    "MODEL_TYPE": "MT_DET_YOLO_FASTBODY",
+    "MODEL_PATH": "./models/yolo-fastbody.joint",
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}

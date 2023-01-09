@@ -694,7 +694,7 @@ int sample_run_joint_parse_param(char *json_file_path, sample_run_joint_models *
     std::ifstream f(json_file_path);
     if (f.fail())
     {
-        return MT_UNKNOWN;
+        return -1;
     }
     auto jsondata = nlohmann::json::parse(f);
 

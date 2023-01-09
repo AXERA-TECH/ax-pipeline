@@ -28,7 +28,7 @@ function(targetlink name)
 
 endfunction()
 
-file(GLOB SRC_LIST "*.c" "pipe/*.c" "../utilities/*.cpp")
+file(GLOB SRC_LIST "*.c" "pipe/*.c" "../utilities/osd_utils_old.cpp")
 file(GLOB SRC_LIST_COMMON "../common/*.c" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}

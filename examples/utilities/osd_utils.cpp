@@ -19,10 +19,9 @@
  */
 
 #include "opencv2/opencv.hpp"
-#include "../sample_run_joint/sample_run_joint_post_process.h"
-#include "../sample_run_joint/base/pose.hpp"
+#include "../libaxdl/include/sample_run_joint_post_process.h"
+#include "../libaxdl/src/base/pose.hpp"
 #include "osd_utils.h"
-#include "../common/sample_def.h"
 #include "sstream"
 #include <map>
 #include "sample_log.h"
@@ -210,7 +209,7 @@ void _draw_yolov5_face(cv::Mat &image, osd_utils_img *out, float fontscale, int 
     _draw_bbox(image, out, fontscale, thickness, results, offset_x, offset_y);
     for (int i = 0; i < results->nObjSize; i++)
     {
-        for (int j = 0; j < SAMPLE_RUN_JOINT_FACE_LMK_SIZE; j++)
+        for (int j = 0; j < results->mObjects[i].nLandmark; j++)
         {
             cv::Point p(results->mObjects[i].landmark[j].x * out->width + offset_x,
                         results->mObjects[i].landmark[j].y * out->height + offset_y);
@@ -255,6 +254,8 @@ void _draw_yolopv2(cv::Mat &image, osd_utils_img *out, float fontscale, int thic
 {
     if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
     {
+        extern int SAMPLE_MAJOR_STREAM_WIDTH;
+        extern int SAMPLE_MAJOR_STREAM_HEIGHT;
         static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
         cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
 
@@ -293,7 +294,10 @@ void _draw_human_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int t
                                                     {2, 4, 0},
                                                     {0, 5, 0},
                                                     {0, 6, 0}};
-        draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+        if (results->mObjects[i].nLandmark == SAMPLE_RUN_JOINT_BODY_LMK_SIZE)
+        {
+            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_BODY_LMK_SIZE, offset_x, offset_y);
+        }
     }
 }
 
@@ -322,7 +326,10 @@ void _draw_hand_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int th
                                                          {17, 18, 4},
                                                          {18, 19, 4},
                                                          {19, 20, 4}};
-        draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+        if (results->mObjects[i].nLandmark == SAMPLE_RUN_JOINT_HAND_LMK_SIZE)
+        {
+            draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_RUN_JOINT_HAND_LMK_SIZE, offset_x, offset_y);
+        }
     }
 }
 
@@ -351,7 +358,10 @@ void _draw_animal_pose(cv::Mat &image, osd_utils_img *out, float fontscale, int 
                                                     {0, 1, 0},
                                                     {0, 4, 0},
                                                     {1, 4, 0}};
-        draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE, offset_x, offset_y);
+        if (results->mObjects[i].nLandmark == SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE)
+        {
+            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_RUN_JOINT_ANIMAL_LMK_SIZE, offset_x, offset_y);
+        }
     }
 }
 
@@ -359,6 +369,8 @@ void _draw_pphumseg(cv::Mat &image, osd_utils_img *out, float fontscale, int thi
 {
     if (results->bPPHumSeg && results->mPPHumSeg.data)
     {
+        extern int SAMPLE_MAJOR_STREAM_WIDTH;
+        extern int SAMPLE_MAJOR_STREAM_HEIGHT;
         static cv::Mat base(SAMPLE_MAJOR_STREAM_HEIGHT, SAMPLE_MAJOR_STREAM_WIDTH, CV_8UC1);
         cv::Mat tmp(image.rows, image.cols, CV_8UC1, base.data);
         cv::Mat mask(results->mPPHumSeg.h, results->mPPHumSeg.w, CV_8UC1, results->mPPHumSeg.data);

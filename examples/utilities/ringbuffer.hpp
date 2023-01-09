@@ -33,4 +33,9 @@ public:
     {
         return mBuffer[idx];
     }
+    
+    size_t size()
+    {
+        return mBuffer.size();
+    }
 };

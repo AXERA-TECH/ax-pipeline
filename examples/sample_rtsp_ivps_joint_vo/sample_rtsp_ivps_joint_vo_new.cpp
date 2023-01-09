@@ -18,8 +18,8 @@
  * Author: ZHEQIUSHUI
  */
 
-#include "../sample_run_joint/sample_run_joint_post_process.h"
-#include "../common/common_joint.h"
+#include "../libaxdl/include/sample_run_joint_post_process.h"
+
 #include "../common/common_func.h"
 #include "../common/common_pipeline.h"
 #include "../utilities/osd_utils.h"
@@ -51,7 +51,11 @@ sample_run_joint_results g_result_disp;
 int SAMPLE_MAJOR_STREAM_WIDTH = 1920;
 int SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-sample_run_joint_models gModels;
+int SAMPLE_IVPS_ALGO_WIDTH = 960;
+int SAMPLE_IVPS_ALGO_HEIGHT = 540;
+
+int bRunJoint = 0;
+void *gModels = nullptr;
 
 std::vector<pipeline_t *> pipes_need_osd;
 std::map<int, osd_utils_img> pipes_osd_canvas;
@@ -122,7 +126,7 @@ void *osd_thread(void *)
 
 void ai_inference_func(pipeline_buffer_t *buff)
 {
-    if (gModels.bRunJoint)
+    if (bRunJoint)
     {
         static sample_run_joint_results mResults;
         AX_NPU_CV_Image tSrcFrame = {0};
@@ -135,7 +139,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
         tSrcFrame.tStride.nW = buff->n_stride;
         tSrcFrame.nSize = buff->n_size;
 
-        sample_run_joint_inference_single_func(&gModels, &tSrcFrame, &mResults);
+        sample_run_joint_inference_single_func(gModels, &tSrcFrame, &mResults);
 
         pthread_mutex_lock(&g_result_mutex);
         memcpy(&g_result_disp, &mResults, sizeof(sample_run_joint_results));
@@ -181,7 +185,6 @@ static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: yolov5 param file path\n");
-    printf("\t-m: Joint model path\n");
 
     printf("\t-f: rtsp url\n");
 
@@ -194,18 +197,7 @@ int main(int argc, char *argv[])
 {
     optind = 0;
     gLoopExit = 0;
-    memset(&gModels, 0, sizeof(gModels));
     memset(&g_result_disp, 0, sizeof(g_result_disp));
-
-    gModels.bRunJoint = AX_FALSE;
-    gModels.mMajor.JointHandle = NULL;
-    gModels.mMinor.JointHandle = NULL;
-    gModels.mMajor.ModelType = MT_UNKNOWN;
-    gModels.mMinor.ModelType = MT_UNKNOWN;
-    gModels.ModelType_Main = MT_UNKNOWN;
-    gModels.SAMPLE_ALGO_FORMAT = AX_YUV420_SEMIPLANAR;
-    gModels.SAMPLE_IVPS_ALGO_WIDTH = 960;
-    gModels.SAMPLE_IVPS_ALGO_HEIGHT = 540;
 
     AX_S32 isExit = 0, i, ch;
     AX_S32 s32Ret = 0;
@@ -213,6 +205,7 @@ int main(int argc, char *argv[])
     char rtsp_url[512];
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
+    char config_file[256];
 
     ALOGN("sample begin\n\n");
 
@@ -224,18 +217,9 @@ int main(int argc, char *argv[])
             strcpy(rtsp_url, optarg);
             ALOGI("rtsp url : %s", rtsp_url);
             break;
-        case 'm':
-            strcpy(gModels.MODEL_PATH, optarg);
-            gModels.bRunJoint = AX_TRUE;
-            break;
         case 'p':
         {
-            int ret = sample_run_joint_parse_param(optarg, &gModels);
-            if (ret != 0)
-            {
-                ALOGE("sample_parse_param_det failed");
-                isExit = 1;
-            }
+            strcpy(config_file, optarg);
             break;
         }
         case 'r':
@@ -260,11 +244,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    if (gModels.ModelType_Main == MT_UNKNOWN)
-    {
-        ALOGI("got MT_UNKNOWN");
-        gModels.bRunJoint = AX_FALSE;
-    }
+    
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
@@ -288,12 +268,15 @@ int main(int argc, char *argv[])
         goto EXIT_2;
     }
 
-    s32Ret = COMMON_JOINT_Init(&gModels, SAMPLE_MAJOR_STREAM_WIDTH, SAMPLE_MAJOR_STREAM_HEIGHT);
-    if (0 != s32Ret)
+    s32Ret = sample_run_joint_parse_param_init(config_file, &gModels);
+    if (s32Ret != 0)
     {
-        ALOGE("COMMON_JOINT_Init failed,s32Ret:0x%x\n", s32Ret);
+        ALOGE("sample_parse_param_det failed");
         goto EXIT_2;
     }
+    s32Ret = get_ivps_width_height(gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
+    ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
+    bRunJoint = 1;
 
     pipeline_t pipelines[pipe_count];
     memset(&pipelines[0], 0, sizeof(pipelines));
@@ -322,26 +305,36 @@ int main(int argc, char *argv[])
             pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
             config1.n_ivps_grp = 1; // 重复的会创建失败
             config1.n_ivps_fps = 60;
-            config1.n_ivps_width = gModels.SAMPLE_IVPS_ALGO_WIDTH;
-            config1.n_ivps_height = gModels.SAMPLE_IVPS_ALGO_HEIGHT;
-            config1.b_letterbox = 1;
+            config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
+            config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
+            if (get_model_type(gModels) != MT_SEG_PPHUMSEG)
+            {
+                config1.b_letterbox = 1;
+            }
             config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
         }
         pipe1.enable = 1;
         pipe1.pipeid = 0x90016;
         pipe1.m_input_type = pi_vdec_h264;
-        switch (gModels.SAMPLE_ALGO_FORMAT)
+        if (gModels && bRunJoint)
         {
-        case AX_FORMAT_RGB888:
-            pipe1.m_output_type = po_buff_rgb;
-            break;
-        case AX_FORMAT_BGR888:
-            pipe1.m_output_type = po_buff_bgr;
-            break;
-        case AX_YUV420_SEMIPLANAR:
-        default:
-            pipe1.m_output_type = po_buff_nv12;
-            break;
+            switch (get_color_space(gModels))
+            {
+            case AX_FORMAT_RGB888:
+                pipe1.m_output_type = po_buff_rgb;
+                break;
+            case AX_FORMAT_BGR888:
+                pipe1.m_output_type = po_buff_bgr;
+                break;
+            case AX_YUV420_SEMIPLANAR:
+            default:
+                pipe1.m_output_type = po_buff_nv12;
+                break;
+            }
+        }
+        else
+        {
+            pipe1.enable = 0;
         }
         pipe1.n_loog_exit = 0;
         pipe1.m_vdec_attr.n_vdec_grp = 0;
@@ -368,7 +361,7 @@ int main(int argc, char *argv[])
             canvas.width = pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
             canvas.height = pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
         }
-        if (pipes_need_osd.size() && gModels.bRunJoint)
+        if (pipes_need_osd.size() && bRunJoint)
         {
             pthread_t osd_tid;
             pthread_create(&osd_tid, NULL, osd_thread, NULL);
@@ -423,7 +416,7 @@ EXIT_5:
 EXIT_4:
 
 EXIT_3:
-    COMMON_JOINT_Deinit(&gModels);
+    sample_run_joint_deinit(&gModels);
 
 EXIT_2:
 
