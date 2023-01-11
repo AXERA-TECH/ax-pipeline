@@ -47,7 +47,7 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
 
 add_subdirectory(examples/libaxdl)
-add_subdirectory(examples/sample_run_joint)
+# add_subdirectory(examples/sample_run_joint)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
 # add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
