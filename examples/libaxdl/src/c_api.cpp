@@ -174,9 +174,8 @@ int libaxdl_inference(void *pModels, const void *pstFrame, libaxdl_results_t *pR
 
 int libaxdl_draw_results(void *pModels, libaxdl_canvas_t *canvas, libaxdl_results_t *pResults, float fontscale, int thickness, int offset_x, int offset_y)
 {
-    if (g_cb_display_sipeed_py)
-    {
-        g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data);
+    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data) != 0)) {
+        return 0; // python will disable show
     }
 
     cv::Mat image(canvas->height, canvas->width, CV_8UC4, canvas->data);

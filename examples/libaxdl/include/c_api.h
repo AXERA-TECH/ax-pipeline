@@ -1,6 +1,11 @@
 #ifndef _POST_PROCESS_H_
 #define _POST_PROCESS_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define SAMPLE_MAX_BBOX_COUNT 64
 #define SAMPLE_MAX_FACE_BBOX_COUNT 64
 #define SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT 8
@@ -113,10 +118,7 @@ typedef struct _canvas_t
     int width, height, channel;
 } libaxdl_canvas_t;
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+
     int libaxdl_parse_param_init(char *json_file_path, void **pModels);
     void libaxdl_deinit(void **pModels);
 
