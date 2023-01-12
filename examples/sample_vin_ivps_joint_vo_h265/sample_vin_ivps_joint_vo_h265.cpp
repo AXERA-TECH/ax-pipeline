@@ -352,12 +352,15 @@ int main(int argc, char *argv[])
     s32Ret = libaxdl_parse_param_init(config_file, &gModels);
     if (s32Ret != 0)
     {
-        ALOGE("sample_parse_param_det failed");
-        goto EXIT_2;
+        ALOGE("sample_parse_param_det failed,run joint skip");
+        bRunJoint = 0;
     }
-    s32Ret = libaxdl_get_ivps_width_height(gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
-    ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
-    bRunJoint = 1;
+    else
+    {
+        s32Ret = libaxdl_get_ivps_width_height(gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
+        ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
+        bRunJoint = 1;
+    }
 
     /*step 3:camera init*/
     s32Ret = COMMON_CAM_Init();
@@ -415,7 +418,7 @@ int main(int argc, char *argv[])
             }
             config.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
         }
-        pipe1.enable = 1;
+        pipe1.enable = bRunJoint;
         pipe1.pipeid = pipeidx++;
         pipe1.m_input_type = pi_vin;
         if (gModels && bRunJoint)

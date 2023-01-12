@@ -74,6 +74,10 @@ void libaxdl_deinit(void **pModels)
 
 int libaxdl_get_ivps_width_height(void *pModels, char *json_file_path, int *width_ivps, int *height_ivps)
 {
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
     std::ifstream f(json_file_path);
     if (f.fail())
     {
@@ -112,15 +116,27 @@ int libaxdl_get_ivps_width_height(void *pModels, char *json_file_path, int *widt
 }
 int libaxdl_get_color_space(void *pModels)
 {
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
     return ((ax_model_handle_t *)pModels)->model->get_color_space();
 }
 int libaxdl_get_model_type(void *pModels)
 {
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
     return ((ax_model_handle_t *)pModels)->model->get_model_type();
 }
 
 int libaxdl_inference(void *pModels, const void *pstFrame, libaxdl_results_t *pResults)
 {
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
     pResults->mModelType = ((ax_model_handle_t *)pModels)->model->get_model_type();
     int ret = ((ax_model_handle_t *)pModels)->model->inference(pstFrame, nullptr, pResults);
     if (ret)
@@ -174,7 +190,12 @@ int libaxdl_inference(void *pModels, const void *pstFrame, libaxdl_results_t *pR
 
 int libaxdl_draw_results(void *pModels, libaxdl_canvas_t *canvas, libaxdl_results_t *pResults, float fontscale, int thickness, int offset_x, int offset_y)
 {
-    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data) != 0)) {
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
+    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data) != 0))
+    {
         return 0; // python will disable show
     }
 

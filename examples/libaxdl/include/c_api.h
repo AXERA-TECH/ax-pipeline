@@ -15,7 +15,7 @@ extern "C"
 #define SAMPLE_FACE_FEAT_LEN 512
     typedef enum _MODEL_TYPE_E
     {
-        MT_UNKNOWN = 0,
+        MT_UNKNOWN = -1,
 
         // detection
         MT_DET = 0x10000,
