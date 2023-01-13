@@ -197,7 +197,7 @@ void h265_save_func(pipeline_buffer_t *buff)
         h265_file_output = fopen(filename, "wb");
         if (h265_file_output)
         {
-            ALOGI("start recode to %s", filename);
+            ALOGI("start record to %s", filename);
         }
         else
         {
@@ -210,7 +210,7 @@ void h265_save_func(pipeline_buffer_t *buff)
         static int cnt = 0;
         if (cnt++ % 100 == 0)
         {
-            ALOGI("偷拍中");
+            ALOGI("recoding");
         }
     }
 }
@@ -521,8 +521,10 @@ int main(int argc, char *argv[])
         ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
         goto EXIT_6;
     }
+
     // 销毁pipeline
     {
+        gLoopExit = 1;
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             //            pthread_cancel(g_sample.osd_tid);

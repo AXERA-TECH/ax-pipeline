@@ -397,6 +397,7 @@ int main(int argc, char *argv[])
     }
     // 销毁pipeline
     {
+        gLoopExit = 1;
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             //            pthread_cancel(g_sample.osd_tid);

@@ -505,7 +505,7 @@ int main(int argc, char *argv[])
                 g_sample.pipes_need_osd.push_back(&pipelines[i]);
             }
         }
-        
+
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             pthread_create(&g_sample.osd_tid, NULL, osd_thread, NULL);
@@ -562,6 +562,7 @@ int main(int argc, char *argv[])
     }
     // 销毁pipeline
     {
+        gLoopExit = 1;
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             //            pthread_cancel(g_sample.osd_tid);

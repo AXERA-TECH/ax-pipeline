@@ -485,10 +485,10 @@ int main(int argc, char *argv[])
         ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
         goto EXIT_6;
     }
-    gLoopExit = 1;
 
     // 销毁pipeline
     {
+        gLoopExit = 1;
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             //            pthread_cancel(g_sample.osd_tid);
