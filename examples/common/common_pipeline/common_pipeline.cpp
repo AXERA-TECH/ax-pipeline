@@ -418,7 +418,19 @@ int destory_pipeline(pipeline_t *pipe)
     switch (pipe->m_input_type)
     {
     case pi_user:
-        break;
+    {
+        if (contain(pipeline_handle.ivps_grp, pipe->m_ivps_attr.n_ivps_grp))
+        {
+            _destore_ivps_grp(pipe);
+            erase(pipeline_handle.ivps_grp, pipe->m_ivps_attr.n_ivps_grp);
+        }
+
+        if (pipeline_handle.ivps_grp.size() == 0)
+        {
+            ALOGN("AX_IVPS_Deinit");
+            AX_IVPS_Deinit();
+        }
+    }
     case pi_vin:
     {
         AX_MOD_INFO_S srcMod, dstMod;
@@ -536,6 +548,7 @@ int destory_pipeline(pipeline_t *pipe)
             if (pipeline_handle.rtsp_pipeid_sessiones.size() == 0)
             {
                 rtsp_del_demo(pipeline_handle.rDemoHandle);
+                pipeline_handle.rDemoHandle = NULL;
                 ALOGN("rtsp server release");
             }
         }
@@ -615,7 +628,7 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
                 ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
                 if (ret != 0)
                 {
-                    ALOGE("AX_IVPS_SendFrame 0x%x", ret);
+                    // ALOGE("AX_IVPS_SendFrame 0x%x", ret);
                 }
                 tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
             }
