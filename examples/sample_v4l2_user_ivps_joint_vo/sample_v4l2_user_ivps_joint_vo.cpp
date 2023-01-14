@@ -200,23 +200,6 @@ static AX_VOID PrintHelp(char *testApp)
     exit(0);
 }
 
-// struct timeval old, now;
-
-// static void cap_set()
-// {
-//     // return;
-//     gettimeofday(&old, NULL);
-// }
-
-// static void cap_get(const char *tips)
-// {
-//     // return;
-//     gettimeofday(&now, NULL);
-//     if (now.tv_usec > old.tv_usec)
-//         printf("%20s - %5ld ms\r\n", tips, (now.tv_usec - old.tv_usec) / 1000);
-// }
-
-// int unit_test(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     optind = 0;
@@ -467,11 +450,3 @@ EXIT_2:
     ALOGN("sample end\n");
     return 0;
 }
-
-// int main(int argc, char *argv[])
-// {
-//     for(int i = 0; i < 5; printf("unit_test %d\r\n", i), i++) { // TEST CTRL + C LOOP
-//         unit_test(argc, argv);
-//     }
-//     return 0;
-// }

@@ -122,3 +122,17 @@ protected:
     int post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) override;
 };
 REGISTER(MT_DET_SCRFD, ax_model_scrfd)
+
+class ax_model_yolov8 : public ax_model_yolov5
+{
+protected:
+    int post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) override;
+};
+REGISTER(MT_DET_YOLOV8, ax_model_yolov8)
+
+class ax_model_yolov8_seg : public ax_model_yolov5_seg
+{
+protected:
+    int post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) override;
+};
+REGISTER(MT_DET_YOLOV8_SEG, ax_model_yolov8_seg)
