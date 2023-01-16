@@ -260,7 +260,6 @@ static AX_VOID PrintHelp(char *testApp)
     exit(0);
 }
 
-// int unit_test(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     optind = 0;
@@ -509,11 +508,3 @@ EXIT_2:
     ALOGN("sample end\n");
     return 0;
 }
-
-// int main(int argc, char *argv[])
-// {
-//     for(int i = 0; i < 5; printf("unit_test %d\r\n", i), i++) { // TEST CTRL + C LOOP
-//         unit_test(argc, argv);
-//     }
-//     return 0;
-// }

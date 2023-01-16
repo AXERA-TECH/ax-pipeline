@@ -33,6 +33,8 @@ extern "C"
         MT_DET_YOLOPV2,
         MT_DET_YOLO_FASTBODY,
         MT_DET_SCRFD,
+        MT_DET_YOLOV8,
+        MT_DET_YOLOV8_SEG,
 
         // segmentation
         MT_SEG = 0x20000,

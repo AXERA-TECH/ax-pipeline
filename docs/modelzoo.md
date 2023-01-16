@@ -1,5 +1,5 @@
 # 模型支持的列表以及下载地址
-后处理是直接扣的 [ax-samples](https://github.com/AXERA-TECH/ax-samples)，后续可能会添加一些开源的车牌识别、人体姿态的多级模型示例代码，不好合到主线的也可能在分支实现（画饼）。
+后处理是直接扣的 [ax-samples](https://github.com/AXERA-TECH/ax-samples)。
 
 ### 备注
 - FPS 仅表示 [sample_vin_ivps_joint_vo](../examples/sample_vin_ivps_joint_vo) 在当前状态测得的速度，无法代表其他应用在其他场景及模型测得的速度
@@ -30,3 +30,5 @@
 |face-recognition|-|```MT_MLM_FACE_RECOGNITION```|[yolov5s-face](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov5s-face.joint) [w600k_mbf](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/w600k_mbf.joint)|[yolov5s_face_recognition.json](../examples/libaxdl/config/yolov5s_face_recognition.json) |子模型的FACE_DATABASE节点里面，名字作为key，图片路径作为value，人脸识别模型来自 [insightface](https://github.com/deepinsight/insightface/tree/master/model_zoo#list-of-models-by-mobilefacenet-and-different-training-datasets)|
 |scrfd|26|```MT_DET_SCRFD```|[scrfd_500m_bnkps_shape640x640](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/scrfd_500m_bnkps_shape640x640.joint)|[scrfd.json](../examples/libaxdl/config/scrfd.json) |-|
 |ax_bvc|30|```MT_DET_YOLOX_PPL```|[ax_bvc_1024x864](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/ax_bvc_1024x864.joint)|[ax_bvc_det.json](../examples/libaxdl/config/ax_bvc_det.json) |爱芯元智算法组训练的人车非检测模型开源版本|
+|yolov8|21|```MT_DET_YOLOV8```|[yolov8n](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov8n.joint)|[ax_bvc_det.json](../examples/libaxdl/config/yolov8.json) |spilt换成slice，后处理分类加了argmax（少个for循环），具体修改方式，请留意交流群以及此页面更新教程文章链接|
+|yolov8_seg|26|```MT_DET_YOLOV8_SEG```|[yolov8n-seg](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov8n-seg.joint)|[ax_bvc_det.json](../examples/libaxdl/config/yolov8_seg.json) |同yolov8|

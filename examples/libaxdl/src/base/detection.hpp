@@ -57,23 +57,20 @@ namespace detection
         cv::Mat affine_trans_mat_inv;
     } PalmObject;
 
-    static int softmax(const float *src, float *dst, int length)
+    static float softmax(const float* src, float* dst, int length)
     {
-        const float max_value = *std::max_element(src, src + length);
-        float denominator{0};
-
-        for (int i = 0; i < length; ++i)
-        {
-            dst[i] = std::exp /*fast_exp*/ (src[i] - max_value);
+        const float alpha = *std::max_element(src, src + length);
+        float denominator = 0;
+        float dis_sum = 0;
+        for (int i = 0; i < length; ++i) {
+            dst[i] = exp(src[i] - alpha);
             denominator += dst[i];
         }
-
-        for (int i = 0; i < length; ++i)
-        {
+        for (int i = 0; i < length; ++i) {
             dst[i] /= denominator;
+            dis_sum += i * dst[i];
         }
-
-        return 0;
+        return dis_sum;
     }
 
     static inline float sigmoid(float x)
@@ -1228,6 +1225,125 @@ namespace detection
 
                     feature_ptr += (cls_num + 5 + 21);
                 }
+            }
+        }
+    }
+
+    static void generate_proposals_yolov8(int stride, const float *dfl_feat, const float *cls_feat, const float *cls_idx, float prob_threshold_unsigmoid, std::vector<Object> &objects,
+                                          int letterbox_cols, int letterbox_rows, int cls_num = 80)
+    {
+        int feat_w = letterbox_cols / stride;
+        int feat_h = letterbox_rows / stride;
+        int reg_max = 16;
+
+        auto dfl_ptr = dfl_feat;
+        auto cls_ptr = cls_feat;
+        auto cls_idx_ptr = cls_idx;
+
+        std::vector<float> dis_after_sm(reg_max, 0.f);
+        for (int h = 0; h <= feat_h - 1; h++)
+        {
+            for (int w = 0; w <= feat_w - 1; w++)
+            {
+                // process cls score
+                int class_index = static_cast<int>(cls_idx_ptr[h * feat_w + w]);
+                float class_score = cls_ptr[h * feat_w * cls_num + w * cls_num + class_index];
+
+                if (class_score > prob_threshold_unsigmoid)
+                {
+                    float pred_ltrb[4];
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float dis = softmax(dfl_ptr + k * reg_max, dis_after_sm.data(), reg_max);
+                        pred_ltrb[k] = dis * stride;
+                    }
+
+                    float pb_cx = (w + 0.5f) * stride;
+                    float pb_cy = (h + 0.5f) * stride;
+
+                    float x0 = pb_cx - pred_ltrb[0];
+                    float y0 = pb_cy - pred_ltrb[1];
+                    float x1 = pb_cx + pred_ltrb[2];
+                    float y1 = pb_cy + pred_ltrb[3];
+
+                    x0 = std::max(std::min(x0, (float)(letterbox_cols - 1)), 0.f);
+                    y0 = std::max(std::min(y0, (float)(letterbox_rows - 1)), 0.f);
+                    x1 = std::max(std::min(x1, (float)(letterbox_cols - 1)), 0.f);
+                    y1 = std::max(std::min(y1, (float)(letterbox_rows - 1)), 0.f);
+
+                    Object obj;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = x1 - x0;
+                    obj.rect.height = y1 - y0;
+                    obj.label = class_index;
+                    obj.prob = sigmoid(class_score);
+
+                    objects.push_back(obj);
+                }
+                dfl_ptr += (4 * reg_max);
+            }
+        }
+    }
+
+    static void generate_proposals_yolov8_seg(int stride, const float *dfl_feat, const float *cls_feat, const float *cls_idx, float prob_threshold_unsigmoid, std::vector<Object> &objects,
+                                              int letterbox_cols, int letterbox_rows, int cls_num = 80, int mask_proto_dim = 32)
+    {
+        int feat_w = letterbox_cols / stride;
+        int feat_h = letterbox_rows / stride;
+        int reg_max = 16;
+
+        auto dfl_ptr = dfl_feat;
+        auto cls_ptr = cls_feat;
+        auto cls_idx_ptr = cls_idx;
+
+        std::vector<float> dis_after_sm(reg_max, 0.f);
+        for (int h = 0; h <= feat_h - 1; h++)
+        {
+            for (int w = 0; w <= feat_w - 1; w++)
+            {
+                // process cls score
+                int class_index = static_cast<int>(cls_idx_ptr[h * feat_w + w]);
+                float class_score = cls_ptr[h * feat_w * cls_num + w * cls_num + class_index];
+
+                if (class_score > prob_threshold_unsigmoid)
+                {
+                    float pred_ltrb[4];
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float dis = softmax(dfl_ptr + k * reg_max, dis_after_sm.data(), reg_max);
+                        pred_ltrb[k] = dis * stride;
+                    }
+
+                    float pb_cx = (w + 0.5f) * stride;
+                    float pb_cy = (h + 0.5f) * stride;
+
+                    float x0 = pb_cx - pred_ltrb[0];
+                    float y0 = pb_cy - pred_ltrb[1];
+                    float x1 = pb_cx + pred_ltrb[2];
+                    float y1 = pb_cy + pred_ltrb[3];
+
+                    x0 = std::max(std::min(x0, (float)(letterbox_cols - 1)), 0.f);
+                    y0 = std::max(std::min(y0, (float)(letterbox_rows - 1)), 0.f);
+                    x1 = std::max(std::min(x1, (float)(letterbox_cols - 1)), 0.f);
+                    y1 = std::max(std::min(y1, (float)(letterbox_rows - 1)), 0.f);
+
+                    Object obj;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = x1 - x0;
+                    obj.rect.height = y1 - y0;
+                    obj.label = class_index;
+                    obj.prob = sigmoid(class_score);
+                    obj.mask_feat.resize(mask_proto_dim);
+                    for (int k = 0; k < mask_proto_dim; k++)
+                    {
+                        obj.mask_feat[k] = dfl_ptr[4 * reg_max + k];
+                    }
+                    objects.push_back(obj);
+                }
+
+                dfl_ptr += (4 * reg_max + mask_proto_dim);
             }
         }
     }

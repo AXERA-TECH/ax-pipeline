@@ -8,6 +8,8 @@
 **AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
 
 ## 更新日志
+```2023-01-16``` 新增YoloV8，详情请查阅 [ModelZoo](docs/modelzoo.md)
+
 ```2022-12-29``` 新增直接输入 NV12 数据的示例 [sample_v4l2_user_ivps_joint_vo](examples/sample_v4l2_user_ivps_joint_vo)，如果用户可以获取到 NV12 的数据，则可以参考此示例。为满足日益增加的模型支持列表，修改了枚举类 [SAMPLE_RUN_JOINT_MODEL_TYPE](examples/sample_run_joint/sample_run_joint_post_process.h) 的数值。
 
 ```2022-12-26``` 新增 rtsp 输入的示例代码 [sample_rtsp_ivps_joint_vo](examples/sample_rtsp_ivps_joint_vo)

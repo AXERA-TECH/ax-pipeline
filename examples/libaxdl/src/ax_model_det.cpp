@@ -976,3 +976,119 @@ int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
     }
     return 0;
 }
+
+int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+{
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+    AX_U32 nOutputSize = m_runner->get_num_outputs();
+    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        auto &dfl_info = pOutputsInfo[i];
+        auto dfl_ptr = (float *)dfl_info.pVirAddr;
+        auto &cls_info = pOutputsInfo[i + 3];
+        auto cls_ptr = (float *)cls_info.pVirAddr;
+        auto &cls_idx_info = pOutputsInfo[i + 6];
+        auto cls_idx_ptr = (float *)cls_idx_info.pVirAddr;
+        int32_t stride = (1 << i) * 8;
+
+        generate_proposals_yolov8(stride, dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
+    }
+
+    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+        if (obj.label < CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+    return 0;
+}
+
+int ax_model_yolov8_seg::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+{
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+    AX_U32 nOutputSize = m_runner->get_num_outputs();
+    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        auto &dfl_info = pOutputsInfo[i];
+        auto dfl_ptr = (float *)dfl_info.pVirAddr;
+        auto &cls_info = pOutputsInfo[i + 3];
+        auto cls_ptr = (float *)cls_info.pVirAddr;
+        auto &cls_idx_info = pOutputsInfo[i + 6];
+        auto cls_idx_ptr = (float *)cls_idx_info.pVirAddr;
+        int32_t stride = (1 << i) * 8;
+        generate_proposals_yolov8_seg(stride, dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height());
+    }
+    static const int DEFAULT_MASK_PROTO_DIM = 32;
+    static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
+    auto &output = pOutputsInfo[9];
+    auto ptr = (float *)output.pVirAddr;
+    detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
+                                 get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (size_t i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+
+        results->mObjects[i].bHasMask = !obj.mask.empty();
+
+        if (results->mObjects[i].bHasMask)
+        {
+            cv::Mat &mask = mSimpleRingBuffer.next();
+            mask = obj.mask;
+            results->mObjects[i].mYolov5Mask.data = mask.data;
+            results->mObjects[i].mYolov5Mask.w = mask.cols;
+            results->mObjects[i].mYolov5Mask.h = mask.rows;
+        }
+
+        if (obj.label < CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+    return 0;
+}
