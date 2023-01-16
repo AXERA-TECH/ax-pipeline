@@ -385,7 +385,8 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
                         AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
         break;
     default:
-        break;
+        ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+        return -1;
     }
 
     switch (handle->SAMPLE_ALOG_FORMAT)
@@ -404,11 +405,9 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
             break;
 
         default:
-            break;
+            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+            return -1;
         }
-        handle->joint_io_arr.pInputs->phyAddr = (AX_ADDR)handle->algo_input_nv12.pPhy;
-        handle->joint_io_arr.pInputs->pVirAddr = (AX_VOID *)handle->algo_input_nv12.pVir;
-        handle->joint_io_arr.pInputs->nSize = (AX_U32)handle->algo_input_nv12.nSize;
     }
     break;
     case AX_JOINT_CS_RGB:
@@ -424,11 +423,9 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
             AX_NPU_CV_CSC(ModelType, &handle->algo_input_bgr, &handle->algo_input_rgb);
             break;
         default:
-            break;
+            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+            return -1;
         }
-        handle->joint_io_arr.pInputs->phyAddr = (AX_ADDR)handle->algo_input_rgb.pPhy;
-        handle->joint_io_arr.pInputs->pVirAddr = (AX_VOID *)handle->algo_input_rgb.pVir;
-        handle->joint_io_arr.pInputs->nSize = (AX_U32)handle->algo_input_rgb.nSize;
     }
     break;
     case AX_JOINT_CS_BGR:
@@ -444,11 +441,9 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
         case AX_NPU_CV_FDT_BGR:
             break;
         default:
-            break;
+            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+            return -1;
         }
-        handle->joint_io_arr.pInputs->phyAddr = (AX_ADDR)handle->algo_input_bgr.pPhy;
-        handle->joint_io_arr.pInputs->pVirAddr = (AX_VOID *)handle->algo_input_bgr.pVir;
-        handle->joint_io_arr.pInputs->nSize = (AX_U32)handle->algo_input_bgr.nSize;
     }
     break;
     default:

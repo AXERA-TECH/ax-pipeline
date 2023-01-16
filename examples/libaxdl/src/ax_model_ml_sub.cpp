@@ -25,6 +25,7 @@ int ax_model_pose_hrnet_sub::preprocess(const void *pstFrame, ax_joint_runner_bo
             }
             else if (dstFrame.eDtype == AX_NPU_CV_FDT_RGB || dstFrame.eDtype == AX_NPU_CV_FDT_BGR)
             {
+                dstFrame.eDtype = AX_NPU_CV_FDT_BGR;
                 dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3;
             }
             else
