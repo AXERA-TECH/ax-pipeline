@@ -171,6 +171,11 @@ AX_BOOL set_rc_param(pipeline_t *pipe, AX_VENC_RC_MODE_E enRcMode)
 
 int _create_venc_chn(pipeline_t *pipe)
 {
+    if (pipe->m_venc_attr.n_venc_chn > MAX_VENC_CHN_COUNT)
+    {
+        ALOGE("venc_chn must lower than %d, got %d\n", MAX_VENC_CHN_COUNT, pipe->m_venc_attr.n_venc_chn);
+        return -1;
+    }
     typedef struct _stRCInfo
     {
         SAMPLE_VENC_RC_E eRCType;

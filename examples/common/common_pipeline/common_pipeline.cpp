@@ -150,6 +150,12 @@ rtsp_session_handle get_rtsp_session_handle(int pipeid)
 
 int create_pipeline(pipeline_t *pipe)
 {
+    if (!pipe)
+    {
+        ALOGE("invalid pipeline_t ptr");
+        return -1;
+    }
+
     if (pipe->enable == 0)
     {
         ALOGE("PIPE-%d doesn`t enable", pipe->pipeid);
@@ -192,6 +198,17 @@ int create_pipeline(pipeline_t *pipe)
     break;
     case pi_vin:
     {
+        if (pipe->n_vin_pipe > MAX_VIN_PIPE_COUNT)
+        {
+            ALOGE("vin_pipe must lower than %d, got %d\n", MAX_VIN_PIPE_COUNT, pipe->n_vin_pipe);
+            return -1;
+        }
+        if (pipe->n_vin_chn > MAX_VIN_CHN_COUNT)
+        {
+            ALOGE("vin_chn must lower than %d, got %d\n", MAX_VIN_CHN_COUNT, pipe->n_vin_chn);
+            return -1;
+        }
+
         if (pipeline_handle.ivps_grp.size() == 0)
         {
             int s32Ret = AX_IVPS_Init();
@@ -402,6 +419,12 @@ int create_pipeline(pipeline_t *pipe)
 
 int destory_pipeline(pipeline_t *pipe)
 {
+    if (!pipe)
+    {
+        ALOGE("invalid pipeline_t ptr");
+        return -1;
+    }
+
     if (!pipe->enable)
     {
         return -1;
@@ -580,6 +603,18 @@ int destory_pipeline(pipeline_t *pipe)
 
 int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
 {
+    if (!pipe)
+    {
+        ALOGE("invalid pipeline_t ptr");
+        return -1;
+    }
+
+    if (!buf)
+    {
+        ALOGE("invalid pipeline_buffer_t ptr");
+        return -1;
+    }
+
     if (!contain(pipeline_handle.pipeid_pipe, pipe->pipeid))
     {
         ALOGE("pipe-%d haven`t create", pipe->pipeid);

@@ -101,6 +101,11 @@ AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId)
 
 int _create_vdec_grp(pipeline_t *pipe)
 {
+    if (pipe->m_vdec_attr.n_vdec_grp > MAX_VDEC_GRP_COUNT)
+    {
+        ALOGE("vdec_grp must lower than %d, got %d\n", MAX_VDEC_GRP_COUNT, pipe->m_vdec_attr.n_vdec_grp);
+        return -1;
+    }
     AX_VDEC_GRP_ATTR_S gGrpAttr;
     memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
     switch (pipe->m_input_type)
@@ -207,6 +212,11 @@ int _destore_vdec_grp(pipeline_t *pipe)
 
 int _create_jvdec_grp(pipeline_t *pipe)
 {
+    if (pipe->m_vdec_attr.n_vdec_grp > MAX_VDEC_GRP_COUNT)
+    {
+        ALOGE("vdec_grp must lower than %d, got %d\n", MAX_VDEC_GRP_COUNT, pipe->m_vdec_attr.n_vdec_grp);
+        return -1;
+    }
     AX_VDEC_GRP_ATTR_S gGrpAttr;
     memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
 

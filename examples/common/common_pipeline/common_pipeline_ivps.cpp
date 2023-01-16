@@ -113,6 +113,11 @@ void *_ivps_get_frame_thread(void *arg)
 
 int _create_ivps_grp(pipeline_t *pipe)
 {
+    if (pipe->m_ivps_attr.n_ivps_grp > MAX_IVPS_GRP_COUNT)
+    {
+        ALOGE("ivps_grp must lower than %d, got %d\n", MAX_IVPS_GRP_COUNT, pipe->m_ivps_attr.n_ivps_grp);
+        return -1;
+    }
     AX_S32 s32Ret = 0;
     AX_S32 nGrp = pipe->m_ivps_attr.n_ivps_grp, nChn = 0;
     AX_IVPS_GRP_ATTR_S stGrpAttr = {0};

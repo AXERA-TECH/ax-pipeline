@@ -558,7 +558,7 @@ namespace detection
                 float box_objectness = feat_ptr[4];
                 if (box_objectness < prob_threshold)
                 {
-                    feat_ptr += 85;
+                    feat_ptr += cls_num + 5;
                     continue;
                 }
 
@@ -597,7 +597,7 @@ namespace detection
                     objects.push_back(obj);
                 }
 
-                feat_ptr += 85;
+                feat_ptr += cls_num + 5;
             }
         }
     }
@@ -672,7 +672,7 @@ namespace detection
                     float box_objectness = feat_ptr[4];
                     if (box_objectness < prob_threshold)
                     {
-                        feat_ptr += 85;
+                        feat_ptr += cls_num + 5;
                         continue;
                     }
 
@@ -711,7 +711,7 @@ namespace detection
                         objects.push_back(obj);
                     }
 
-                    feat_ptr += 85;
+                    feat_ptr += cls_num + 5;
                 }
             }
         }
