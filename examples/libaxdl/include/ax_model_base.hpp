@@ -65,6 +65,7 @@ protected:
 
     int cur_idx = 0;
 
+    char fps_info[128];
     void draw_bbox(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
     void draw_fps(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
     virtual void draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)

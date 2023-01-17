@@ -18,6 +18,7 @@ std::map<std::string, int> ModelTypeTable = {
     {"MT_UNKNOWN", MT_UNKNOWN},
 };
 #include "ax_model_det.hpp"
+#include "ax_model_crowdcount.hpp"
 #include "ax_model_seg.hpp"
 #include "ax_model_multi_level_model.hpp"
 #include "ax_model_ml_sub.hpp"
@@ -128,11 +129,10 @@ void ax_model_base::draw_bbox(cv::Mat &image, libaxdl_results_t *results, float 
 
 void ax_model_base::draw_fps(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
-    static char common_info[128];
-    sprintf(common_info, "fps:%02d", results->niFps);
-    cv::Size label_size = cv::getTextSize(common_info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness, NULL);
-    cv::putText(image, common_info, cv::Point(0, label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5,
-                cv::Scalar(255, 0, 255, 255), thickness);
+    sprintf(fps_info, "fps:%02d", results->niFps);
+    cv::Size label_size = cv::getTextSize(fps_info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness * 2, NULL);
+    cv::putText(image, fps_info, cv::Point(0, label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5,
+                cv::Scalar(255, 0, 255, 0), thickness * 2);
 }
 
 int ax_model_single_base_t::init(void *json_obj)

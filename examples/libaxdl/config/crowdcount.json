@@ -1,0 +1,5 @@
+{
+    "MODEL_TYPE": "MT_DET_CROWD_COUNT",
+    "MODEL_PATH": "./models/crowdcount.joint",
+    "PROB_THRESHOLD": 0.5
+}

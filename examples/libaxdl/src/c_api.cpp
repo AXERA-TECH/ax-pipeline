@@ -165,6 +165,12 @@ int libaxdl_inference(void *pModels, const void *pstFrame, libaxdl_results_t *pR
         }
     }
 
+    for (int i = 0; i < pResults->nCrowdCount; i++)
+    {
+        pResults->mCrowdCountPts[i].x /= width;
+        pResults->mCrowdCountPts[i].y /= height;
+    }
+
     if (g_cb_results_sipeed_py)
     {
         ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);

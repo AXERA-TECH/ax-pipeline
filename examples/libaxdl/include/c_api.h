@@ -35,6 +35,7 @@ extern "C"
         MT_DET_SCRFD,
         MT_DET_YOLOV8,
         MT_DET_YOLOV8_SEG,
+        MT_DET_CROWD_COUNT,
 
         // segmentation
         MT_SEG = 0x20000,
@@ -108,6 +109,9 @@ extern "C"
         int bYolopv2Mask;
         libaxdl_mat_t mYolopv2seg;
         libaxdl_mat_t mYolopv2ll;
+
+        int nCrowdCount;
+        libaxdl_point_t *mCrowdCountPts;
 
         int niFps /*inference*/, noFps /*osd*/;
 
