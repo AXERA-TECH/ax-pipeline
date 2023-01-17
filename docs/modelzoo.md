@@ -32,3 +32,4 @@
 |ax_bvc|30|```MT_DET_YOLOX_PPL```|[ax_bvc_1024x864](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/ax_bvc_1024x864.joint)|[ax_bvc_det.json](../examples/libaxdl/config/ax_bvc_det.json) |爱芯元智算法组训练的人车非检测模型开源版本|
 |yolov8|21|```MT_DET_YOLOV8```|[yolov8n](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov8n.joint)|[ax_bvc_det.json](../examples/libaxdl/config/yolov8.json) |spilt换成slice，后处理分类加了argmax（少个for循环），具体修改方式，请留意交流群以及此页面更新教程文章链接|
 |yolov8_seg|26|```MT_DET_YOLOV8_SEG```|[yolov8n-seg](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/yolov8n-seg.joint)|[ax_bvc_det.json](../examples/libaxdl/config/yolov8_seg.json) |同yolov8|
+|crowdcound|10|```MT_DET_CROWD_COUNT```|[crowdcount](https://github.com/AXERA-TECH/ax-models/raw/main/ax620/crowdcount.joint)|[crowdcount.json](../examples/libaxdl/config/crowdcount.json) |[密集人群计数](https://github.com/TencentYoutuResearch/CrowdCounting-P2PNet)|
