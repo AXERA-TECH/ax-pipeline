@@ -103,7 +103,7 @@ int ax_model_human_pose_axppl::inference(const void *pstFrame, ax_joint_runner_b
         }
     }
     int count = MIN(idxs.size(), SAMPLE_MAX_POSE_COUNT);
-    for (int i = 0; i < idxs.size(); i++)
+    for (int i = 0; i < count; i++)
     {
         int idx = idxs[i];
         model_1->set_current_index(idx);
