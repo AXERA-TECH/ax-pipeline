@@ -1,5 +1,5 @@
 ## 简介
-  通过 RTSP 流媒体输入，输出到屏幕以及rtsp流媒体服务器，实现 rtsp-in-rtsp-out 算力盒子。
+  通过 RTSP 流媒体输入，输出到rtsp流媒体服务器，实现 rtsp-in-rtsp-out 算力盒子。
 
 
 ## 快速体验
@@ -16,5 +16,5 @@ ffmpeg -re -stream_loop -1 -i test.h264 -rtsp_transport tcp -c copy -f rtsp rtsp
 
 5、运行以下命令，进行 rtsp 的取流、解码、推理的 pipeline
 ```
-./sample_rtsp_ivps_joint_vo_new -f rtsp://192.168.31.1:5554/test -p config/yolov5s.json
+./sample_rtsp_ivps_joint_rtsp -f rtsp://192.168.31.1:5554/test -p config/yolov5s.json
 ```

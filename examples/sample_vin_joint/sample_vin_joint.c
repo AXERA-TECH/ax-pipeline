@@ -345,8 +345,8 @@ AX_S32 SysRun()
 AX_VOID PrintHelp()
 {
     printf("command:\n");
-    printf("\t-p: yolov5 param file path\n");
-    printf("\t-m: Joint model path\n");
+    printf("\t-p: model config file path\n");
+    
     printf("\t-c: ISP Test Case:\n");
     printf("\t\t0: Single OS04A10\n");
     printf("\t\t1: Single IMX334\n");
@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "p:m:c:e:h")) != -1)
+    while ((c = getopt(argc, argv, "p:c:e:h")) != -1)
     {
         isExit = 0;
         switch (c)

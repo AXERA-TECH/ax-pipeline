@@ -242,7 +242,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-c: ISP Test Case:\n");
     printf("\t\t0: Single OS04A10\n");
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:c:e:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:c:e:r:h")) != -1)
     {
         switch (ch)
         {
@@ -399,8 +399,8 @@ int main(int argc, char *argv[])
         pipe0.n_loog_exit = 0;              // 可以用来控制线程退出（如果有的话）
         pipe0.n_vin_pipe = 0;
         pipe0.n_vin_chn = 0;
-        sprintf(pipe0.m_venc_attr.end_point, "axstream0"); // 重复的会创建失败
-        pipe0.m_venc_attr.n_venc_chn = 0;                  // 重复的会创建失败
+        sprintf(pipe0.m_venc_attr.end_point, "%s", "axstream0"); // 重复的会创建失败
+        pipe0.m_venc_attr.n_venc_chn = 0;                        // 重复的会创建失败
 
         pipeline_t &pipe1 = pipelines[1];
         {

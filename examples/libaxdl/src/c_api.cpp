@@ -132,65 +132,77 @@ int libaxdl_get_model_type(void *pModels)
 
 int libaxdl_inference(void *pModels, const void *pstFrame, libaxdl_results_t *pResults)
 {
-    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    static std::mutex locker;
+    locker.lock();
+    int state = 0;
+    do
     {
-        return -1;
-    }
-    pResults->mModelType = ((ax_model_handle_t *)pModels)->model->get_model_type();
-    int ret = ((ax_model_handle_t *)pModels)->model->inference(pstFrame, nullptr, pResults);
-    if (ret)
-        return ret;
-    int width, height;
-    ((ax_model_handle_t *)pModels)->model->get_det_restore_resolution(width, height);
-    for (int i = 0; i < pResults->nObjSize; i++)
-    {
-        pResults->mObjects[i].bbox.x /= width;
-        pResults->mObjects[i].bbox.y /= height;
-        pResults->mObjects[i].bbox.w /= width;
-        pResults->mObjects[i].bbox.h /= height;
-
-        for (int j = 0; j < pResults->mObjects[i].nLandmark; j++)
+        if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
         {
-            pResults->mObjects[i].landmark[j].x /= width;
-            pResults->mObjects[i].landmark[j].y /= height;
+            state = -1;
+            break;
         }
-
-        if (pResults->mObjects[i].bHasBoxVertices)
+        pResults->mModelType = ((ax_model_handle_t *)pModels)->model->get_model_type();
+        int ret = ((ax_model_handle_t *)pModels)->model->inference(pstFrame, nullptr, pResults);
+        if (ret)
         {
-            for (size_t j = 0; j < 4; j++)
+            state = ret;
+            break;
+        }
+        int width, height;
+        ((ax_model_handle_t *)pModels)->model->get_det_restore_resolution(width, height);
+        for (int i = 0; i < pResults->nObjSize; i++)
+        {
+            pResults->mObjects[i].bbox.x /= width;
+            pResults->mObjects[i].bbox.y /= height;
+            pResults->mObjects[i].bbox.w /= width;
+            pResults->mObjects[i].bbox.h /= height;
+
+            for (int j = 0; j < pResults->mObjects[i].nLandmark; j++)
             {
-                pResults->mObjects[i].bbox_vertices[j].x /= width;
-                pResults->mObjects[i].bbox_vertices[j].y /= height;
+                pResults->mObjects[i].landmark[j].x /= width;
+                pResults->mObjects[i].landmark[j].y /= height;
+            }
+
+            if (pResults->mObjects[i].bHasBoxVertices)
+            {
+                for (size_t j = 0; j < 4; j++)
+                {
+                    pResults->mObjects[i].bbox_vertices[j].x /= width;
+                    pResults->mObjects[i].bbox_vertices[j].y /= height;
+                }
             }
         }
-    }
 
-    for (int i = 0; i < pResults->nCrowdCount; i++)
-    {
-        pResults->mCrowdCountPts[i].x /= width;
-        pResults->mCrowdCountPts[i].y /= height;
-    }
-
-    if (g_cb_results_sipeed_py)
-    {
-        ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);
-    }
-
-    {
-        static int fcnt = 0;
-        static int fps = -1;
-        fcnt++;
-        static struct timespec ts1, ts2;
-        clock_gettime(CLOCK_MONOTONIC, &ts2);
-        if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
+        for (int i = 0; i < pResults->nCrowdCount; i++)
         {
-            fps = fcnt;
-            ts1 = ts2;
-            fcnt = 0;
+            pResults->mCrowdCountPts[i].x /= width;
+            pResults->mCrowdCountPts[i].y /= height;
         }
-        pResults->niFps = fps;
-    }
-    return 0;
+
+        if (g_cb_results_sipeed_py)
+        {
+            ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);
+        }
+
+        {
+            static int fcnt = 0;
+            static int fps = -1;
+            fcnt++;
+            static struct timespec ts1, ts2;
+            clock_gettime(CLOCK_MONOTONIC, &ts2);
+            if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
+            {
+                fps = fcnt;
+                ts1 = ts2;
+                fcnt = 0;
+            }
+            pResults->niFps = fps;
+        }
+    } while (0);
+
+    locker.unlock();
+    return state;
 }
 
 int libaxdl_draw_results(void *pModels, libaxdl_canvas_t *canvas, libaxdl_results_t *pResults, float fontscale, int thickness, int offset_x, int offset_y)

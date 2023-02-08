@@ -51,7 +51,6 @@ int SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 int SAMPLE_IVPS_ALGO_WIDTH = 960;
 int SAMPLE_IVPS_ALGO_HEIGHT = 540;
 
-
 static struct _g_sample_
 {
     int bRunJoint;
@@ -218,7 +217,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-f: rtsp url\n");
 
@@ -278,7 +277,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-        COMMON_SYS_POOL_CFG_T poolcfg[] = {
+    COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
     tCommonArgs.nPoolCfgCnt = 1;
@@ -391,8 +390,8 @@ int main(int argc, char *argv[])
         pipe2.m_input_type = pi_vdec_h264;
         pipe2.m_output_type = po_rtsp_h264;
         pipe2.n_loog_exit = 0;
-        sprintf(pipe2.m_venc_attr.end_point, "axstream0"); // 重复的会创建失败
-        pipe2.m_venc_attr.n_venc_chn = 0;                  // 重复的会创建失败
+        sprintf(pipe2.m_venc_attr.end_point, "%s", "axstream0"); // 重复的会创建失败
+        pipe2.m_venc_attr.n_venc_chn = 0;                        // 重复的会创建失败
         pipe2.m_vdec_attr.n_vdec_grp = 0;
 
         for (size_t i = 0; i < pipe_count; i++)
@@ -430,12 +429,6 @@ int main(int argc, char *argv[])
         user_input(&pipelines[0], 1, &end_buf);
     }
 
-    // s32Ret = SysRun();
-    if (0 != s32Ret)
-    {
-        ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_6;
-    }
     // 销毁pipeline
     {
         gLoopExit = 1;

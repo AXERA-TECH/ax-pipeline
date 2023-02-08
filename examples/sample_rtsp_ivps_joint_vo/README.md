@@ -5,7 +5,7 @@
 ![](../../docs/sample_rtsp_ivps_joint_vo.png)
 
 ## 快速体验
-1、准备想要进行推流的 h264 格式的二进制文件，下文用 test.h264
+1、准备想要进行推流的 h264 格式的二进制文件，或 h264 格式的 mp4 文件，下文用 test.h264
 
 2、打开 [rtsp-simple-server](https://github.com/aler9/rtsp-simple-server/releases/tag/v0.21.0) 选择对应的平台，下载 rtsp-simple-server 可执行文件，并双击或者在命令行执行在后台
 

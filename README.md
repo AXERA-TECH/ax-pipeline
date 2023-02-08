@@ -65,6 +65,8 @@
 | [sample_rtsp_ivps_joint_vo](examples/sample_rtsp_ivps_joint_vo) | rtsp 输入，IVPS出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
 | [sample_v4l2_ivps_joint_vo](examples/sample_v4l2_ivps_joint_vo) | USB的 jpeg 输入，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
 | [sample_v4l2_user_ivps_joint_vo](examples/sample_v4l2_user_ivps_joint_vo) | USB的 jpeg 输入，使用libjpeg解码成NV12，输入到IVPS中，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理，演示了如何将NV12的图像输入到IVPS中 |
+| [sample_rtsp_ivps_joint_rtsp](examples/sample_rtsp_ivps_joint_rtsp) | rtsp 输入，IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 |
+| [sample_multi_rtsp_ivps_joint_multi_rtsp](examples/sample_multi_rtsp_ivps_joint_multi_rtsp) | 多路 rtsp 输入，推理模型进行 OSD 后，多路 rtsp 输出 |
 
 ### DEMO视频
 https://user-images.githubusercontent.com/46700201/198552009-b55a5776-fc5a-4725-9906-d37548385359.mp4

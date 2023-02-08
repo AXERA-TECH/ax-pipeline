@@ -339,7 +339,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-f: h264 file\n");
 
@@ -554,12 +554,6 @@ int main(int argc, char *argv[])
         fclose(fInput);
     }
 
-    // s32Ret = SysRun();
-    if (0 != s32Ret)
-    {
-        ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_6;
-    }
     // 销毁pipeline
     {
         gLoopExit = 1;

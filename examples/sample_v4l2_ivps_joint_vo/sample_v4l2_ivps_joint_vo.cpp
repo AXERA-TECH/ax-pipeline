@@ -192,7 +192,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:r:h")) != -1)
     {
         switch (ch)
         {
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-        COMMON_SYS_POOL_CFG_T poolcfg[] = {
+    COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
     tCommonArgs.nPoolCfgCnt = 1;
@@ -390,11 +390,6 @@ int main(int argc, char *argv[])
         delete videoCapture;
     }
 
-    if (0 != s32Ret)
-    {
-        ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_6;
-    }
     // 销毁pipeline
     {
         gLoopExit = 1;

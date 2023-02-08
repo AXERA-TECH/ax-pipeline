@@ -217,7 +217,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-f: rtsp url\n");
 
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:f:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:f:r:h")) != -1)
     {
         switch (ch)
         {
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-        COMMON_SYS_POOL_CFG_T poolcfg[] = {
+    COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
     tCommonArgs.nPoolCfgCnt = 1;
@@ -410,12 +410,6 @@ int main(int argc, char *argv[])
         user_input(&pipelines[0], 1, &end_buf);
     }
 
-    // s32Ret = SysRun();
-    if (0 != s32Ret)
-    {
-        ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_6;
-    }
     // 销毁pipeline
     {
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)

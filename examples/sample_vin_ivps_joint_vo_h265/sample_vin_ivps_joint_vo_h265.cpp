@@ -279,7 +279,7 @@ extern "C" AX_VOID __sigExit(int iSigNo)
 static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
-    printf("\t-p: yolov5 param file path\n");
+    printf("\t-p: model config file path\n");
 
     printf("\t-c: ISP Test Case:\n");
     printf("\t\t0: Single OS04A10\n");
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:m:c:e:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:c:e:r:h")) != -1)
     {
         switch (ch)
         {
