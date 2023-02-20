@@ -212,9 +212,11 @@ int axdl_draw_results(void *pModels, axdl_canvas_t *canvas, axdl_results_t *pRes
     {
         return -1;
     }
-    if (g_cb_display_sipeed_py && (g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data) != 0))
-    {
-        return 0; // python will disable show
+    if (g_cb_display_sipeed_py) {
+        int ret = g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data);
+        for (uint32_t *rgba2abgr = (uint32_t *)canvas->data, i = 0, s = canvas->width*canvas->height; i != s; i++)
+            rgba2abgr[i] = __builtin_bswap32(rgba2abgr[i]);
+        if (ret != 0) return 0; // python will disable show
     }
 
     cv::Mat image(canvas->height, canvas->width, CV_8UC4, canvas->data);
