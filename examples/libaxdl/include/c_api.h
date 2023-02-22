@@ -55,7 +55,17 @@ extern "C"
         MT_MLM_FACE_RECOGNITION,
         MT_MLM_VEHICLE_LICENSE_RECOGNITION,
 
+        MT_END,
     } MODEL_TYPE_E;
+
+    typedef enum _RUNNER_TYPE_E
+    {
+        RUNNER_UNKNOWN = MT_END,
+
+        RUNNER_AX620,
+
+        RUNNER_END
+    } RUNNER_TYPE_E;
 
     typedef struct _bbox_t
     {

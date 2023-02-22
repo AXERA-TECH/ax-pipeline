@@ -39,7 +39,6 @@
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 #endif
 
-
 typedef struct
 {
     AX_JOINT_HANDLE joint_handle;
@@ -250,17 +249,17 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     case AX_JOINT_CS_NV12:
         attr->algo_colorformat = (int)AX_YUV420_SEMIPLANAR;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
-        ALOGI("NV12 MODEL");
+        ALOGI("NV12 MODEL (%s)\n", model_file);
         break;
     case AX_JOINT_CS_RGB:
         attr->algo_colorformat = (int)AX_FORMAT_RGB888;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-        ALOGI("RGB MODEL");
+        ALOGI("RGB MODEL (%s)\n", model_file);
         break;
     case AX_JOINT_CS_BGR:
         attr->algo_colorformat = (int)AX_FORMAT_BGR888;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-        ALOGI("BGR MODEL");
+        ALOGI("BGR MODEL (%s)\n", model_file);
         break;
     default:
         ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");

@@ -13,6 +13,7 @@ class ax_model_base
 protected:
     int HEIGHT_DET_BBOX_RESTORE = 1080, WIDTH_DET_BBOX_RESTORE = 1920;
     MODEL_TYPE_E m_model_type = MT_UNKNOWN;
+    RUNNER_TYPE_E m_runner_type = RUNNER_AX620;
     // detection
     float PROB_THRESHOLD = 0.4f;
     float NMS_THRESHOLD = 0.45f;
@@ -122,6 +123,7 @@ public:
     std::vector<ax_model_faceid> get_face_register_ids() { return face_register_ids; }
 
     static int get_model_type(void *json_obj, std::string &strModelType);
+    static int get_runner_type(void *json_obj, std::string &strRunnerType);
 
     virtual int init(void *json_obj) = 0;
     virtual void deinit() = 0;

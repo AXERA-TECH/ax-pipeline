@@ -1,4 +1,4 @@
-#include "../include/ax_model_runner.hpp"
+#include "ax_model_runner_ax620.hpp"
 #include "../../utilities/sample_log.h"
 
 #include "sample_run_joint.h"
@@ -22,6 +22,7 @@ int ax_runner_ax620::init(const char *model_file)
     if (ret)
     {
         ALOGE("sample_run_joint_init failed,s32Ret:0x%x", ret);
+        return ret;
     }
     for (size_t i = 0; i < m_handle->m_attr.nOutputSize; i++)
     {

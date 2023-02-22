@@ -78,15 +78,21 @@ int ax_model_pose_hrnet_sub::preprocess(axdl_image_t *pstFrame, axdl_bbox_t *cro
                 {0, 0, 1}};
             // //这里要用AX_NPU_MODEL_TYPE_1_1_2
             ret = ax_imgproc_warp(pstFrame, &dstFrame, &mat3x3[0][0], 128);
+            if (ret != 0)
+            {
+                return ret;
+            }
         }
         else
         {
             ret = ax_imgproc_crop_resize(pstFrame, &dstFrame, &HumObj.bbox);
-        }
-
-        if (ret != 0)
-        {
-            return ret;
+            if (ret != 0)
+            {
+                ALOGE("crop resize failed,box[%4.2f %4.2f %4.2f %4.2f] image[%dx%d]",
+                      HumObj.bbox.x, HumObj.bbox.y, HumObj.bbox.w, HumObj.bbox.h,
+                      pstFrame->nWidth, pstFrame->nHeight);
+                return ret;
+            }
         }
     }
     else

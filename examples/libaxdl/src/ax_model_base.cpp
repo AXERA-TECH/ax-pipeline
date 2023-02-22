@@ -24,6 +24,8 @@ std::map<std::string, int> ModelTypeTable = {
 #include "ax_model_multi_level_model.hpp"
 #include "ax_model_ml_sub.hpp"
 
+#include "ax_model_runner_ax620.hpp"
+
 template <typename T>
 void update_val(nlohmann::json &jsondata, const char *key, T *val)
 {
@@ -53,7 +55,15 @@ int ax_model_base::get_model_type(void *json_obj, std::string &strModelType)
         {
             int mt = -1;
             mt = jsondata["MODEL_TYPE"];
-            m_model_type = (MODEL_TYPE_E)mt;
+            auto it = ModelTypeTable.begin();
+            for (size_t i = 0; i < ModelTypeTable.size(); i++)
+            {
+                if (it->second == mt)
+                {
+                    m_model_type = (MODEL_TYPE_E)mt;
+                }
+            }
+            // m_model_type = (MODEL_TYPE_E)mt;
         }
         else if (jsondata["MODEL_TYPE"].is_string())
         {
@@ -65,13 +75,44 @@ int ax_model_base::get_model_type(void *json_obj, std::string &strModelType)
             {
                 m_model_type = (MODEL_TYPE_E)ModelTypeTable[strModelType];
             }
-            else
-            {
-                m_model_type = MT_UNKNOWN;
-            }
         }
     }
     return m_model_type;
+}
+
+int ax_model_base::get_runner_type(void *json_obj, std::string &strRunnerType)
+{
+    RUNNER_TYPE_E m_runner_type = RUNNER_UNKNOWN;
+    auto jsondata = *(nlohmann::json *)json_obj;
+    if (jsondata.contains("RUNNER_TYPE"))
+    {
+        if (jsondata["RUNNER_TYPE"].is_number_integer())
+        {
+            int mt = -1;
+            mt = jsondata["RUNNER_TYPE"];
+            auto it = ModelTypeTable.begin();
+            for (size_t i = 0; i < ModelTypeTable.size(); i++)
+            {
+                if (it->second == mt)
+                {
+                    m_runner_type = (RUNNER_TYPE_E)mt;
+                }
+            }
+            // m_model_type = (MODEL_TYPE_E)mt;
+        }
+        else if (jsondata["RUNNER_TYPE"].is_string())
+        {
+            strRunnerType = jsondata["RUNNER_TYPE"];
+
+            auto item = ModelTypeTable.find(strRunnerType);
+
+            if (item != ModelTypeTable.end())
+            {
+                m_runner_type = (RUNNER_TYPE_E)ModelTypeTable[strRunnerType];
+            }
+        }
+    }
+    return m_runner_type;
 }
 
 void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
@@ -151,8 +192,19 @@ int ax_model_single_base_t::init(void *json_obj)
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
     ALOGI("load model %s", MODEL_PATH.c_str());
-    m_runner.reset(new ax_runner_ax620);
-    m_runner->init(MODEL_PATH.c_str());
+    m_runner.reset((ax_runner_base *)OBJFactory::getInstance().getObjectByID(m_runner_type));
+    if (!m_runner.get())
+    {
+        ALOGE("runner instantiate failed!");
+        return -1;
+    }
+    int ret = m_runner->init(MODEL_PATH.c_str());
+    if (ret)
+    {
+        ALOGE("runner init load model failed!");
+        return ret;
+    }
+    
 
     int unknown_cls_count = MAX(0, CLASS_NUM - CLASS_NAMES.size());
     for (int i = 0; i < unknown_cls_count; i++)
