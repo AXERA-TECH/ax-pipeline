@@ -31,6 +31,7 @@ extern "C"
 struct ax_model_handle_t
 {
     std::shared_ptr<ax_model_base> model = nullptr;
+    std::mutex locker;
 };
 
 int axdl_parse_param_init(char *json_file_path, void **pModels)
@@ -133,77 +134,69 @@ int axdl_get_model_type(void *pModels)
 
 int axdl_inference(void *pModels, axdl_image_t *pstFrame, axdl_results_t *pResults)
 {
-    static std::mutex locker;
-    locker.lock();
-    int state = 0;
-    do
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
     {
-        if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
-        {
-            state = -1;
-            break;
-        }
-        pResults->mModelType = ((ax_model_handle_t *)pModels)->model->get_model_type();
-        int ret = ((ax_model_handle_t *)pModels)->model->inference(pstFrame, nullptr, pResults);
-        if (ret)
-        {
-            state = ret;
-            break;
-        }
-        int width, height;
-        ((ax_model_handle_t *)pModels)->model->get_det_restore_resolution(width, height);
-        for (int i = 0; i < pResults->nObjSize; i++)
-        {
-            pResults->mObjects[i].bbox.x /= width;
-            pResults->mObjects[i].bbox.y /= height;
-            pResults->mObjects[i].bbox.w /= width;
-            pResults->mObjects[i].bbox.h /= height;
+        return -1;
+    }
+    std::lock_guard<std::mutex> locker(((ax_model_handle_t *)pModels)->locker);
+    pResults->mModelType = ((ax_model_handle_t *)pModels)->model->get_model_type();
+    int ret = ((ax_model_handle_t *)pModels)->model->inference(pstFrame, nullptr, pResults);
+    if (ret)
+    {
+        return -1;
+    }
+    int width, height;
+    ((ax_model_handle_t *)pModels)->model->get_det_restore_resolution(width, height);
+    for (int i = 0; i < pResults->nObjSize; i++)
+    {
+        pResults->mObjects[i].bbox.x /= width;
+        pResults->mObjects[i].bbox.y /= height;
+        pResults->mObjects[i].bbox.w /= width;
+        pResults->mObjects[i].bbox.h /= height;
 
-            for (int j = 0; j < pResults->mObjects[i].nLandmark; j++)
-            {
-                pResults->mObjects[i].landmark[j].x /= width;
-                pResults->mObjects[i].landmark[j].y /= height;
-            }
+        for (int j = 0; j < pResults->mObjects[i].nLandmark; j++)
+        {
+            pResults->mObjects[i].landmark[j].x /= width;
+            pResults->mObjects[i].landmark[j].y /= height;
+        }
 
-            if (pResults->mObjects[i].bHasBoxVertices)
+        if (pResults->mObjects[i].bHasBoxVertices)
+        {
+            for (size_t j = 0; j < 4; j++)
             {
-                for (size_t j = 0; j < 4; j++)
-                {
-                    pResults->mObjects[i].bbox_vertices[j].x /= width;
-                    pResults->mObjects[i].bbox_vertices[j].y /= height;
-                }
+                pResults->mObjects[i].bbox_vertices[j].x /= width;
+                pResults->mObjects[i].bbox_vertices[j].y /= height;
             }
         }
+    }
 
-        for (int i = 0; i < pResults->nCrowdCount; i++)
+    for (int i = 0; i < pResults->nCrowdCount; i++)
+    {
+        pResults->mCrowdCountPts[i].x /= width;
+        pResults->mCrowdCountPts[i].y /= height;
+    }
+
+    if (g_cb_results_sipeed_py)
+    {
+        ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);
+    }
+
+    {
+        static int fcnt = 0;
+        static int fps = -1;
+        fcnt++;
+        static struct timespec ts1, ts2;
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
         {
-            pResults->mCrowdCountPts[i].x /= width;
-            pResults->mCrowdCountPts[i].y /= height;
+            fps = fcnt;
+            ts1 = ts2;
+            fcnt = 0;
         }
+        pResults->niFps = fps;
+    }
 
-        if (g_cb_results_sipeed_py)
-        {
-            ret = g_cb_results_sipeed_py((void *)pstFrame, pResults);
-        }
-
-        {
-            static int fcnt = 0;
-            static int fps = -1;
-            fcnt++;
-            static struct timespec ts1, ts2;
-            clock_gettime(CLOCK_MONOTONIC, &ts2);
-            if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
-            {
-                fps = fcnt;
-                ts1 = ts2;
-                fcnt = 0;
-            }
-            pResults->niFps = fps;
-        }
-    } while (0);
-
-    locker.unlock();
-    return state;
+    return 0;
 }
 
 int axdl_draw_results(void *pModels, axdl_canvas_t *canvas, axdl_results_t *pResults, float fontscale, int thickness, int offset_x, int offset_y)
@@ -212,11 +205,13 @@ int axdl_draw_results(void *pModels, axdl_canvas_t *canvas, axdl_results_t *pRes
     {
         return -1;
     }
-    if (g_cb_display_sipeed_py) {
+    if (g_cb_display_sipeed_py)
+    {
         int ret = g_cb_display_sipeed_py(canvas->height, canvas->width, CV_8UC4, (char **)&canvas->data);
-        for (uint32_t *rgba2abgr = (uint32_t *)canvas->data, i = 0, s = canvas->width*canvas->height; i != s; i++)
+        for (uint32_t *rgba2abgr = (uint32_t *)canvas->data, i = 0, s = canvas->width * canvas->height; i != s; i++)
             rgba2abgr[i] = __builtin_bswap32(rgba2abgr[i]);
-        if (ret != 0) return 0; // python will disable show
+        if (ret != 0)
+            return 0; // python will disable show
     }
 
     cv::Mat image(canvas->height, canvas->width, CV_8UC4, canvas->data);
