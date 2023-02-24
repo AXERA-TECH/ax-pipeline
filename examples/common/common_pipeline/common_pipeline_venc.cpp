@@ -85,11 +85,16 @@ void *_venc_get_frame_thread(void *arg)
             }
 
             s32Ret = AX_VENC_ReleaseStream(pipe->m_venc_attr.n_venc_chn, &stStream);
+            if (s32Ret)
+            {
+                ALOGE("VencChn %d: AX_VENC_ReleaseStream failed!s32Ret:0x%x\n", pipe->m_venc_attr.n_venc_chn, s32Ret);
+                usleep(30*1000);
+            }
         }
         else
         {
-            ALOGE("VencChn %d: AX_VENC_ReleaseStream failed!s32Ret:0x%x\n", pipe->m_venc_attr.n_venc_chn, s32Ret);
-            goto EXIT;
+            ALOGE("VencChn %d: AX_VENC_GetStream failed!s32Ret:0x%x\n", pipe->m_venc_attr.n_venc_chn, s32Ret);
+            usleep(30*1000);
         }
     }
 
