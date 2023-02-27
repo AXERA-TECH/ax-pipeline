@@ -52,6 +52,7 @@
 - [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
 - [配置文件说明](docs/config_file.md)
 - [简化版本 pipeline 构建 api](docs/new_pipeline.md)
+- [如何加速子模块的下载](docs/how_to_speed_up_submodule_init.md)
   
 ### 示例
 | 示例 | 简介|
