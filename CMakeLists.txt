@@ -47,7 +47,7 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=ar
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
 
 add_subdirectory(third-party/RTSP)
-
+add_subdirectory(third-party/RtspServer)
 add_subdirectory(examples/libaxdl)
 # add_subdirectory(examples/sample_run_joint)
 add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)

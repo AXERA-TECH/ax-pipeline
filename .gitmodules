@@ -7,3 +7,6 @@
 [submodule "third-party/RTSP"]
 	path = third-party/RTSP
 	url = https://github.com/ZHEQIUSHUI/RTSP.git
+[submodule "third-party/RtspServer/RtspServer"]
+	path = third-party/RtspServer/RtspServer
+	url = https://github.com/PHZ76/RtspServer.git

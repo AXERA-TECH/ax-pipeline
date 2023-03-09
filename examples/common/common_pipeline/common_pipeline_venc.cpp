@@ -19,7 +19,8 @@
  */
 
 #include "../common_pipeline.h"
-#include "../../rtsp/inc/rtsp.h"
+// #include "../../rtsp/inc/rtsp.h"
+#include "../../../third-party/RtspServer/RtspServerWarpper.h"
 #include "../../utilities/sample_log.h"
 
 #include "ax_venc_api.h"
@@ -30,8 +31,8 @@ extern "C"
 }
 
 bool check_rtsp_session_pipeid(int pipeid);
-rtsp_demo_handle get_rtsp_demo_handle();
-rtsp_session_handle get_rtsp_session_handle(int pipeid);
+rtsp_server_t get_rtsp_demo_handle();
+rtsp_session_t get_rtsp_session_handle(int pipeid);
 
 void *_venc_get_frame_thread(void *arg)
 {
@@ -60,7 +61,11 @@ void *_venc_get_frame_thread(void *arg)
             {
                 if (check_rtsp_session_pipeid(pipe->pipeid))
                 {
-                    rtsp_sever_tx_video(get_rtsp_demo_handle(), get_rtsp_session_handle(pipe->pipeid), stStream.stPack.pu8Addr, stStream.stPack.u32Len, stStream.stPack.u64PTS);
+                    rtsp_buffer_t buff = {0};
+                    buff.vlen = stStream.stPack.u32Len;
+                    buff.vbuff = stStream.stPack.pu8Addr;
+                    buff.vts = stStream.stPack.u64PTS;
+                    rtsp_push(get_rtsp_demo_handle(), get_rtsp_session_handle(pipe->pipeid), &buff);
                 }
             }
             break;
@@ -88,13 +93,13 @@ void *_venc_get_frame_thread(void *arg)
             if (s32Ret)
             {
                 ALOGE("VencChn %d: AX_VENC_ReleaseStream failed!s32Ret:0x%x\n", pipe->m_venc_attr.n_venc_chn, s32Ret);
-                usleep(30*1000);
+                usleep(30 * 1000);
             }
         }
         else
         {
             ALOGE("VencChn %d: AX_VENC_GetStream failed!s32Ret:0x%x\n", pipe->m_venc_attr.n_venc_chn, s32Ret);
-            usleep(30*1000);
+            usleep(30 * 1000);
         }
     }
 
