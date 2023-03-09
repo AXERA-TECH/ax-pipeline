@@ -50,7 +50,7 @@ cd ..
 mkdir build
 cd build
 cmake -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
-make -j8
+make $(expr `nproc` - 1)
 make install
 ```
 
