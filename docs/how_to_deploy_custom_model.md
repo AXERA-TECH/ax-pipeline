@@ -30,7 +30,7 @@ void sample_run_joint_post_process_yolov5(AX_U32 nOutputSize, AX_JOINT_IOMETA_T 
 
 一些常用模型的后处理代码，可以参考 [ax-samples](https://github.com/AXERA-TECH/ax-samples)
 
-### OSD 
+### OSD ([On-screen display](https://en.wikipedia.org/wiki/On-screen_display))
 ax-pipeline 使用 opencv 进行绘图，基本步骤如下
 - 申请与需要 OSD 的目标图像一样大的四通道图片
 - 在申请的四通道中进行绘图，不需要绘图的区域保持通道透明
