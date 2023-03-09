@@ -36,7 +36,7 @@
 
 ```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理
 
-```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples]() 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
+```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples](https://github.com/AXERA-TECH/ax-samples) 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
 
 ## 已支持开发板
 
