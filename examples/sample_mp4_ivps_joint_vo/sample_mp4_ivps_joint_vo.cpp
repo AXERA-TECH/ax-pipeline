@@ -221,11 +221,8 @@ static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: model config file path\n");
-
     printf("\t-f: mp4 file(just only support h264 format)\n");
-
-    printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
-
+    printf("\t-l: loop play video\n");
     exit(0);
 }
 
@@ -237,6 +234,7 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
+    int loopPlay = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     char h26xfile[512];
     signal(SIGPIPE, SIG_IGN);
@@ -245,7 +243,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:f:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:f:l:r:h")) != -1)
     {
         switch (ch)
         {
@@ -256,6 +254,11 @@ int main(int argc, char *argv[])
         case 'p':
         {
             strcpy(config_file, optarg);
+            break;
+        }
+        case 'l':
+        {
+            loopPlay = atoi(optarg);
             break;
         }
         case 'r':
@@ -395,7 +398,7 @@ int main(int argc, char *argv[])
 
     {
 
-        mp4_handle_t handle = mp4_open(h26xfile, _mp4_frame_callback, &pipelines[0]);
+        mp4_handle_t handle = mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);

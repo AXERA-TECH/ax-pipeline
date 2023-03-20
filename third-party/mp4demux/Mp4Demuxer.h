@@ -1,5 +1,3 @@
-
-
 #ifndef __MP4_DEMUXER_H__
 #define __MP4_DEMUXER_H__
 
@@ -16,7 +14,7 @@ extern "C"
 
     typedef void *mp4_handle_t;
 
-    mp4_handle_t mp4_open(const char *path, mp4_frame_callback cb, void *reserve);
+    mp4_handle_t mp4_open(const char *path, mp4_frame_callback cb, int loopPlay, void *reserve);
 
     void mp4_close(mp4_handle_t *mp4handle);
 
