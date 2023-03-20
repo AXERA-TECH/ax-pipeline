@@ -31,6 +31,7 @@
 | [sample_vin_ivps_joint_venc_rtsp_vo](examples/sample_vin_ivps_joint_venc_rtsp_vo) |IVPS 出三路视频，一路用作 RTSP 推流，一路用作屏幕显示，一路用作 NPU 推理|
 | [sample_vin_ivps_joint_vo_h265](examples/sample_vin_ivps_joint_vo_h265) |IVPS 出三路视频，一路用作屏幕显示，一路用作 h265 文件保存，一路用作 NPU 推理|
 | [sample_h264_ivps_joint_vo](examples/sample_h264_ivps_joint_vo) |读取 h264 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_mp4_ivps_joint_vo](examples/sample_mp4_ivps_joint_vo) |读取 mp4 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
 | [sample_rtsp_ivps_joint_rtsp_vo](examples/sample_rtsp_ivps_joint_rtsp_vo) | rtsp 输入，IVPS出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 |
 | [sample_rtsp_ivps_joint_vo](examples/sample_rtsp_ivps_joint_vo) | rtsp 输入，IVPS出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
 | [sample_v4l2_ivps_joint_vo](examples/sample_v4l2_ivps_joint_vo) | USB的 jpeg 输入，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
