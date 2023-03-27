@@ -2,6 +2,7 @@
     "MODEL_TYPE": "MT_DET_YOLOV8_SEG",
     "MODEL_PATH": "./models/yolov8n-seg.joint",
     "STRIDES": [8, 16, 32],
+    "MAX_MASK_OBJ_COUNT" : 8,
     "CLASS_NAMES": [
         "person",
         "bicycle",

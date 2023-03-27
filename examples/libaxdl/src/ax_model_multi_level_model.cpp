@@ -103,7 +103,8 @@ int ax_model_human_pose_axppl::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
             idxs.push_back(i);
         }
     }
-    int count = MIN(idxs.size(), SAMPLE_MAX_POSE_COUNT);
+    int count = MIN(idxs.size(), MAX_SUB_INFER_COUNT);
+    results->nObjSize = count;
     for (int i = 0; i < count; i++)
     {
         int idx = idxs[i];
@@ -116,7 +117,6 @@ int ax_model_human_pose_axppl::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
             memcpy(&results->mObjects[i], &results->mObjects[idx], sizeof(axdl_object_t));
         }
     }
-    results->nObjSize = count;
     return 0;
 }
 
@@ -207,6 +207,8 @@ int ax_model_hand_pose::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     if (ret)
         return ret;
 
+    int count = MIN(results->nObjSize, MAX_SUB_INFER_COUNT);
+    results->nObjSize = count;
     for (size_t i = 0; i < results->nObjSize; i++)
     {
         model_1->set_current_index(i);
@@ -259,8 +261,8 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
                     ax_sys_memfree(npu_image.pPhy, npu_image.pVir);
                     continue;
                 }
-                faceid.feat.resize(SAMPLE_FACE_FEAT_LEN);
-                memcpy(faceid.feat.data(), Results.mObjects[0].mFaceFeat.data, SAMPLE_FACE_FEAT_LEN * sizeof(float));
+                faceid.feat.resize(FACE_FEAT_LEN);
+                memcpy(faceid.feat.data(), Results.mObjects[0].mFaceFeat.data, FACE_FEAT_LEN * sizeof(float));
                 ALOGI("register name=%s", faceid.name.c_str());
             }
             ax_sys_memfree(npu_image.pPhy, npu_image.pVir);
@@ -270,8 +272,9 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
     int ret = model_0->inference(pstFrame, crop_resize_box, results);
     if (ret)
         return ret;
-
-    for (int i = 0; i < results->nObjSize; i++)
+    int count = MIN(results->nObjSize, MAX_SUB_INFER_COUNT);
+    results->nObjSize = count;
+    for (int i = 0; i < count; i++)
     {
         model_1->set_current_index(i);
         ret = model_1->inference(pstFrame, crop_resize_box, results);
@@ -285,11 +288,11 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
         float max_score = 0;
         for (size_t j = 0; j < face_register_ids.size(); j++)
         {
-            if (face_register_ids[j].feat.size() != SAMPLE_FACE_FEAT_LEN)
+            if (face_register_ids[j].feat.size() != FACE_FEAT_LEN)
             {
                 continue;
             }
-            float sim = _calcSimilar((float *)results->mObjects[i].mFaceFeat.data, face_register_ids[j].feat.data(), SAMPLE_FACE_FEAT_LEN);
+            float sim = _calcSimilar((float *)results->mObjects[i].mFaceFeat.data, face_register_ids[j].feat.data(), FACE_FEAT_LEN);
             if (sim > max_score && sim > FACE_RECOGNITION_THRESHOLD)
             {
                 maxidx = j;
@@ -326,7 +329,9 @@ int ax_model_vehicle_license_recognition::inference(axdl_image_t *pstFrame, axdl
     if (ret)
         return ret;
 
-    for (int i = 0; i < results->nObjSize; i++)
+    int count = MIN(results->nObjSize, MAX_SUB_INFER_COUNT);
+    results->nObjSize = count;
+    for (int i = 0; i < count; i++)
     {
         model_1->set_current_index(i);
         ret = model_1->inference(pstFrame, crop_resize_box, results);

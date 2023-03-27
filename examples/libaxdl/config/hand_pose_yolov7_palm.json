@@ -2,6 +2,7 @@
     "MODEL_TYPE": "MT_MLM_HAND_POSE",
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "MAX_SUB_INFER_COUNT" : 2,
     "MODEL_MINOR": {
         "MODEL_PATH": "./models/handpose.joint"
     },

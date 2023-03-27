@@ -2,6 +2,7 @@
     "MODEL_TYPE": "MT_MLM_VEHICLE_LICENSE_RECOGNITION",
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "MAX_SUB_INFER_COUNT" : 4,
     "MODEL_MINOR": {
         "MODEL_PATH": "./models/license_plate_rec.joint"
     },

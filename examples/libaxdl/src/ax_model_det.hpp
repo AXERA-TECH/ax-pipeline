@@ -15,6 +15,7 @@ REGISTER(MT_DET_YOLOV5, ax_model_yolov5)
 class ax_model_yolov5_seg : public ax_model_single_base_t
 {
 protected:
+    SimpleRingBuffer<cv::Mat> mSimpleRingBuffer;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
 };

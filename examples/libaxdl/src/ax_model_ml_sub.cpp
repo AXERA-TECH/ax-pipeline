@@ -104,7 +104,7 @@ int ax_model_pose_hrnet_sub::post_process(axdl_image_t *pstFrame, axdl_bbox_t *c
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * MAX_SUB_INFER_COUNT);
     }
     axdl_object_t &HumObj = results->mObjects[cur_idx];
     pose::ai_body_parts_s ai_point_result;
@@ -147,7 +147,7 @@ int ax_model_pose_axppl_sub::post_process(axdl_image_t *pstFrame, axdl_bbox_t *c
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * MAX_SUB_INFER_COUNT);
     }
     axdl_object_t &HumObj = results->mObjects[cur_idx];
     pose::ai_body_parts_s ai_point_result;
@@ -192,7 +192,7 @@ int ax_model_pose_hrnet_animal_sub::post_process(axdl_image_t *pstFrame, axdl_bb
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * MAX_SUB_INFER_COUNT);
     }
     axdl_object_t &HumObj = results->mObjects[cur_idx];
     pose::ai_body_parts_s ai_point_result;
@@ -289,7 +289,7 @@ int ax_model_pose_hand_sub::post_process(axdl_image_t *pstFrame, axdl_bbox_t *cr
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_HAND_BBOX_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * MAX_SUB_INFER_COUNT);
     }
     pose::ai_hand_parts_s ai_hand_point_result;
     auto &info_point = m_runner->get_output(0);
@@ -348,10 +348,10 @@ int ax_model_face_feat_extactor_sub::post_process(axdl_image_t *pstFrame, axdl_b
         mSimpleRingBuffer_FaceFeat.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
     }
     auto &feat = mSimpleRingBuffer_FaceFeat.next();
-    feat.resize(SAMPLE_FACE_FEAT_LEN);
-    memcpy(feat.data(), m_runner->get_output(0).pVirAddr, SAMPLE_FACE_FEAT_LEN * sizeof(float));
-    _normalize(feat.data(), SAMPLE_FACE_FEAT_LEN);
-    results->mObjects[cur_idx].mFaceFeat.w = SAMPLE_FACE_FEAT_LEN * 4;
+    feat.resize(FACE_FEAT_LEN);
+    memcpy(feat.data(), m_runner->get_output(0).pVirAddr, FACE_FEAT_LEN * sizeof(float));
+    _normalize(feat.data(), FACE_FEAT_LEN);
+    results->mObjects[cur_idx].mFaceFeat.w = FACE_FEAT_LEN * 4;
     results->mObjects[cur_idx].mFaceFeat.h = 1;
     results->mObjects[cur_idx].mFaceFeat.data = (unsigned char *)feat.data();
     return 0;

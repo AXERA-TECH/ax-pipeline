@@ -189,6 +189,14 @@ int ax_model_single_base_t::init(void *json_obj)
     update_val(jsondata, "MODEL_PATH", &MODEL_PATH);
     update_val(jsondata, "STRIDES", &STRIDES);
 
+    update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+    MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+    update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
+    MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
+    update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
+
+    update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
+
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
     ALOGI("load model %s", MODEL_PATH.c_str());
@@ -204,7 +212,6 @@ int ax_model_single_base_t::init(void *json_obj)
         ALOGE("runner init load model failed!");
         return ret;
     }
-    
 
     int unknown_cls_count = MAX(0, CLASS_NUM - CLASS_NAMES.size());
     for (int i = 0; i < unknown_cls_count; i++)
@@ -305,9 +312,24 @@ int ax_model_multi_base_t::init(void *json_obj)
                 face_register_ids.push_back(faceid);
             }
         }
-        update_val(json_minor, "FACE_RECOGNITION_THRESHOLD", &FACE_RECOGNITION_THRESHOLD);
-
         model_1->init((void *)&json_minor);
+
+        update_val(json_minor, "FACE_RECOGNITION_THRESHOLD", &FACE_RECOGNITION_THRESHOLD);
+        update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+        MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+        update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
+        MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
+        update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
+
+        model_0->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
+        model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        model_0->set_sub_infer_count(MAX_SUB_INFER_COUNT);
+        model_0->set_face_feat_len(FACE_FEAT_LEN);
+
+        model_1->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
+        model_1->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        model_1->set_sub_infer_count(MAX_SUB_INFER_COUNT);
+        model_1->set_face_feat_len(FACE_FEAT_LEN);
     }
     else
         return -1;

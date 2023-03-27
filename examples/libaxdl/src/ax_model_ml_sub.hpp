@@ -14,7 +14,6 @@ protected:
 class ax_model_pose_hrnet_sub : public ax_model_ml_sub
 {
 protected:
-    bool use_warp_preprocess = false; // 当crop resize不行时使用
     int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };

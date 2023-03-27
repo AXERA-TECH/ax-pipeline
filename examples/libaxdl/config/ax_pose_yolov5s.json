@@ -2,6 +2,7 @@
     "MODEL_TYPE": "MT_MLM_HUMAN_POSE_AXPPL",
     "SAMPLE_IVPS_ALGO_WIDTH": 960,
     "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "MAX_SUB_INFER_COUNT" : 2,
     "MODEL_MINOR": {
         "CLASS_ID": [
             0
