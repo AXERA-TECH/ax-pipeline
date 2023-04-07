@@ -8,6 +8,7 @@
 #include "stdint.h"
 #include "thread"
 #include "vector"
+#include <string>
 
 typedef struct
 {
