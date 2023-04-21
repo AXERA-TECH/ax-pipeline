@@ -298,7 +298,10 @@ int _create_ivps_grp(pipeline_t *pipe)
 int _destore_ivps_grp(pipeline_t *pipe)
 {
     AX_S32 s32Ret = 0;
-    pthread_join(pipe->m_ivps_attr.tid, NULL);
+    if (pipe->m_ivps_attr.tid)
+    {
+        pthread_join(pipe->m_ivps_attr.tid, NULL);
+    }
 
     s32Ret = AX_IVPS_StopGrp(pipe->m_ivps_attr.n_ivps_grp);
     if (0 != s32Ret)

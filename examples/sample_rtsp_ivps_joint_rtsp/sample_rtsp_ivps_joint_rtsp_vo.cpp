@@ -429,10 +429,13 @@ int main(int argc, char *argv[])
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
             //            pthread_cancel(g_sample.osd_tid);
-            s32Ret = pthread_join(g_sample.osd_tid, NULL);
-            if (s32Ret < 0)
+            if (g_sample.osd_tid)
             {
-                ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
+                s32Ret = pthread_join(g_sample.osd_tid, NULL);
+                if (s32Ret < 0)
+                {
+                    ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
+                }
             }
         }
 

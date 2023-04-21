@@ -32,7 +32,7 @@ typedef void * rtsp_session_handle;
 rtsp_demo_handle rtsp_new_demo (int port);
 rtsp_demo_handle create_rtsp_demo(int port);
 int rtsp_do_event (rtsp_demo_handle demo);
-rtsp_session_handle rtsp_new_session (rtsp_demo_handle demo, const char *path);
+// rtsp_session_handle rtsp_new_session (rtsp_demo_handle demo, const char *path);
 rtsp_session_handle create_rtsp_session(rtsp_demo_handle demo, const char *path, int encoder_flags);
 int rtsp_set_video (rtsp_session_handle session, int codec_id, const uint8_t *codec_data, int data_len);
 

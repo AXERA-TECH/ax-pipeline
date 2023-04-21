@@ -1,5 +1,5 @@
-#ifndef __RTSP_H__
-#define __RTSP_H__
+#ifndef __RTSP_WARPPER_H__
+#define __RTSP_WARPPER_H__
 
 #if __cplusplus
 extern "C"
@@ -24,7 +24,7 @@ extern "C"
     } rtsp_buffer_t;
 
     typedef void *rtsp_server_t;
-    typedef unsigned int rtsp_session_t;
+    typedef void *rtsp_session_t;
 
     rtsp_server_t rtsp_new_server(int port);
     void rtsp_rel_server(rtsp_server_t *rtsp_server);

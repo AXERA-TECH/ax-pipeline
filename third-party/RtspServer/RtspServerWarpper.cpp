@@ -1,5 +1,6 @@
 #include "RtspServerWarpper.h"
 
+#ifdef RTSP_SERVER_PHZ76
 #include "xop/RtspServer.h"
 #include "net/Timer.h"
 
@@ -119,25 +120,34 @@ void rtsp_rel_server(rtsp_server_t *rtsp_server)
     }
 }
 
+struct rtsp_session_wapper_t
+{
+    xop::MediaSessionId session_id = 0;
+};
+
 rtsp_session_t rtsp_new_session(rtsp_server_t rtsp_server, char *url_suffix, int h265)
 {
     RtspServerWarpper *rtsp_wapper = (RtspServerWarpper *)rtsp_server;
     if (!rtsp_wapper)
     {
-        return -1;
+        return nullptr;
     }
-    xop::MediaSessionId session_id = rtsp_wapper->AddSession(url_suffix, h265);
-    return session_id;
+    rtsp_session_wapper_t *tmp = new rtsp_session_wapper_t;
+    tmp->session_id = rtsp_wapper->AddSession(url_suffix, h265);
+    return tmp;
 }
 
 void rtsp_rel_session(rtsp_server_t rtsp_server, rtsp_session_t rtsp_session)
 {
     RtspServerWarpper *rtsp_wapper = (RtspServerWarpper *)rtsp_server;
-    if (!rtsp_wapper)
+    rtsp_session_wapper_t *tmp = (rtsp_session_wapper_t *)rtsp_session;
+    if (!rtsp_wapper || !tmp)
     {
         return;
     }
-    rtsp_wapper->RemoveSession(rtsp_session);
+
+    rtsp_wapper->RemoveSession(tmp->session_id);
+    delete tmp;
 }
 
 int rtsp_push(rtsp_server_t rtsp_server, rtsp_session_t rtsp_session, rtsp_buffer_t *buff)
@@ -152,12 +162,51 @@ int rtsp_push(rtsp_server_t rtsp_server, rtsp_session_t rtsp_session, rtsp_buffe
         memcpy(videoFrame.buffer.get(), buff->vbuff, videoFrame.size);
 
         RtspServerWarpper *rtsp_wapper = (RtspServerWarpper *)rtsp_server;
-        if (!rtsp_wapper)
+        rtsp_session_wapper_t *tmp = (rtsp_session_wapper_t *)rtsp_session;
+        if (!rtsp_wapper || !tmp)
         {
             return -1;
         }
-        bool ret = rtsp_wapper->PushFrame(rtsp_session, xop::channel_0, videoFrame); // 送到服务器进行转发, 接口线程安全
+        bool ret = rtsp_wapper->PushFrame(tmp->session_id, xop::channel_0, videoFrame); // 送到服务器进行转发, 接口线程安全
         return ret ? 0 : -1;
     }
     return -1;
 }
+#else
+#include "rtsp/inc/rtsp.h"
+#include "string"
+#pragma message("build qingshui version rtsp server")
+rtsp_server_t rtsp_new_server(int port)
+{
+    return create_rtsp_demo(port);
+}
+
+void rtsp_rel_server(rtsp_server_t *rtsp_server)
+{
+    rtsp_del_demo(*rtsp_server);
+}
+
+rtsp_session_t rtsp_new_session(rtsp_server_t rtsp_server, char *url_suffix, int h265)
+{
+    std::string end_point(url_suffix);
+    if (end_point.length())
+    {
+        if (end_point[0] != '/')
+        {
+            end_point = "/" + end_point;
+        }
+    }
+    auto rSessionHandle = create_rtsp_session(rtsp_server, end_point.c_str(), h265);
+    return rSessionHandle;
+}
+
+void rtsp_rel_session(rtsp_server_t rtsp_server, rtsp_session_t rtsp_session)
+{
+    rtsp_del_session(rtsp_session);
+}
+
+int rtsp_push(rtsp_server_t rtsp_server, rtsp_session_t rtsp_session, rtsp_buffer_t *buff)
+{
+    return rtsp_sever_tx_video(rtsp_server, rtsp_session, (const uint8_t *)buff->vbuff, buff->vlen, buff->vts);
+}
+#endif

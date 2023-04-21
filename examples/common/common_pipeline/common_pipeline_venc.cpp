@@ -471,7 +471,11 @@ int _create_venc_chn(pipeline_t *pipe)
 int _destore_venc_grp(pipeline_t *pipe)
 {
     AX_S32 s32Ret = 0;
-    pthread_join(pipe->m_venc_attr.tid, NULL);
+    if (pipe->m_venc_attr.tid)
+    {
+        pthread_join(pipe->m_venc_attr.tid, NULL);
+    }
+
     s32Ret = AX_VENC_StopRecvFrame(pipe->m_venc_attr.n_venc_chn);
     if (0 != s32Ret)
     {

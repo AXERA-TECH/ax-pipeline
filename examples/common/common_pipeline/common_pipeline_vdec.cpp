@@ -203,7 +203,8 @@ int _destore_jvdec_grp(pipeline_t *pipe)
 int _destore_vdec_grp(pipeline_t *pipe)
 {
 #if !VDEC_LINK_MODE
-    pthread_join(pipe->m_vdec_attr.tid, NULL);
+    if(pipe->m_vdec_attr.tid)
+        pthread_join(pipe->m_vdec_attr.tid, NULL);
 #endif
     _destore_jvdec_grp(pipe);
     AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);

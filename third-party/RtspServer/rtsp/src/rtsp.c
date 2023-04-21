@@ -404,7 +404,7 @@ static int rtsp_path_match(const char *main_path, const char *full_path)
 	return 1;
 }
 
-rtsp_session_handle rtsp_new_session(rtsp_demo_handle demo, const char *path)
+rtsp_session_handle rtsp_new_session_internal(rtsp_demo_handle demo, const char *path)
 {
 	struct rtsp_demo *d = (struct rtsp_demo *)demo;
 	struct rtsp_session *s = NULL;
@@ -452,7 +452,7 @@ rtsp_demo_handle create_rtsp_demo(int port)
 rtsp_session_handle create_rtsp_session(rtsp_demo_handle demo, const char *path, int encoder_flags)
 {
 	rtsp_session_handle session;
-	session = rtsp_new_session(demo, path);
+	session = rtsp_new_session_internal(demo, path);
 	if (encoder_flags == 0)
 		rtsp_set_video(session, RTSP_CODEC_ID_VIDEO_H264, NULL, 0);
 	else if (encoder_flags == 1)
