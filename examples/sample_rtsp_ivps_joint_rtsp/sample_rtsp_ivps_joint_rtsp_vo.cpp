@@ -56,13 +56,13 @@ static struct _g_sample_
     int bRunJoint;
     void *gModels;
     pthread_mutex_t g_result_mutex;
-    libaxdl_results_t g_result_disp;
+    axdl_results_t g_result_disp;
     pthread_t osd_tid;
     std::vector<pipeline_t *> pipes_need_osd;
     void Init()
     {
         pthread_mutex_init(&g_result_mutex, NULL);
-        memset(&g_result_disp, 0, sizeof(libaxdl_results_t));
+        memset(&g_result_disp, 0, sizeof(axdl_results_t));
         bRunJoint = 0;
         gModels = nullptr;
         ALOGN("g_sample Init\n");
@@ -77,7 +77,7 @@ static struct _g_sample_
 
 void *osd_thread(void *)
 {
-    std::map<int, libaxdl_canvas_t> pipes_osd_canvas;
+    std::map<int, axdl_canvas_t> pipes_osd_canvas;
     std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
     for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
     {
@@ -91,23 +91,23 @@ void *osd_thread(void *)
         canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
         canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
     }
-    libaxdl_results_t mResults;
+    axdl_results_t mResults;
     while (!gLoopExit)
     {
         pthread_mutex_lock(&g_sample.g_result_mutex);
-        memcpy(&mResults, &g_sample.g_result_disp, sizeof(libaxdl_results_t));
+        memcpy(&mResults, &g_sample.g_result_disp, sizeof(axdl_results_t));
         pthread_mutex_unlock(&g_sample.g_result_mutex);
         for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
         {
             auto &osd_pipe = g_sample.pipes_need_osd[i];
             if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
             {
-                libaxdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
+                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
                 AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
 
                 memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
 
-                libaxdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
+                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
 
                 tDisp.nNum = 1;
                 tDisp.tChnAttr.nAlpha = 1024;
@@ -161,21 +161,33 @@ void ai_inference_func(pipeline_buffer_t *buff)
 {
     if (g_sample.bRunJoint)
     {
-        static libaxdl_results_t mResults;
-        AX_NPU_CV_Image tSrcFrame = {0};
-
-        tSrcFrame.eDtype = (AX_NPU_CV_FrameDataType)buff->d_type;
+        static axdl_results_t mResults;
+        axdl_image_t tSrcFrame = {0};
+        switch (buff->d_type)
+        {
+        case po_buff_nv12:
+            tSrcFrame.eDtype = axdl_color_space_nv12;
+            break;
+        case po_buff_bgr:
+            tSrcFrame.eDtype = axdl_color_space_bgr;
+            break;
+        case po_buff_rgb:
+            tSrcFrame.eDtype = axdl_color_space_rgb;
+            break;
+        default:
+            break;
+        }
         tSrcFrame.nWidth = buff->n_width;
         tSrcFrame.nHeight = buff->n_height;
         tSrcFrame.pVir = (unsigned char *)buff->p_vir;
         tSrcFrame.pPhy = buff->p_phy;
-        tSrcFrame.tStride.nW = buff->n_stride;
+        tSrcFrame.tStride_W = buff->n_stride;
         tSrcFrame.nSize = buff->n_size;
 
-        libaxdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
+        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
 
         pthread_mutex_lock(&g_sample.g_result_mutex);
-        memcpy(&g_sample.g_result_disp, &mResults, sizeof(libaxdl_results_t));
+        memcpy(&g_sample.g_result_disp, &mResults, sizeof(axdl_results_t));
         pthread_mutex_unlock(&g_sample.g_result_mutex);
     }
 }
@@ -300,7 +312,7 @@ int main(int argc, char *argv[])
         goto EXIT_2;
     }
 
-    s32Ret = libaxdl_parse_param_init(config_file, &g_sample.gModels);
+    s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels);
     if (s32Ret != 0)
     {
         ALOGE("sample_parse_param_det failed,run joint skip");
@@ -308,7 +320,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        s32Ret = libaxdl_get_ivps_width_height(g_sample.gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
+        s32Ret = axdl_get_ivps_width_height(g_sample.gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
         ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
         g_sample.bRunJoint = 1;
     }
@@ -324,7 +336,7 @@ int main(int argc, char *argv[])
             config1.n_ivps_fps = 60;
             config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
-            if (libaxdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
+            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
             {
                 config1.b_letterbox = 1;
             }
@@ -335,15 +347,15 @@ int main(int argc, char *argv[])
         pipe1.m_input_type = pi_vdec_h264;
         if (g_sample.gModels && g_sample.bRunJoint)
         {
-            switch (libaxdl_get_color_space(g_sample.gModels))
+            switch (axdl_get_color_space(g_sample.gModels))
             {
-            case AX_FORMAT_RGB888:
+            case axdl_color_space_rgb:
                 pipe1.m_output_type = po_buff_rgb;
                 break;
-            case AX_FORMAT_BGR888:
+            case axdl_color_space_bgr:
                 pipe1.m_output_type = po_buff_bgr;
                 break;
-            case AX_YUV420_SEMIPLANAR:
+            case axdl_color_space_nv12:
             default:
                 pipe1.m_output_type = po_buff_nv12;
                 break;
@@ -437,7 +449,7 @@ EXIT_5:
 EXIT_4:
 
 EXIT_3:
-    libaxdl_deinit(&g_sample.gModels);
+    axdl_deinit(&g_sample.gModels);
 
 EXIT_2:
 

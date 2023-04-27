@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_SCRFD",
     "MODEL_PATH": "./models/scrfd_500m_bnkps_shape640x640.joint",
+    "STRIDES": [8, 16, 32],
     "CLASS_NAMES": [
         "face"
     ],

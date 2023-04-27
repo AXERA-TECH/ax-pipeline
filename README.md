@@ -5,7 +5,39 @@
 
 ## 简介
 
-**AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 **ISP**、**图像处理**、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
+**AX-Pipeline** 由 **[爱芯元智](https://www.axera-tech.com/)** 主导开发。该项目基于 **AXera-Pi** 展示 [ISP 图像处理](https://zh.wikipedia.org/wiki/%E5%9C%96%E5%83%8F%E8%99%95%E7%90%86%E5%99%A8)、**NPU**、**编码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
+
+## 已支持开发板
+
+- [AXera-Pi](https://wiki.sipeed.com/m3axpi)(AX620A)
+
+## 快速上手
+
+### 文档
+- [快速编译](docs/compile.md)  基于 cmake 实现简单的跨平台编译。
+- [如何更换自己训练的 yolov5 模型](docs/how_to_deploy_custom_yolov5_model.md)
+- [如何部署自己的其他模型](docs/how_to_deploy_custom_model.md)
+- [如何调整图像方向](docs/how_to_adjust_image_orientation.md)
+- [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
+- [配置文件说明](docs/config_file.md)
+- [简化版本 pipeline 构建 api](docs/new_pipeline.md)
+- [如何加速子模块的下载](docs/how_to_speed_up_submodule_init.md)
+  
+### 示例
+| 示例 | 简介|
+|-|-|
+| [sample_vin_ivps_joint_vo](examples/sample_vin_ivps_joint_vo) |IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
+| [sample_vin_ivps_joint_venc_rtsp](examples/sample_vin_ivps_joint_venc_rtsp) |IVPS 出三路视频，两路用作 RTSP 推流，一路用作 NPU 推理 |
+| [sample_vin_ivps_joint_venc_rtsp_vo](examples/sample_vin_ivps_joint_venc_rtsp_vo) |IVPS 出三路视频，一路用作 RTSP 推流，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_vin_ivps_joint_vo_h265](examples/sample_vin_ivps_joint_vo_h265) |IVPS 出三路视频，一路用作屏幕显示，一路用作 h265 文件保存，一路用作 NPU 推理|
+| [sample_h264_ivps_joint_vo](examples/sample_h264_ivps_joint_vo) |读取 h264 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_mp4_ivps_joint_vo](examples/sample_mp4_ivps_joint_vo) |读取 mp4 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
+| [sample_rtsp_ivps_joint_rtsp_vo](examples/sample_rtsp_ivps_joint_rtsp_vo) | rtsp 输入，IVPS出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 |
+| [sample_rtsp_ivps_joint_vo](examples/sample_rtsp_ivps_joint_vo) | rtsp 输入，IVPS出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
+| [sample_v4l2_ivps_joint_vo](examples/sample_v4l2_ivps_joint_vo) | USB的 jpeg 输入，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
+| [sample_v4l2_user_ivps_joint_vo](examples/sample_v4l2_user_ivps_joint_vo) | USB的 jpeg 输入，使用libjpeg解码成NV12，输入到IVPS中，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理，演示了如何将NV12的图像输入到IVPS中 |
+| [sample_rtsp_ivps_joint_rtsp](examples/sample_rtsp_ivps_joint_rtsp) | rtsp 输入，IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 |
+| [sample_multi_rtsp_ivps_joint_multi_rtsp](examples/sample_multi_rtsp_ivps_joint_multi_rtsp) | 多路 rtsp 输入，推理模型进行 OSD 后，多路 rtsp 输出 |
 
 ## 更新日志
 ```2023-01-16``` 新增YoloV8，详情请查阅 [ModelZoo](docs/modelzoo.md)
@@ -36,37 +68,7 @@
 
 ```2022-11-15``` 解耦 sample_run_joint，可以同时加载不同任务的模型，方便进行类似人脸识别、人体姿态、车牌识别等多级模型任务的推理
 
-```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples]() 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
-
-## 已支持开发板
-
-- [AXera-Pi](https://wiki.sipeed.com/m3axpi)(AX620A)
-
-## 快速上手
-
-### 文档
-- [快速编译](docs/compile.md)  基于 cmake 实现简单的跨平台编译。
-- [如何更换自己训练的 yolov5 模型](docs/how_to_deploy_custom_yolov5_model.md)
-- [如何部署自己的其他模型](docs/how_to_deploy_custom_model.md)
-- [如何调整图像方向](docs/how_to_adjust_image_orientation.md)
-- [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
-- [配置文件说明](docs/config_file.md)
-- [简化版本 pipeline 构建 api](docs/new_pipeline.md)
-  
-### 示例
-| 示例 | 简介|
-|-|-|
-| [sample_vin_ivps_joint_vo](examples/sample_vin_ivps_joint_vo) |IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
-| [sample_vin_ivps_joint_venc_rtsp](examples/sample_vin_ivps_joint_venc_rtsp) |IVPS 出三路视频，两路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_vin_ivps_joint_venc_rtsp_vo](examples/sample_vin_ivps_joint_venc_rtsp_vo) |IVPS 出三路视频，一路用作 RTSP 推流，一路用作屏幕显示，一路用作 NPU 推理|
-| [sample_vin_ivps_joint_vo_h265](examples/sample_vin_ivps_joint_vo_h265) |IVPS 出三路视频，一路用作屏幕显示，一路用作 h265 文件保存，一路用作 NPU 推理|
-| [sample_h264_ivps_joint_vo](examples/sample_h264_ivps_joint_vo) |读取 h264 文件解码，通过IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
-| [sample_rtsp_ivps_joint_rtsp_vo](examples/sample_rtsp_ivps_joint_rtsp_vo) | rtsp 输入，IVPS出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_rtsp_ivps_joint_vo](examples/sample_rtsp_ivps_joint_vo) | rtsp 输入，IVPS出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
-| [sample_v4l2_ivps_joint_vo](examples/sample_v4l2_ivps_joint_vo) | USB的 jpeg 输入，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
-| [sample_v4l2_user_ivps_joint_vo](examples/sample_v4l2_user_ivps_joint_vo) | USB的 jpeg 输入，使用libjpeg解码成NV12，输入到IVPS中，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理，演示了如何将NV12的图像输入到IVPS中 |
-| [sample_rtsp_ivps_joint_rtsp](examples/sample_rtsp_ivps_joint_rtsp) | rtsp 输入，IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_multi_rtsp_ivps_joint_multi_rtsp](examples/sample_multi_rtsp_ivps_joint_multi_rtsp) | 多路 rtsp 输入，推理模型进行 OSD 后，多路 rtsp 输出 |
+```2022-11-14``` 新增自适应 NV12/RGB/BGR 模型，通过 IVPS 直接输出模型需要的数据格式，现在 [ax-samples](https://github.com/AXERA-TECH/ax-samples) 的模型可以直接白嫖到 ax-pipeline 了（除了 yolov5 和 yolov5face，其他模型还是需要用户移植后处理部分）
 
 ### DEMO视频
 https://user-images.githubusercontent.com/46700201/198552009-b55a5776-fc5a-4725-9906-d37548385359.mp4

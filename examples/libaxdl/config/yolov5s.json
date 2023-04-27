@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLOV5",
     "MODEL_PATH": "./models/yolov5s.joint",
+    "STRIDES": [8, 16, 32],
     "ANCHORS": [
         10.0,
         13.0,

@@ -43,7 +43,7 @@ static void shift(int w, int h, int stride, std::vector<float> anchor_points, st
     shifted_anchor_points.resize(2 * w * h * anchor_points.size() / 2, 0);
     for (int i = 0; i < w * h; i++)
     {
-        for (int j = 0; j < anchor_points.size() / 2; j++)
+        for (int j = 0; j < (int)anchor_points.size() / 2; j++)
         {
             float x = anchor_points[j * 2] + shifts[i * 2];
             float y = anchor_points[j * 2 + 1] + shifts[i * 2 + 1];
@@ -97,7 +97,7 @@ static void generate_anchor_points(int img_w, int img_h, std::vector<int> pyrami
 
     std::vector<std::pair<int, int>> image_shapes;
     std::vector<int> strides;
-    for (int i = 0; i < pyramid_levels.size(); i++)
+    for (int i = 0; i < (int)pyramid_levels.size(); i++)
     {
         int new_h = std::floor((img_h + std::pow(2, pyramid_levels[i]) - 1) / std::pow(2, pyramid_levels[i]));
         int new_w = std::floor((img_w + std::pow(2, pyramid_levels[i]) - 1) / std::pow(2, pyramid_levels[i]));
@@ -106,7 +106,7 @@ static void generate_anchor_points(int img_w, int img_h, std::vector<int> pyrami
     }
 
     all_anchor_points.clear();
-    for (int i = 0; i < pyramid_levels.size(); i++)
+    for (int i = 0; i < (int)pyramid_levels.size(); i++)
     {
         std::vector<float> anchor_points;
         generate_anchor_points(std::pow(2, pyramid_levels[i]), row, line, anchor_points);
@@ -116,7 +116,7 @@ static void generate_anchor_points(int img_w, int img_h, std::vector<int> pyrami
     }
 }
 
-int ax_model_crowdcount::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_crowdcount::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (width_anchor != get_algo_width() || height_anchor != get_algo_height())
     {
@@ -153,15 +153,15 @@ int ax_model_crowdcount::post_process(const void *pstFrame, ax_joint_runner_box_
     float ratio_x = (float)src_rows / resize_rows;
     float ratio_y = (float)src_cols / resize_cols;
 
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // AX_U32 nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    libaxdl_point_t *pred_points_ptr = (libaxdl_point_t *)pOutputsInfo[0].pVirAddr;
-    libaxdl_point_t *pred_scores_ptr = (libaxdl_point_t *)pOutputsInfo[1].pVirAddr;
+    axdl_point_t *pred_points_ptr = (axdl_point_t *)pOutputsInfo[0].pVirAddr;
+    axdl_point_t *pred_scores_ptr = (axdl_point_t *)pOutputsInfo[1].pVirAddr;
 
     int len = pOutputsInfo[0].nSize / sizeof(float) / 2;
 
-    libaxdl_point_t *anchor_points_ptr = (libaxdl_point_t *)all_anchor_points.data();
+    axdl_point_t *anchor_points_ptr = (axdl_point_t *)all_anchor_points.data();
 
     std::vector<float> _softmax_result(2, 0);
 
@@ -176,7 +176,7 @@ int ax_model_crowdcount::post_process(const void *pstFrame, ax_joint_runner_box_
             detection::softmax(&pred_scores_ptr[i].x, _softmax_result.data(), 2);
             if (_softmax_result[1] > PROB_THRESHOLD)
             {
-                libaxdl_point_t p;
+                axdl_point_t p;
                 p.x = pred_points_ptr[i].x * 100 + anchor_points_ptr[i].x;
                 p.y = pred_points_ptr[i].y * 100 + anchor_points_ptr[i].y;
 
@@ -193,7 +193,7 @@ int ax_model_crowdcount::post_process(const void *pstFrame, ax_joint_runner_box_
     return 0;
 }
 
-void ax_model_crowdcount::draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_crowdcount::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     sprintf(info, "real-time count of people:%d", results->nCrowdCount);
     cv::Size label_size = cv::getTextSize(info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness * 2, NULL);

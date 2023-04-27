@@ -147,12 +147,10 @@ int _create_vdec_grp(pipeline_t *pipe)
             return -1;
         }
 #if !VDEC_LINK_MODE
-        pthread_t tid = 0;
-        if (0 != pthread_create(&tid, NULL, _vdec_get_frame_thread, pipe))
+        if (0 != pthread_create(&pipe->m_vdec_attr.tid, NULL, _vdec_get_frame_thread, pipe))
         {
             return -1;
         }
-        pthread_detach(tid);
 #endif
     }
     break;
@@ -204,6 +202,9 @@ int _destore_jvdec_grp(pipeline_t *pipe)
 
 int _destore_vdec_grp(pipeline_t *pipe)
 {
+#if !VDEC_LINK_MODE
+    pthread_join(pipe->m_vdec_attr.tid, NULL);
+#endif
     _destore_jvdec_grp(pipe);
     AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
 

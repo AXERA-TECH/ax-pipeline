@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLOPV2",
     "MODEL_PATH": "./models/yolopv2.joint",
+    "STRIDES": [8, 16, 32],
     "ANCHORS": [
         12,
         16,

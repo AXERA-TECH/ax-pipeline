@@ -88,6 +88,7 @@ extern "C"
         int b_letterbox; // 填充，一般用于ai检测
 
         int n_fifo_count; // [0]表示不输出，[1-4]表示队列的个数，大于[0]则可以在调用回调输出图像
+        unsigned long int tid; // internal variable
     } pipeline_ivps_config_t;
 
     typedef struct
@@ -95,6 +96,7 @@ extern "C"
 #define MAX_VENC_CHN_COUNT 64
         int n_venc_chn;     // 少于64 并且不能重复
         char end_point[32]; // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
+        unsigned long int tid; // internal variable
     } pipeline_venc_config_t;
 
     typedef struct
@@ -102,6 +104,7 @@ extern "C"
 #define MAX_VDEC_GRP_COUNT 16
         int n_vdec_grp; // 少于 16，允许重复
         int poolid;     // internal variable,dont touch，内部使用，不要有任何操作
+        unsigned long int tid; // internal variable
     } pipeline_vdec_config_t;
 
     typedef struct
@@ -110,7 +113,7 @@ extern "C"
         pipeline_output_e m_output_type; // 输出的类型
         // 图像或者buffer的一些参数
         int n_width, n_height, n_size, n_stride;
-        int d_type; // AX_NPU_CV_FrameDataType
+        pipeline_output_e d_type;
         void *p_vir;
         unsigned long long int p_phy;
 
@@ -145,7 +148,7 @@ extern "C"
         pipeline_frame_callback_func output_func;
 
     } pipeline_t;
-    
+
     int create_pipeline(pipeline_t *pipe);
     int destory_pipeline(pipeline_t *pipe);
     // 这里认为 pipe 指针含有 pipe_cnt 个 pipeline_t 结构体，并且每一个 pipeline_t 的输入类型 pipeline_input_e 是一样的，此函数会将同一张图片发送到所有 pipe_cnt 条链路中

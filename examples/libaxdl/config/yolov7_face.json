@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLOV7_FACE",
     "MODEL_PATH": "./models/yolov7-face.joint",
+    "STRIDES": [8, 16, 32],
     "ANCHORS": [
         4,
         5,

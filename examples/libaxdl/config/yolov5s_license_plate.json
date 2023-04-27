@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLOV5_LICENSE_PLATE",
     "MODEL_PATH": "./models/license_plate_det.joint",
+    "STRIDES": [8, 16, 32],
     "ANCHORS": [
         4,
         5,

@@ -1,20 +1,25 @@
 #pragma once
 #include "c_api.h"
-#include "ax_joint_runner.hpp"
+#include "ax_model_runner.hpp"
 
 #include "vector"
 #include "string"
 #include "memory"
-
-#include "npu_cv_kit/ax_npu_imgproc.h"
 
 #include "opencv2/opencv.hpp"
 
 class ax_model_base
 {
 protected:
+    // int MAX_FACE_BBOX_COUNT  = 64;
+    int MAX_MASK_OBJ_COUNT   = 8;
+    int MAX_SUB_INFER_COUNT  = 3;
+    int FACE_FEAT_LEN        = 512;
+    bool use_warp_preprocess = false; // 当crop resize不行时使用
+
     int HEIGHT_DET_BBOX_RESTORE = 1080, WIDTH_DET_BBOX_RESTORE = 1920;
     MODEL_TYPE_E m_model_type = MT_UNKNOWN;
+    RUNNER_TYPE_E m_runner_type = RUNNER_AX620;
     // detection
     float PROB_THRESHOLD = 0.4f;
     float NMS_THRESHOLD = 0.45f;
@@ -22,6 +27,7 @@ protected:
     std::vector<float> ANCHORS = {12, 16, 19, 36, 40, 28,
                                   36, 75, 76, 55, 72, 146,
                                   142, 110, 192, 243, 459, 401};
+    std::vector<int> STRIDES = {8, 16, 32};
     std::vector<std::string> CLASS_NAMES = {
         "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
         "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
@@ -66,14 +72,22 @@ protected:
     int cur_idx = 0;
 
     char fps_info[128];
-    void draw_bbox(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
-    void draw_fps(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
-    virtual void draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+    void draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
+    void draw_fps(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);
+    virtual void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
     {
         draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
     }
 
 public:
+    int get_sub_infer_count()     { return MAX_SUB_INFER_COUNT; }
+    int get_max_mask_obj_count()  { return MAX_MASK_OBJ_COUNT ; }
+    int get_face_feat_len()       { return FACE_FEAT_LEN      ; }
+
+    int set_sub_infer_count(int val)     { MAX_SUB_INFER_COUNT = val; }
+    int set_max_mask_obj_count(int val)  { MAX_MASK_OBJ_COUNT  = val; }
+    int set_face_feat_len(int val)       { FACE_FEAT_LEN       = val; }
+
     // 当前处理的的对象在 results->mObjects 的索引（多级模型用）
     void set_current_index(int idx) { cur_idx = idx; }
     virtual void set_det_restore_resolution(int width, int height)
@@ -106,6 +120,10 @@ public:
 
     std::vector<float> get_anchors() { return ANCHORS; }
 
+    void set_strides(std::vector<int> &strides) { STRIDES = strides; }
+
+    std::vector<int> get_strides() { return STRIDES; }
+
     void set_class_names(std::vector<std::string> &class_namse) { CLASS_NAMES = class_namse; }
 
     std::vector<std::string> get_class_names() { return CLASS_NAMES; }
@@ -119,14 +137,15 @@ public:
     std::vector<ax_model_faceid> get_face_register_ids() { return face_register_ids; }
 
     static int get_model_type(void *json_obj, std::string &strModelType);
+    static int get_runner_type(void *json_obj, std::string &strRunnerType);
 
     virtual int init(void *json_obj) = 0;
     virtual void deinit() = 0;
-    virtual int get_color_space() = 0;
+    virtual axdl_color_space_e get_color_space() = 0;
     virtual int get_algo_width() = 0;
     virtual int get_algo_height() = 0;
-    virtual int inference(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) = 0;
-    virtual void draw_results(cv::Mat&canvas, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+    virtual int inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) = 0;
+    virtual void draw_results(cv::Mat&canvas, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
     {
         draw_custom(canvas, results, fontscale, thickness, offset_x, offset_y);
         draw_fps(canvas, results, fontscale, thickness, offset_x, offset_y);
@@ -136,24 +155,24 @@ public:
 class ax_model_single_base_t : public ax_model_base
 {
 protected:
-    std::shared_ptr<ax_joint_runner_base> m_runner;
-    std::string m_model_path;
+    std::shared_ptr<ax_runner_base> m_runner;
+    std::string MODEL_PATH;
 
-    AX_NPU_CV_Image dstFrame = {0};
+    axdl_image_t dstFrame = {0};
     bool bMalloc = false;
 
-    virtual int preprocess(const void *srcFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results);
-    virtual int post_process(const void *srcFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) = 0;
+    virtual int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results);
+    virtual int post_process(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) = 0;
 
 public:
     virtual int init(void *json_obj) override;
     virtual void deinit() override;
 
-    int get_color_space() override { return m_runner->get_color_space(); }
+    axdl_color_space_e get_color_space() override { return m_runner->get_color_space(); }
     int get_algo_width() override { return m_runner->get_algo_width(); }
     int get_algo_height() override { return m_runner->get_algo_height(); }
 
-    virtual int inference(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results) override;
+    virtual int inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
 
 class ax_model_multi_base_t : public ax_model_base
@@ -175,7 +194,7 @@ public:
     // virtual int init(char *json_file_path);
     virtual int init(void *json_obj) override;
     virtual void deinit() override;
-    int get_color_space() override { return model_0->get_color_space(); }
+    axdl_color_space_e get_color_space() override { return model_0->get_color_space(); }
     int get_algo_width() override { return model_0->get_algo_width(); }
     int get_algo_height() override { return model_0->get_algo_height(); }
 };

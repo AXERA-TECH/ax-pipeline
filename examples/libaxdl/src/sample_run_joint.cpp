@@ -31,6 +31,14 @@
 #include "sample_log.h"
 #include <vector>
 
+#ifndef MIN
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#endif
+
+#ifndef MAX
+#define MAX(a, b) ((a) < (b) ? (b) : (a))
+#endif
+
 typedef struct
 {
     AX_JOINT_HANDLE joint_handle;
@@ -125,6 +133,11 @@ int npu_crop_resize(const AX_NPU_CV_Image *input_image, AX_NPU_CV_Image *output_
 
     if (box)
     {
+        box->fX = MAX((int)box->fX, 0);
+        box->fY = MAX((int)box->fY, 0);
+
+        box->fW = MIN((int)box->fW, (int)input_image->nWidth - (int)box->fX);
+        box->fH = MIN((int)box->fH, (int)input_image->nHeight - (int)box->fY);
         box->fW = int(box->fW) - int(box->fW) % 2;
         box->fH = int(box->fH) - int(box->fH) % 2;
     }
@@ -236,17 +249,17 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     case AX_JOINT_CS_NV12:
         attr->algo_colorformat = (int)AX_YUV420_SEMIPLANAR;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1] / 1.5;
-        ALOGI("NV12 MODEL");
+        ALOGI("NV12 MODEL (%s)\n", model_file);
         break;
     case AX_JOINT_CS_RGB:
         attr->algo_colorformat = (int)AX_FORMAT_RGB888;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-        ALOGI("RGB MODEL");
+        ALOGI("RGB MODEL (%s)\n", model_file);
         break;
     case AX_JOINT_CS_BGR:
         attr->algo_colorformat = (int)AX_FORMAT_BGR888;
         handle->SAMPLE_ALGO_HEIGHT = io_info->pInputs->pShape[1];
-        ALOGI("BGR MODEL");
+        ALOGI("BGR MODEL (%s)\n", model_file);
         break;
     default:
         ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");

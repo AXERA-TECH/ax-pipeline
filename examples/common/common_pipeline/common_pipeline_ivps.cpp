@@ -22,7 +22,8 @@
 #include "../../utilities/sample_log.h"
 
 #include "ax_ivps_api.h"
-#include "npu_cv_kit/ax_npu_imgproc.h"
+// #include "c_api.h"
+// #include "npu_cv_kit/ax_npu_imgproc.h"
 
 #include "unistd.h"
 #include "string.h"
@@ -62,31 +63,31 @@ void *_ivps_get_frame_thread(void *arg)
         tVideoFrame.u64VirAddr[0] = (AX_U32)AX_POOL_GetBlockVirAddr(tVideoFrame.u32BlkId[0]);
         tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
 
-        AX_NPU_CV_Image tSrcFrame = {0};
-        tSrcFrame.nWidth = tVideoFrame.u32Width;
-        tSrcFrame.nHeight = tVideoFrame.u32Height;
-        switch (tVideoFrame.enImgFormat)
-        {
-        case AX_YUV420_SEMIPLANAR:
-            tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
-            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
-            break;
-        case AX_FORMAT_RGB888:
-            tSrcFrame.eDtype = AX_NPU_CV_FDT_RGB;
-            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
-            break;
-        case AX_FORMAT_BGR888:
-            tSrcFrame.eDtype = AX_NPU_CV_FDT_BGR;
-            tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
-            break;
-        default:
-            tSrcFrame.eDtype = AX_NPU_CV_FDT_UNKNOWN;
-            break;
-        }
-        tSrcFrame.tStride.nW = (0 == tVideoFrame.u32PicStride[0]) ? tSrcFrame.nWidth : tVideoFrame.u32PicStride[0];
-        tSrcFrame.nSize = tVideoFrame.u32FrameSize; // t.tStride.nW * t.nHeight * 3 / 2;
-        tSrcFrame.pPhy = tVideoFrame.u64PhyAddr[0];
-        tSrcFrame.pVir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
+        // ax_runner_image_t tSrcFrame = {0};
+        // tSrcFrame.nWidth = tVideoFrame.u32Width;
+        // tSrcFrame.nHeight = tVideoFrame.u32Height;
+        // switch (tVideoFrame.enImgFormat)
+        // {
+        // case AX_YUV420_SEMIPLANAR:
+        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
+        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
+        //     break;
+        // case AX_FORMAT_RGB888:
+        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_RGB;
+        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+        //     break;
+        // case AX_FORMAT_BGR888:
+        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_BGR;
+        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+        //     break;
+        // default:
+        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_UNKNOWN;
+        //     break;
+        // }
+        // tSrcFrame.tStride.nW = (0 == tVideoFrame.u32PicStride[0]) ? tSrcFrame.nWidth : tVideoFrame.u32PicStride[0];
+        // tSrcFrame.nSize = tVideoFrame.u32FrameSize; // t.tStride.nW * t.nHeight * 3 / 2;
+        // tSrcFrame.pPhy = tVideoFrame.u64PhyAddr[0];
+        // tSrcFrame.pVir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
 
         if (pipe->output_func)
         {
@@ -94,13 +95,30 @@ void *_ivps_get_frame_thread(void *arg)
             pipeline_buffer_t buf;
             buf.pipeid = pipe->pipeid;
             buf.m_output_type = pipe->m_output_type;
-            buf.n_width = tSrcFrame.nWidth;
-            buf.n_height = tSrcFrame.nHeight;
-            buf.n_size = tSrcFrame.nSize;
-            buf.n_stride = tSrcFrame.tStride.nW;
-            buf.d_type = tSrcFrame.eDtype;
-            buf.p_vir = tSrcFrame.pVir;
-            buf.p_phy = tSrcFrame.pPhy;
+            buf.n_width = tVideoFrame.u32Width;
+            buf.n_height = tVideoFrame.u32Height;
+
+            buf.n_stride = (0 == tVideoFrame.u32PicStride[0]) ? tVideoFrame.u32Width : tVideoFrame.u32PicStride[0];
+            switch (tVideoFrame.enImgFormat)
+            {
+            case AX_YUV420_SEMIPLANAR:
+                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
+                buf.d_type = po_buff_nv12;
+                break;
+            case AX_FORMAT_RGB888:
+                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+                buf.d_type = po_buff_rgb;
+                break;
+            case AX_FORMAT_BGR888:
+                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+                buf.d_type = po_buff_bgr;
+                break;
+            default:
+                buf.d_type = po_none;
+                break;
+            }
+            buf.p_vir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
+            buf.p_phy = tVideoFrame.u64PhyAddr[0];
             buf.p_pipe = pipe;
             pipe->output_func(&buf);
         }
@@ -259,12 +277,10 @@ int _create_ivps_grp(pipeline_t *pipe)
     case po_buff_nv21:
         if (stPipelineAttr.nOutFifoDepth[nChn] > 0)
         {
-            pthread_t tid = 0;
-            if (0 != pthread_create(&tid, NULL, _ivps_get_frame_thread, pipe))
+            if (0 != pthread_create(&pipe->m_ivps_attr.tid, NULL, _ivps_get_frame_thread, pipe))
             {
                 return -1;
             }
-            pthread_detach(tid);
         }
         else
         {
@@ -282,6 +298,7 @@ int _create_ivps_grp(pipeline_t *pipe)
 int _destore_ivps_grp(pipeline_t *pipe)
 {
     AX_S32 s32Ret = 0;
+    pthread_join(pipe->m_ivps_attr.tid, NULL);
 
     s32Ret = AX_IVPS_StopGrp(pipe->m_ivps_attr.n_ivps_grp);
     if (0 != s32Ret)

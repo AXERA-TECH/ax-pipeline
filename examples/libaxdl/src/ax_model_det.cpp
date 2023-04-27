@@ -3,40 +3,27 @@
 
 #include "../../utilities/sample_log.h"
 
-template <typename T>
-void update_val(nlohmann::json &jsondata, const char *key, T *val)
-{
-    if (jsondata.contains(key))
-    {
-        *val = jsondata[key];
-    }
-}
+#define ANCHOR_SIZE_PER_STRIDE 6
 
-template <typename T>
-void update_val(nlohmann::json &jsondata, const char *key, std::vector<T> *val)
-{
-    if (jsondata.contains(key))
-    {
-        std::vector<T> tmp = jsondata[key];
-        *val = tmp;
-    }
-}
-
-int ax_model_yolov5::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov5::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, CLASS_NUM);
+        generate_proposals_yolov5(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -47,7 +34,7 @@ int ax_model_yolov5::post_process(const void *pstFrame, ax_joint_runner_box_t *c
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -56,7 +43,7 @@ int ax_model_yolov5::post_process(const void *pstFrame, ax_joint_runner_box_t *c
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -68,26 +55,36 @@ int ax_model_yolov5::post_process(const void *pstFrame, ax_joint_runner_box_t *c
     return 0;
 }
 
-int ax_model_yolov5_seg::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
+    if (mSimpleRingBuffer.size())
+    {
+        mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+    }
+    
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != (nOutputSize - 1) * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", (nOutputSize - 1) * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize - 1; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-        generate_proposals_yolov5_seg(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
+        generate_proposals_yolov5_seg(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
     }
     static const int DEFAULT_MASK_PROTO_DIM = 32;
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
     auto &output = pOutputsInfo[3];
     auto ptr = (float *)output.pVirAddr;
-    detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
+    detection::get_out_bbox_mask(proposals, objects, MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
 
     std::sort(objects.begin(), objects.end(),
@@ -96,9 +93,9 @@ int ax_model_yolov5_seg::post_process(const void *pstFrame, ax_joint_runner_box_
                   return a.rect.area() > b.rect.area();
               });
 
-    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+    // static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -119,7 +116,7 @@ int ax_model_yolov5_seg::post_process(const void *pstFrame, ax_joint_runner_box_
             results->mObjects[i].mYolov5Mask.h = mask.rows;
         }
 
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -131,7 +128,7 @@ int ax_model_yolov5_seg::post_process(const void *pstFrame, ax_joint_runner_box_
     return 0;
 }
 
-void ax_model_yolov5_seg::draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_yolov5_seg::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
     for (int i = 0; i < results->nObjSize; i++)
@@ -150,7 +147,7 @@ void ax_model_yolov5_seg::draw_custom(cv::Mat &image, libaxdl_results_t *results
 
                 cv::resize(mask, mask_target, cv::Size(results->mObjects[i].bbox.w * image.cols, results->mObjects[i].bbox.h * image.rows), 0, 0, cv::INTER_NEAREST);
 
-                if (results->mObjects[i].label < COCO_COLORS.size())
+                if (results->mObjects[i].label < (int)COCO_COLORS.size())
                 {
                     image(rect).setTo(COCO_COLORS[results->mObjects[i].label], mask_target);
                 }
@@ -163,25 +160,29 @@ void ax_model_yolov5_seg::draw_custom(cv::Mat &image, libaxdl_results_t *results
     }
 }
 
-int ax_model_yolov5_face::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov5_face::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_FACE_BBOX_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
     }
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_FACE_LMK_SIZE);
+        generate_proposals_yolov5_face(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_FACE_LMK_SIZE);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -191,8 +192,8 @@ int ax_model_yolov5_face::post_process(const void *pstFrame, ax_joint_runner_box
                   return a.rect.area() > b.rect.area();
               });
 
-    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_FACE_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -202,7 +203,7 @@ int ax_model_yolov5_face::post_process(const void *pstFrame, ax_joint_runner_box
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
         results->mObjects[i].nLandmark = SAMPLE_FACE_LMK_SIZE;
-        std::vector<libaxdl_point_t> &points = mSimpleRingBuffer.next();
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
         points.resize(results->mObjects[i].nLandmark);
         results->mObjects[i].landmark = points.data();
         for (size_t j = 0; j < SAMPLE_FACE_LMK_SIZE; j++)
@@ -211,7 +212,7 @@ int ax_model_yolov5_face::post_process(const void *pstFrame, ax_joint_runner_box
             results->mObjects[i].landmark[j].y = obj.landmark[j].y;
         }
 
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -223,7 +224,7 @@ int ax_model_yolov5_face::post_process(const void *pstFrame, ax_joint_runner_box
     return 0;
 }
 
-void ax_model_yolov5_face::draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_yolov5_face::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
     for (int i = 0; i < results->nObjSize; i++)
@@ -237,7 +238,7 @@ void ax_model_yolov5_face::draw_custom(cv::Mat &image, libaxdl_results_t *result
     }
 }
 
-int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov5_lisence_plate::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
     {
@@ -245,17 +246,21 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
     }
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov5_face(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_PLATE_LMK_SIZE);
+        generate_proposals_yolov5_face(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, SAMPLE_PLATE_LMK_SIZE);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -266,7 +271,7 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -276,7 +281,7 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
         results->mObjects[i].nLandmark = SAMPLE_PLATE_LMK_SIZE;
-        std::vector<libaxdl_point_t> &points = mSimpleRingBuffer.next();
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
         points.resize(results->mObjects[i].nLandmark);
         results->mObjects[i].landmark = points.data();
         for (size_t j = 0; j < SAMPLE_PLATE_LMK_SIZE; j++)
@@ -288,9 +293,9 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
         }
         results->mObjects[i].bHasBoxVertices = 1;
 
-        std::vector<libaxdl_point_t> pppp(4);
-        memcpy(pppp.data(), &results->mObjects[i].bbox_vertices[0], 4 * sizeof(libaxdl_point_t));
-        std::sort(pppp.begin(), pppp.end(), [](libaxdl_point_t &a, libaxdl_point_t &b)
+        std::vector<axdl_point_t> pppp(4);
+        memcpy(pppp.data(), &results->mObjects[i].bbox_vertices[0], 4 * sizeof(axdl_point_t));
+        std::sort(pppp.begin(), pppp.end(), [](axdl_point_t &a, axdl_point_t &b)
                   { return a.x < b.x; });
         if (pppp[0].y < pppp[1].y)
         {
@@ -313,7 +318,7 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
             results->mObjects[i].bbox_vertices[1] = pppp[3];
             results->mObjects[i].bbox_vertices[2] = pppp[2];
         }
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -325,21 +330,19 @@ int ax_model_yolov5_lisence_plate::post_process(const void *pstFrame, ax_joint_r
     return 0;
 }
 
-int ax_model_yolov6::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov6::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov6(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
+        generate_proposals_yolov6(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -350,7 +353,7 @@ int ax_model_yolov6::post_process(const void *pstFrame, ax_joint_runner_box_t *c
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -359,7 +362,7 @@ int ax_model_yolov6::post_process(const void *pstFrame, ax_joint_runner_box_t *c
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -371,21 +374,25 @@ int ax_model_yolov6::post_process(const void *pstFrame, ax_joint_runner_box_t *c
     return 0;
 }
 
-int ax_model_yolov7::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov7::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
+
+    // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov7(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data() + i * 6, CLASS_NUM);
+        generate_proposals_yolov7(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data() + i * ANCHOR_SIZE_PER_STRIDE, CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -396,7 +403,7 @@ int ax_model_yolov7::post_process(const void *pstFrame, ax_joint_runner_box_t *c
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -405,7 +412,7 @@ int ax_model_yolov7::post_process(const void *pstFrame, ax_joint_runner_box_t *c
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -417,25 +424,29 @@ int ax_model_yolov7::post_process(const void *pstFrame, ax_joint_runner_box_t *c
     return 0;
 }
 
-int ax_model_yolov7_face::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov7_face::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_FACE_BBOX_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
     }
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov7_face(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
+        generate_proposals_yolov7_face(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -445,8 +456,8 @@ int ax_model_yolov7_face::post_process(const void *pstFrame, ax_joint_runner_box
                   return a.rect.area() > b.rect.area();
               });
 
-    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_FACE_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -456,7 +467,7 @@ int ax_model_yolov7_face::post_process(const void *pstFrame, ax_joint_runner_box
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
         results->mObjects[i].nLandmark = SAMPLE_FACE_LMK_SIZE;
-        std::vector<libaxdl_point_t> &points = mSimpleRingBuffer.next();
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
         points.resize(results->mObjects[i].nLandmark);
         results->mObjects[i].landmark = points.data();
         for (size_t j = 0; j < SAMPLE_FACE_LMK_SIZE; j++)
@@ -464,7 +475,7 @@ int ax_model_yolov7_face::post_process(const void *pstFrame, ax_joint_runner_box
             results->mObjects[i].landmark[j].x = obj.landmark[j].x;
             results->mObjects[i].landmark[j].y = obj.landmark[j].y;
         }
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -476,21 +487,25 @@ int ax_model_yolov7_face::post_process(const void *pstFrame, ax_joint_runner_box
     return 0;
 }
 
-int ax_model_yolov7_plam_hand::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov7_plam_hand::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::PalmObject> proposals;
     std::vector<detection::PalmObject> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != nOutputSize * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", nOutputSize * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov7_palm(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
+        generate_proposals_yolov7_palm(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
     }
 
     detection::get_out_bbox_palm(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -500,8 +515,8 @@ int ax_model_yolov7_plam_hand::post_process(const void *pstFrame, ax_joint_runne
                   return a.rect.area() > b.rect.area();
               });
 
-    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_HAND_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::PalmObject &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x * WIDTH_DET_BBOX_RESTORE;
@@ -522,7 +537,7 @@ int ax_model_yolov7_plam_hand::post_process(const void *pstFrame, ax_joint_runne
     return 0;
 }
 
-int ax_model_plam_hand::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_plam_hand::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     static const int map_size[2] = {24, 12};
     static const int strides[2] = {8, 16};
@@ -546,8 +561,8 @@ int ax_model_plam_hand::post_process(const void *pstFrame, ax_joint_runner_box_t
                   return a.rect.area() > b.rect.area();
               });
 
-    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_HAND_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::PalmObject &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x * WIDTH_DET_BBOX_RESTORE;
@@ -568,21 +583,19 @@ int ax_model_plam_hand::post_process(const void *pstFrame, ax_joint_runner_box_t
     return 0;
 }
 
-int ax_model_yolox::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolox::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolox(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
+        generate_proposals_yolox(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -593,7 +606,7 @@ int ax_model_yolox::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -602,7 +615,7 @@ int ax_model_yolox::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -614,20 +627,18 @@ int ax_model_yolox::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
     return 0;
 }
 
-int ax_model_yoloxppl::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yoloxppl::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
     for (uint32_t i = 0; i < nOutputSize; ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
         std::vector<detection::GridAndStride> grid_stride;
         int wxc = output.vShape[2] * output.vShape[3];
         static std::vector<std::vector<int>> stride_ppl = {{8}, {16}, {32}};
@@ -643,7 +654,7 @@ int ax_model_yoloxppl::post_process(const void *pstFrame, ax_joint_runner_box_t 
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -652,7 +663,7 @@ int ax_model_yoloxppl::post_process(const void *pstFrame, ax_joint_runner_box_t 
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -664,21 +675,26 @@ int ax_model_yoloxppl::post_process(const void *pstFrame, ax_joint_runner_box_t 
     return 0;
 }
 
-int ax_model_yolopv2::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolopv2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    if ((int)ANCHORS.size() != (nOutputSize - 2) * ANCHOR_SIZE_PER_STRIDE)
+    {
+        ALOGE("ANCHORS size failed,should be %d,got %d", (nOutputSize - 2) * ANCHOR_SIZE_PER_STRIDE, (int)ANCHORS.size());
+        return -1;
+    }
 
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 2; i < nOutputSize; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
-        auto &output = pOutputsInfo[i];
+        auto &output = pOutputsInfo[i + 2];
         auto ptr = (float *)output.pVirAddr;
-        int32_t stride = (1 << (i - 2)) * 8;
-        generate_proposals_yolov5(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, 80);
+        generate_proposals_yolov5(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid, 80);
     }
 
     // static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer_seg(SAMPLE_RINGBUFFER_CACHE_COUNT), mSimpleRingBuffer_ll(SAMPLE_RINGBUFFER_CACHE_COUNT);
@@ -703,7 +719,7 @@ int ax_model_yolopv2::post_process(const void *pstFrame, ax_joint_runner_box_t *
                   return a.rect.area() > b.rect.area();
               });
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -727,7 +743,7 @@ int ax_model_yolopv2::post_process(const void *pstFrame, ax_joint_runner_box_t *
     return 0;
 }
 
-void ax_model_yolopv2::draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_yolopv2::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
     {
@@ -748,10 +764,10 @@ void ax_model_yolopv2::draw_custom(cv::Mat &image, libaxdl_results_t *results, f
     draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
 }
 
-int ax_model_yolo_fast_body::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolo_fast_body::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     if (!bInit)
     {
@@ -842,7 +858,7 @@ int ax_model_yolo_fast_body::post_process(const void *pstFrame, ax_joint_runner_
     }
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -857,22 +873,22 @@ int ax_model_yolo_fast_body::post_process(const void *pstFrame, ax_joint_runner_
     return 0;
 }
 
-int ax_model_nanodet::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_nanodet::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
         // int32_t stride = (1 << i) * 8;
 
-        static const int DEFAULT_STRIDES[] = {32, 16, 8};
-        generate_proposals_nanodet(ptr, DEFAULT_STRIDES[i], get_algo_width(), get_algo_height(), PROB_THRESHOLD, proposals, CLASS_NUM);
+        // static const int DEFAULT_STRIDES[] = {32, 16, 8};
+        generate_proposals_nanodet(ptr, STRIDES[i], get_algo_width(), get_algo_height(), PROB_THRESHOLD, proposals, CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -883,7 +899,7 @@ int ax_model_nanodet::post_process(const void *pstFrame, ax_joint_runner_box_t *
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -892,7 +908,7 @@ int ax_model_nanodet::post_process(const void *pstFrame, ax_joint_runner_box_t *
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -904,38 +920,36 @@ int ax_model_nanodet::post_process(const void *pstFrame, ax_joint_runner_box_t *
     return 0;
 }
 
-int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_scrfd::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_FACE_BBOX_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
     }
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     std::map<std::string, float *> output_map;
     for (uint32_t i = 0; i < nOutputSize; i++)
     {
         output_map[pOutputsInfo[i].sName] = (float *)pOutputsInfo[i].pVirAddr;
     }
-
-    int strides[] = {8, 16, 32};
-    const char *score_pred_name[] = {
+    static const char *score_pred_name[] = {
         "score_8", "score_16", "score_32"};
-    const char *bbox_pred_name[] = {
+    static const char *bbox_pred_name[] = {
         "bbox_8", "bbox_16", "bbox_32"};
-    const char *kps_pred_name[] = {
+    static const char *kps_pred_name[] = {
         "kps_8", "kps_16", "kps_32"};
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (int stride_index = 0; stride_index < 3; stride_index++)
+    for (int stride_index = 0; stride_index < STRIDES.size(); stride_index++)
     {
         float *score_pred = output_map[score_pred_name[stride_index]];
         float *bbox_pred = output_map[bbox_pred_name[stride_index]];
         float *kps_pred = output_map[kps_pred_name[stride_index]];
 
-        generate_proposals_scrfd(strides[stride_index], score_pred, bbox_pred, kps_pred, prob_threshold_unsigmoid, proposals, get_algo_height(), get_algo_width());
+        generate_proposals_scrfd(STRIDES[stride_index], score_pred, bbox_pred, kps_pred, prob_threshold_unsigmoid, proposals, get_algo_height(), get_algo_width());
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -945,8 +959,8 @@ int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
                   return a.rect.area() > b.rect.area();
               });
 
-    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_FACE_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -956,7 +970,7 @@ int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
         results->mObjects[i].nLandmark = SAMPLE_FACE_LMK_SIZE;
-        std::vector<libaxdl_point_t> &points = mSimpleRingBuffer.next();
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
         points.resize(results->mObjects[i].nLandmark);
         results->mObjects[i].landmark = points.data();
         for (size_t j = 0; j < SAMPLE_FACE_LMK_SIZE; j++)
@@ -965,7 +979,7 @@ int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
             results->mObjects[i].landmark[j].y = obj.landmark[j].y;
         }
 
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -977,14 +991,15 @@ int ax_model_scrfd::post_process(const void *pstFrame, ax_joint_runner_box_t *cr
     return 0;
 }
 
-int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov8::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < 3; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &dfl_info = pOutputsInfo[i];
         auto dfl_ptr = (float *)dfl_info.pVirAddr;
@@ -992,9 +1007,7 @@ int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *c
         auto cls_ptr = (float *)cls_info.pVirAddr;
         auto &cls_idx_info = pOutputsInfo[i + 6];
         auto cls_idx_ptr = (float *)cls_idx_info.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-
-        generate_proposals_yolov8(stride, dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
+        generate_proposals_yolov8(STRIDES[i], dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -1005,7 +1018,7 @@ int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *c
               });
 
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -1014,7 +1027,7 @@ int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *c
         results->mObjects[i].bbox.h = obj.rect.height;
         results->mObjects[i].label = obj.label;
         results->mObjects[i].prob = obj.prob;
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }
@@ -1026,15 +1039,20 @@ int ax_model_yolov8::post_process(const void *pstFrame, ax_joint_runner_box_t *c
     return 0;
 }
 
-int ax_model_yolov8_seg::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
+    if (mSimpleRingBuffer.size())
+    {
+        mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+    }
+
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    AX_U32 nOutputSize = m_runner->get_num_outputs();
-    const ax_joint_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    // int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < 3; ++i)
+    for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &dfl_info = pOutputsInfo[i];
         auto dfl_ptr = (float *)dfl_info.pVirAddr;
@@ -1042,14 +1060,13 @@ int ax_model_yolov8_seg::post_process(const void *pstFrame, ax_joint_runner_box_
         auto cls_ptr = (float *)cls_info.pVirAddr;
         auto &cls_idx_info = pOutputsInfo[i + 6];
         auto cls_idx_ptr = (float *)cls_idx_info.pVirAddr;
-        int32_t stride = (1 << i) * 8;
-        generate_proposals_yolov8_seg(stride, dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height());
+        generate_proposals_yolov8_seg(STRIDES[i], dfl_ptr, cls_ptr, cls_idx_ptr, prob_threshold_unsigmoid, proposals, get_algo_width(), get_algo_height());
     }
     static const int DEFAULT_MASK_PROTO_DIM = 32;
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
     auto &output = pOutputsInfo[9];
     auto ptr = (float *)output.pVirAddr;
-    detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
+    detection::get_out_bbox_mask(proposals, objects, MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
 
     std::sort(objects.begin(), objects.end(),
@@ -1058,9 +1075,9 @@ int ax_model_yolov8_seg::post_process(const void *pstFrame, ax_joint_runner_box_
                   return a.rect.area() > b.rect.area();
               });
 
-    static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(SAMPLE_MAX_YOLOV5_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+    // static SimpleRingBuffer<cv::Mat> mSimpleRingBuffer(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
         results->mObjects[i].bbox.x = obj.rect.x;
@@ -1081,7 +1098,7 @@ int ax_model_yolov8_seg::post_process(const void *pstFrame, ax_joint_runner_box_
             results->mObjects[i].mYolov5Mask.h = mask.rows;
         }
 
-        if (obj.label < CLASS_NAMES.size())
+        if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
         }

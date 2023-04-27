@@ -815,7 +815,7 @@ namespace detection
 
     static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, float *feat_ptr, float prob_threshold, std::vector<Object> &objects, int wxc, int num_class)
     {
-        const int num_grid = 3549;
+        // const int num_grid = 3549;
         // const int num_class = 3;
         const int num_anchors = grid_strides.size();
 
@@ -1152,14 +1152,14 @@ namespace detection
                     }
 
                     // process cls score
-                    int class_index = 0;
+                    // int class_index = 0;
                     float class_score = -FLT_MAX;
                     for (int s = 0; s <= cls_num - 1; s++)
                     {
                         float score = feature_ptr[s + 5 + 21];
                         if (score > class_score)
                         {
-                            class_index = s;
+                            // class_index = s;
                             class_score = score;
                         }
                     }

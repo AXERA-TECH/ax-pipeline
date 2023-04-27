@@ -33,5 +33,5 @@
 
 # Folder
 3rdparty
-build
+build*
 .vscode

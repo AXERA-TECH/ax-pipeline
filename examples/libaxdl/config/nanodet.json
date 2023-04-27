@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_NANODET",
     "MODEL_PATH": "./models/nanom.joint",
+    "STRIDES": [32, 16, 8],
     "CLASS_NAMES": [
         "person",
         "bicycle",

@@ -18,7 +18,7 @@ list(APPEND SRC_BASE_LIST
     ${SRC_LIST}
 )
 
-add_compile_options(-fPIC)
+add_compile_options(-fPIC -fopenmp)
 
 add_library(${SampleName} STATIC
     ${SRC_BASE_LIST}

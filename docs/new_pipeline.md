@@ -21,7 +21,7 @@ pipeline_t pipe_rtsp;
 pipe_rtsp.enable = 1;
 pipe_rtsp.pipeid = 0x90015;
 pipe_rtsp.m_input_type = pi_vin;
-pipe_rtsp.m_output_type = po_rtsp_h265; //可以创建265，降低带宽压力
+pipe_rtsp.m_output_type = po_rtsp_h264; //可以创建265，降低带宽压力
 pipe_rtsp.n_loog_exit = 0; // 可以用来控制线程退出（如果有的话）
 pipe_rtsp.n_vin_pipe = 0;
 pipe_rtsp.n_vin_chn = 0;

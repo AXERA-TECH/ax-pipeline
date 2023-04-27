@@ -35,6 +35,7 @@ git submodule update --init
 mkdir 3rdparty
 cd 3rdparty
 wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+apt install unzip -y
 unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
 ```
 4、下载并配置交叉编译工具链（如果已经配置并确定可用，这一部分可以跳过）
@@ -49,7 +50,7 @@ cd ..
 mkdir build
 cd build
 cmake -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
-make -j8
+make $(expr `nproc` - 1)
 make install
 ```
 

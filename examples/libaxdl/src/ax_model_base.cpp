@@ -3,7 +3,8 @@
 
 #include "utilities/object_register.hpp"
 #include "../../utilities/sample_log.h"
-#include "ax_sys_api.h"
+// #include "ax_sys_api.h"
+#include "ax_common_api.h"
 #include "fstream"
 
 #ifndef MIN
@@ -22,6 +23,8 @@ std::map<std::string, int> ModelTypeTable = {
 #include "ax_model_seg.hpp"
 #include "ax_model_multi_level_model.hpp"
 #include "ax_model_ml_sub.hpp"
+
+#include "ax_model_runner_ax620.hpp"
 
 template <typename T>
 void update_val(nlohmann::json &jsondata, const char *key, T *val)
@@ -52,7 +55,15 @@ int ax_model_base::get_model_type(void *json_obj, std::string &strModelType)
         {
             int mt = -1;
             mt = jsondata["MODEL_TYPE"];
-            m_model_type = (MODEL_TYPE_E)mt;
+            auto it = ModelTypeTable.begin();
+            for (size_t i = 0; i < ModelTypeTable.size(); i++)
+            {
+                if (it->second == mt)
+                {
+                    m_model_type = (MODEL_TYPE_E)mt;
+                }
+            }
+            // m_model_type = (MODEL_TYPE_E)mt;
         }
         else if (jsondata["MODEL_TYPE"].is_string())
         {
@@ -64,16 +75,47 @@ int ax_model_base::get_model_type(void *json_obj, std::string &strModelType)
             {
                 m_model_type = (MODEL_TYPE_E)ModelTypeTable[strModelType];
             }
-            else
-            {
-                m_model_type = MT_UNKNOWN;
-            }
         }
     }
     return m_model_type;
 }
 
-void ax_model_base::draw_bbox(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+int ax_model_base::get_runner_type(void *json_obj, std::string &strRunnerType)
+{
+    RUNNER_TYPE_E m_runner_type = RUNNER_UNKNOWN;
+    auto jsondata = *(nlohmann::json *)json_obj;
+    if (jsondata.contains("RUNNER_TYPE"))
+    {
+        if (jsondata["RUNNER_TYPE"].is_number_integer())
+        {
+            int mt = -1;
+            mt = jsondata["RUNNER_TYPE"];
+            auto it = ModelTypeTable.begin();
+            for (size_t i = 0; i < ModelTypeTable.size(); i++)
+            {
+                if (it->second == mt)
+                {
+                    m_runner_type = (RUNNER_TYPE_E)mt;
+                }
+            }
+            // m_model_type = (MODEL_TYPE_E)mt;
+        }
+        else if (jsondata["RUNNER_TYPE"].is_string())
+        {
+            strRunnerType = jsondata["RUNNER_TYPE"];
+
+            auto item = ModelTypeTable.find(strRunnerType);
+
+            if (item != ModelTypeTable.end())
+            {
+                m_runner_type = (RUNNER_TYPE_E)ModelTypeTable[strRunnerType];
+            }
+        }
+    }
+    return m_runner_type;
+}
+
+void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     int x, y;
     cv::Size label_size;
@@ -127,7 +169,7 @@ void ax_model_base::draw_bbox(cv::Mat &image, libaxdl_results_t *results, float 
     }
 }
 
-void ax_model_base::draw_fps(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_base::draw_fps(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     sprintf(fps_info, "fps:%02d", results->niFps);
     cv::Size label_size = cv::getTextSize(fps_info, cv::FONT_HERSHEY_SIMPLEX, fontscale * 1.5, thickness * 2, NULL);
@@ -144,24 +186,37 @@ int ax_model_single_base_t::init(void *json_obj)
     update_val(jsondata, "CLASS_NUM", &CLASS_NUM);
     update_val(jsondata, "ANCHORS", &ANCHORS);
     update_val(jsondata, "CLASS_NAMES", &CLASS_NAMES);
-    update_val(jsondata, "MODEL_PATH", &m_model_path);
+    update_val(jsondata, "MODEL_PATH", &MODEL_PATH);
+    update_val(jsondata, "STRIDES", &STRIDES);
+
+    update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+    MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+    update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
+    MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
+    update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
+
+    update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
 
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
-    ALOGI("load model %s", m_model_path.c_str());
-    m_runner.reset(new ax_joint_runner_ax620);
-    m_runner->init(m_model_path.c_str());
-
-    if (ANCHORS.size() != 18)
+    ALOGI("load model %s", MODEL_PATH.c_str());
+    m_runner.reset((ax_runner_base *)OBJFactory::getInstance().getObjectByID(m_runner_type));
+    if (!m_runner.get())
     {
-        ALOGE("ANCHORS SIZE MUST BE 18\n");
+        ALOGE("runner instantiate failed!");
         return -1;
     }
-
-    if (CLASS_NUM != CLASS_NAMES.size())
+    int ret = m_runner->init(MODEL_PATH.c_str());
+    if (ret)
     {
-        ALOGE("CLASS_NUM != CLASS_NAMES SIZE(%d:%d)\n", CLASS_NUM, CLASS_NAMES.size());
-        return -1;
+        ALOGE("runner init load model failed!");
+        return ret;
+    }
+
+    int unknown_cls_count = MAX(0, CLASS_NUM - CLASS_NAMES.size());
+    for (int i = 0; i < unknown_cls_count; i++)
+    {
+        CLASS_NAMES.push_back("unknown");
     }
     return 0;
 }
@@ -171,18 +226,18 @@ void ax_model_single_base_t::deinit()
     m_runner->deinit();
     if (bMalloc)
     {
-        AX_SYS_MemFree(dstFrame.pPhy, dstFrame.pVir);
+        ax_sys_memfree(dstFrame.pPhy, dstFrame.pVir);
     }
 }
 
-int ax_model_single_base_t::preprocess(const void *srcFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_single_base_t::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    memcpy(&dstFrame, srcFrame, sizeof(AX_NPU_CV_Image));
+    memcpy(&dstFrame, srcFrame, sizeof(axdl_image_t));
     bMalloc = false;
     return 0;
 }
 
-int ax_model_single_base_t::inference(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     int ret = preprocess(pstFrame, crop_resize_box, results);
     if (ret != 0)
@@ -257,9 +312,24 @@ int ax_model_multi_base_t::init(void *json_obj)
                 face_register_ids.push_back(faceid);
             }
         }
-        update_val(json_minor, "FACE_RECOGNITION_THRESHOLD", &FACE_RECOGNITION_THRESHOLD);
-
         model_1->init((void *)&json_minor);
+
+        update_val(json_minor, "FACE_RECOGNITION_THRESHOLD", &FACE_RECOGNITION_THRESHOLD);
+        update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+        MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+        update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
+        MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
+        update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
+
+        model_0->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
+        model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        model_0->set_sub_infer_count(MAX_SUB_INFER_COUNT);
+        model_0->set_face_feat_len(FACE_FEAT_LEN);
+
+        model_1->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
+        model_1->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        model_1->set_sub_infer_count(MAX_SUB_INFER_COUNT);
+        model_1->set_face_feat_len(FACE_FEAT_LEN);
     }
     else
         return -1;

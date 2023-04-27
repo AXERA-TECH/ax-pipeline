@@ -1,7 +1,7 @@
 #include "ax_model_seg.hpp"
 #include "opencv2/opencv.hpp"
 
-int ax_model_pphumseg::post_process(const void *pstFrame, ax_joint_runner_box_t *crop_resize_box, libaxdl_results_t *results)
+int ax_model_pphumseg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     results->bPPHumSeg = 1;
     auto ptr = (float *)m_runner->get_output(0).pVirAddr;
@@ -30,7 +30,7 @@ int ax_model_pphumseg::post_process(const void *pstFrame, ax_joint_runner_box_t 
     return 0;
 }
 
-void ax_model_pphumseg::draw_custom(cv::Mat &image, libaxdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+void ax_model_pphumseg::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     if (!results->bPPHumSeg || !results->mPPHumSeg.data)
     {

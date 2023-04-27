@@ -1,7 +1,9 @@
-#include "../include/ax_joint_runner.hpp"
+#include "ax_model_runner_ax620.hpp"
 #include "../../utilities/sample_log.h"
 
 #include "sample_run_joint.h"
+
+#include "npu_cv_kit/ax_npu_imgproc.h"
 
 struct ax_joint_runner_ax620_handle_t
 {
@@ -9,7 +11,7 @@ struct ax_joint_runner_ax620_handle_t
     sample_run_joint_attr m_attr = {0};
 };
 
-int ax_joint_runner_ax620::init(const char *model_file)
+int ax_runner_ax620::init(const char *model_file)
 {
     if (m_handle)
     {
@@ -20,10 +22,11 @@ int ax_joint_runner_ax620::init(const char *model_file)
     if (ret)
     {
         ALOGE("sample_run_joint_init failed,s32Ret:0x%x", ret);
+        return ret;
     }
     for (size_t i = 0; i < m_handle->m_attr.nOutputSize; i++)
     {
-        ax_joint_runner_tensor_t tensor;
+        ax_runner_tensor_t tensor;
         tensor.nIdx = i;
         tensor.sName = std::string(m_handle->m_attr.pOutputsInfo[i].pName);
         tensor.nSize = m_handle->m_attr.pOutputsInfo[i].nSize;
@@ -39,7 +42,7 @@ int ax_joint_runner_ax620::init(const char *model_file)
     return ret;
 }
 
-void ax_joint_runner_ax620::deinit()
+void ax_runner_ax620::deinit()
 {
     if (m_handle && m_handle->m_handle)
     {
@@ -49,11 +52,28 @@ void ax_joint_runner_ax620::deinit()
     m_handle = nullptr;
 }
 
-int ax_joint_runner_ax620::get_algo_width() { return m_handle->m_attr.algo_width; }
-int ax_joint_runner_ax620::get_algo_height() { return m_handle->m_attr.algo_height; }
-int ax_joint_runner_ax620::get_color_space() { return m_handle->m_attr.algo_colorformat; }
-
-int ax_joint_runner_ax620::inference(const void *pstFrame, const ax_joint_runner_box_t *crop_resize_box)
+int ax_runner_ax620::get_algo_width() { return m_handle->m_attr.algo_width; }
+int ax_runner_ax620::get_algo_height() { return m_handle->m_attr.algo_height; }
+axdl_color_space_e ax_runner_ax620::get_color_space()
 {
-    return sample_run_joint_inference(m_handle->m_handle, pstFrame, crop_resize_box);
+    switch (m_handle->m_attr.algo_colorformat)
+    {
+    case AX_FORMAT_RGB888:
+        return axdl_color_space_e::axdl_color_space_rgb;
+    case AX_FORMAT_BGR888:
+        return axdl_color_space_e::axdl_color_space_bgr;
+    case AX_YUV420_SEMIPLANAR:
+        return axdl_color_space_e::axdl_color_space_nv12;
+    default:
+        return axdl_color_space_unknown;
+    }
+}
+
+void cvt(axdl_image_t *src, AX_NPU_CV_Image *dst);
+
+int ax_runner_ax620::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
+{
+    AX_NPU_CV_Image npu_image;
+    cvt(pstFrame, &npu_image);
+    return sample_run_joint_inference(m_handle->m_handle, &npu_image, crop_resize_box);
 }
