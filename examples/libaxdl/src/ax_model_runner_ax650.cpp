@@ -134,7 +134,7 @@ int ax_runner_ax650::init(const char *model_file)
     if (!utilities::read_file(model_file, model_buffer))
     {
         fprintf(stderr, "Read Run-Joint model(%s) file failed.\n", model_file);
-        return false;
+        return -1;
     }
 
     // 3. create handle

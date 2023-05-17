@@ -127,6 +127,7 @@ extern "C"
     typedef struct _canvas_t
     {
         unsigned char *data;
+        unsigned long long dataphy;
         int width, height, channel;
     } axdl_canvas_t;
 

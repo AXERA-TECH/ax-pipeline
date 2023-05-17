@@ -166,7 +166,7 @@ void *osd_thread(void *)
         auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
         memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_T));
         canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
+        AX_SYS_MemAlloc(&canvas.dataphy, (void **)&canvas.data, g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4, 128, (const AX_S8 *)"osd_image");
         canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
         canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
     }
@@ -189,7 +189,7 @@ void *osd_thread(void *)
                 axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
 
                 tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
+                tDisp.tChnAttr.nAlpha = 255;
                 tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
                 tDisp.tChnAttr.nZindex = 1;
                 tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
@@ -201,6 +201,7 @@ void *osd_thread(void *)
                 tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
 
                 // tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
+                tDisp.arrDisp[0].uDisp.tOSD.u16Alpha = 50;
                 tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
                 // tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
                 // tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
@@ -210,8 +211,9 @@ void *osd_thread(void *)
                 tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
                 tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
                 tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
+                // tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
                 tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
+                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = img_overlay.dataphy;
 
                 int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
                 if (0 != ret)
@@ -231,7 +233,8 @@ void *osd_thread(void *)
     for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
     {
         auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        free(canvas.data);
+        // free(canvas.data);
+        AX_SYS_MemFree(canvas.dataphy, canvas.data);
     }
     return NULL;
 #endif
@@ -265,7 +268,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
         tSrcFrame.nSize = buff->n_size;
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-
+        // printf("detect %d\n",mResults.nObjSize);
         pthread_mutex_lock(&g_sample.g_result_mutex);
         memcpy(&g_sample.g_result_disp, &mResults, sizeof(axdl_results_t));
         pthread_mutex_unlock(&g_sample.g_result_mutex);
@@ -283,7 +286,7 @@ static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t times
         buf_h264.p_vir = buf;
         buf_h264.n_size = len;
         user_input(pipe, 1, &buf_h264);
-        printf("\rbuf len : %d", len);
+        printf("\rbuf len : %05d detect:%05d", len, g_sample.g_result_disp.nObjSize);
         fflush(stdout);
         break;
     case FRAME_TYPE_AUDIO:
@@ -420,7 +423,7 @@ int main(int argc, char *argv[])
         {
             pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
             config1.n_ivps_grp = 1; // 重复的会创建失败
-            config1.n_ivps_fps = 60;
+            config1.n_ivps_fps = s_sample_framerate;
             config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
             if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
@@ -462,8 +465,8 @@ int main(int argc, char *argv[])
             config2.n_ivps_grp = 2;    // 重复的会创建失败
             config2.n_ivps_rotate = 0; // 旋转90度，现在rtsp流是竖着的画面了
             config2.n_ivps_fps = s_sample_framerate;
-            config2.n_ivps_width = 960;
-            config2.n_ivps_height = 540;
+            config2.n_ivps_width = 1920;
+            config2.n_ivps_height = 1080;
             config2.n_osd_rgn = 1;
         }
         pipe2.enable = 1;

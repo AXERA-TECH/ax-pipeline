@@ -189,7 +189,7 @@ void *osd_thread(void *)
                 axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
 
                 tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
+                tDisp.tChnAttr.nAlpha = 255;
                 tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
                 tDisp.tChnAttr.nZindex = 1;
                 tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
