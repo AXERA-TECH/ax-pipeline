@@ -1,25 +1,27 @@
-project(ax_pipeline)
 # check CMake version
-cmake_minimum_required (VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+project(ax_pipeline)
+
 
 # disable inplace builds to prevent source tree corruption.
-if (" ${CMAKE_SOURCE_DIR}" STREQUAL " ${CMAKE_BINARY_DIR}")
-    message (FATAL_ERROR "FATAL: Building inplace are not allowed. You should create a separate directory for Building.")
-endif ()
+if(" ${CMAKE_SOURCE_DIR}" STREQUAL " ${CMAKE_BINARY_DIR}")
+    message(FATAL_ERROR "FATAL: Building inplace are not allowed. You should create a separate directory for Building.")
+endif()
 
 # set cmake_install_prefix path
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation Directory")
 endif()
+
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
-
 # enable the languages which in use
-enable_language (C CXX)
+enable_language(C CXX)
 
 # check toolchain about
 if(CMAKE_TOOLCHAIN_FILE)
     set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
+
     # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
     get_filename_component(CMAKE_TOOLCHAIN_FILE_NAME ${CMAKE_TOOLCHAIN_FILE} NAME)
     find_file(CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE_NAME} PATHS ${CMAKE_SOURCE_DIR} NO_DEFAULT_PATH)
@@ -31,14 +33,22 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
+if(NOT AXERA_TARGET_CHIP)
+    set(AXERA_TARGET_CHIP "ax620a")
+endif()
+
+message(STATUS "AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
+
 # bsp
-if (NOT BSP_MSP_DIR)
-    set (BSP_MSP_DIR ${CMAKE_SOURCE_DIR}/axpi_bsp_sdk/msp/out)
-endif ()
+if(NOT BSP_MSP_DIR)
+    set(BSP_MSP_DIR ${CMAKE_SOURCE_DIR}/axpi_bsp_sdk/msp/out)
+endif()
+
 message(STATUS "BSP_MSP_DIR = ${BSP_MSP_DIR}")
 
 option(SIPY_BUILD "build *.so for sipeed python package" OFF)
-if (SIPY_BUILD)
+
+if(SIPY_BUILD)
     set(SIPY_SOVERSION 1)
     set(SIPY_VERSION ${SIPY_SOVERSION}.1.2)
 endif()
@@ -48,23 +58,48 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -marc
 
 add_subdirectory(third-party/RTSP)
 add_subdirectory(third-party/RtspServer)
-add_subdirectory(examples/libaxdl)
-# add_subdirectory(examples/sample_run_joint)
-add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
-# add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
-add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
-# add_subdirectory(examples/sample_vin_ivps_joint_vo_old)
-add_subdirectory(examples/sample_vin_ivps_joint_vo)
-# add_subdirectory(examples/sample_vin_joint)
-add_subdirectory(examples/sample_mp4_ivps_joint_vo)
-add_subdirectory(examples/sample_h264_ivps_joint_vo)
-add_subdirectory(examples/sample_vin_ivps_joint_vo_h265)
-add_subdirectory(examples/sample_v4l2_ivps_joint_vo)
-add_subdirectory(examples/sample_rtsp_ivps_joint_vo)
-add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
-add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp_vo)
-add_subdirectory(examples/sample_v4l2_user_ivps_joint_vo)
-add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
+
+
+if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
+    add_compile_options(-DAXERA_TARGET_CHIP_AX650)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX620)
+    add_subdirectory(examples/common)
+    add_subdirectory(examples/libaxdl)
+    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
+    add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
+    add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
+elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
+    OR AXERA_TARGET_CHIP MATCHES "ax620"
+    OR AXERA_TARGET_CHIP MATCHES "AX620"
+    OR AXERA_TARGET_CHIP MATCHES "AX620A"
+    OR AXERA_TARGET_CHIP MATCHES "AX620a"
+    OR AXERA_TARGET_CHIP MATCHES "ax630a"
+    OR AXERA_TARGET_CHIP MATCHES "ax630"
+    OR AXERA_TARGET_CHIP MATCHES "AX630"
+    OR AXERA_TARGET_CHIP MATCHES "AX630A"
+    OR AXERA_TARGET_CHIP MATCHES "AX630a"
+    )
+    add_compile_options(-DAXERA_TARGET_CHIP_AX620)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX650)
+    add_subdirectory(examples/common)
+    add_subdirectory(examples/libaxdl)
+    # add_subdirectory(examples/sample_run_joint)
+    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
+    # add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
+    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
+    # add_subdirectory(examples/sample_vin_ivps_joint_vo_old)
+    add_subdirectory(examples/sample_vin_ivps_joint_vo)
+    # add_subdirectory(examples/sample_vin_joint)
+    add_subdirectory(examples/sample_mp4_ivps_joint_vo)
+    add_subdirectory(examples/sample_h264_ivps_joint_vo)
+    add_subdirectory(examples/sample_vin_ivps_joint_vo_h265)
+    add_subdirectory(examples/sample_v4l2_ivps_joint_vo)
+    add_subdirectory(examples/sample_rtsp_ivps_joint_vo)
+    add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
+    add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp_vo)
+    add_subdirectory(examples/sample_v4l2_user_ivps_joint_vo)
+    add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
+endif()
 
 file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/*")
-install (FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
+install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)

@@ -1,3 +1,4 @@
+#ifdef AXERA_TARGET_CHIP_AX620
 #include "ax_model_runner_ax620.hpp"
 #include "../../utilities/sample_log.h"
 
@@ -77,3 +78,4 @@ int ax_runner_ax620::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_r
     cvt(pstFrame, &npu_image);
     return sample_run_joint_inference(m_handle->m_handle, &npu_image, crop_resize_box);
 }
+#endif

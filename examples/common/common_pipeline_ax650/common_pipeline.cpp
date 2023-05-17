@@ -233,7 +233,7 @@ int create_pipeline(pipeline_t *pipe)
             return -1;
         }
 
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_VIN;
         srcMod.s32GrpId = pipe->n_vin_pipe;
         srcMod.s32ChnId = pipe->n_vin_chn;
@@ -272,7 +272,10 @@ int create_pipeline(pipeline_t *pipe)
 
         if (pipeline_handle.vdec_grp.size() == 0)
         {
-            int s32Ret = AX_VDEC_Init();
+            AX_VDEC_MOD_ATTR_T stModAttr = {0};
+            stModAttr.enDecModule = AX_ENABLE_BOTH_VDEC_JDEC;
+            stModAttr.u32MaxGroupCount = AX_VDEC_MAX_GRP_NUM;
+            int s32Ret = AX_VDEC_Init(&stModAttr);
             if (0 != s32Ret)
             {
                 ALOGE("AX_VDEC_Init failed,s32Ret:0x%x\n", s32Ret);
@@ -285,13 +288,13 @@ int create_pipeline(pipeline_t *pipe)
             int s32Ret = _create_vdec_grp(pipe);
             if (AX_SUCCESS != s32Ret)
             {
-                ALOGE("_create_vdec_grp failed,s32Ret:0x%x\n", s32Ret);
+                ALOGE("_create_vdec_grp failed,s32Ret:0x%x pipe->m_vdec_attr.n_vdec_grp=%d\n", s32Ret, pipe->m_vdec_attr.n_vdec_grp);
                 return -1;
             }
             pipeline_handle.vdec_grp.push_back(pipe->m_vdec_attr.n_vdec_grp);
         }
 #if VDEC_LINK_MODE
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_VDEC;
         srcMod.s32GrpId = pipe->m_vdec_attr.n_vdec_grp;
         srcMod.s32ChnId = 0;
@@ -317,8 +320,11 @@ int create_pipeline(pipeline_t *pipe)
     {
         if (pipeline_handle.venc_chn.size() == 0)
         {
-            AX_VENC_MOD_ATTR_S stModAttr;
-            stModAttr.enVencType = VENC_MULTI_ENCODER;
+            AX_VENC_MOD_ATTR_T stModAttr;
+            memset(&stModAttr, 0, sizeof(AX_VENC_MOD_ATTR_T));
+            stModAttr.enVencType = AX_VENC_VIDEO_ENCODER;
+            stModAttr.stModThdAttr.u32TotalThreadNum = 1;
+            stModAttr.stModThdAttr.bExplicitSched = AX_FALSE;
 
             int s32Ret = AX_VENC_Init(&stModAttr);
             if (AX_SUCCESS != s32Ret)
@@ -335,7 +341,7 @@ int create_pipeline(pipeline_t *pipe)
         }
         pipeline_handle.venc_chn.push_back(pipe->m_venc_attr.n_venc_chn);
 
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_IVPS;
         srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
         srcMod.s32ChnId = 0;
@@ -389,7 +395,7 @@ int create_pipeline(pipeline_t *pipe)
     {
         if (!pipeline_handle.b_maix3_init)
         {
-            AX_MOD_INFO_S srcMod, dstMod;
+            AX_MOD_INFO_T srcMod, dstMod;
             srcMod.enModId = AX_ID_IVPS;
             srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
             srcMod.s32ChnId = 0;
@@ -447,7 +453,7 @@ int destory_pipeline(pipeline_t *pipe)
     case po_rtsp_h264:
     case po_rtsp_h265:
     {
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_IVPS;
         srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
         srcMod.s32ChnId = 0;
@@ -499,7 +505,7 @@ int destory_pipeline(pipeline_t *pipe)
     break;
     case po_vo_sipeed_maix3_screen:
     {
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_IVPS;
         srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
         srcMod.s32ChnId = 0;
@@ -536,7 +542,7 @@ int destory_pipeline(pipeline_t *pipe)
     }
     case pi_vin:
     {
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_VIN;
         srcMod.s32GrpId = pipe->n_vin_pipe;
         srcMod.s32ChnId = pipe->n_vin_chn;
@@ -562,7 +568,7 @@ int destory_pipeline(pipeline_t *pipe)
     case pi_vdec_h264:
     case pi_vdec_jpeg:
     {
-        AX_MOD_INFO_S srcMod, dstMod;
+        AX_MOD_INFO_T srcMod, dstMod;
         srcMod.enModId = AX_ID_VDEC;
         srcMod.s32GrpId = pipe->m_vdec_attr.n_vdec_grp;
         srcMod.s32ChnId = 0;
@@ -581,7 +587,7 @@ int destory_pipeline(pipeline_t *pipe)
         if (pipeline_handle.vdec_grp.size() == 0)
         {
             ALOGN("AX_VDEC_DeInit");
-            AX_VDEC_DeInit();
+            AX_VDEC_Deinit();
         }
         if (contain(pipeline_handle.ivps_grp, pipe->m_ivps_attr.n_ivps_grp))
         {
@@ -627,70 +633,73 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
     {
     case pi_user:
     {
-        AX_VIDEO_FRAME_INFO_S frameInfo = {0};
+        // AX_VIDEO_FRAME_INFO_T frameInfo = {0};
 
-        AX_U32 uiPicSize = (buf->n_width * buf->n_height) * 3 / 2;
-        AX_BLK blk_id = AX_POOL_GetBlock(frameInfo.u32PoolId, uiPicSize, NULL);
-        if (AX_INVALID_BLOCKID == blk_id)
-        {
-            printf("AX_POOL_GetBlock AX_POOL_GetBlockfailed! \n");
-            return -1;
-        }
+        // AX_U32 uiPicSize = (buf->n_width * buf->n_height) * 3 / 2;
+        // AX_BLK blk_id = AX_POOL_GetBlock(frameInfo.u32PoolId, uiPicSize, NULL);
+        // if (AX_INVALID_BLOCKID == blk_id)
+        // {
+        //     printf("AX_POOL_GetBlock AX_POOL_GetBlockfailed! \n");
+        //     return -1;
+        // }
 
-        frameInfo.bEof = AX_TRUE;
-        frameInfo.enModId = AX_ID_IVPS;
-        frameInfo.stVFrame.u32BlkId[0] = blk_id;
-        frameInfo.stVFrame.u32Width = buf->n_width;
-        frameInfo.stVFrame.u32Height = buf->n_height;
-        frameInfo.stVFrame.enImgFormat = AX_YUV420_SEMIPLANAR;
-        frameInfo.stVFrame.enVscanFormat = AX_VSCAN_FORMAT_RASTER;
-        frameInfo.stVFrame.enCompressMode = AX_COMPRESS_MODE_NONE;
-        frameInfo.stVFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(blk_id);
-        frameInfo.stVFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(blk_id);
-        frameInfo.stVFrame.u32PicStride[0] = buf->n_width;
-        frameInfo.stVFrame.u64PhyAddr[1] = frameInfo.stVFrame.u64PhyAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
-        frameInfo.stVFrame.u64PhyAddr[2] = 0;
-        frameInfo.stVFrame.u64VirAddr[1] = frameInfo.stVFrame.u64VirAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
-        frameInfo.stVFrame.u64VirAddr[2] = 0;
-        frameInfo.u32PoolId = AX_POOL_Handle2PoolId(blk_id);
+        // frameInfo.bEof = AX_TRUE;
+        // frameInfo.enModId = AX_ID_IVPS;
+        // frameInfo.stVFrame.u32BlkId[0] = blk_id;
+        // frameInfo.stVFrame.u32Width = buf->n_width;
+        // frameInfo.stVFrame.u32Height = buf->n_height;
+        // frameInfo.stVFrame.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+        // frameInfo.stVFrame.enVscanFormat = AX_VSCAN_FORMAT_RASTER;
+        // frameInfo.stVFrame.enCompressMode = AX_COMPRESS_MODE_NONE;
+        // frameInfo.stVFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(blk_id);
+        // frameInfo.stVFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(blk_id);
+        // frameInfo.stVFrame.u32PicStride[0] = buf->n_width;
+        // frameInfo.stVFrame.u64PhyAddr[1] = frameInfo.stVFrame.u64PhyAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        // frameInfo.stVFrame.u64PhyAddr[2] = 0;
+        // frameInfo.stVFrame.u64VirAddr[1] = frameInfo.stVFrame.u64VirAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        // frameInfo.stVFrame.u64VirAddr[2] = 0;
+        // frameInfo.u32PoolId = AX_POOL_Handle2PoolId(blk_id);
 
-        memcpy((void *)frameInfo.stVFrame.u64VirAddr[0], buf->p_vir, uiPicSize);
-        int ret;
-        std::vector<int> tmp_;
+        // memcpy((void *)frameInfo.stVFrame.u64VirAddr[0], buf->p_vir, uiPicSize);
+        // int ret;
+        // std::vector<int> tmp_;
 
-        for (int i = 0; i < pipe_cnt; i++)
-        {
-            if (!contain(tmp_, pipe[i].m_ivps_attr.n_ivps_grp))
-            {
-                ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
-                if (ret != 0)
-                {
-                    // ALOGE("AX_IVPS_SendFrame 0x%x", ret);
-                }
-                tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
-            }
-        }
+        // for (int i = 0; i < pipe_cnt; i++)
+        // {
+        //     if (!contain(tmp_, pipe[i].m_ivps_attr.n_ivps_grp))
+        //     {
+        //         ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
+        //         if (ret != 0)
+        //         {
+        //             // ALOGE("AX_IVPS_SendFrame 0x%x", ret);
+        //         }
+        //         tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
+        //     }
+        // }
 
-        // AX_U32 PoolId = frameInfo.u32PoolId;
+        // // AX_U32 PoolId = frameInfo.u32PoolId;
 
-        AX_BLK BlkId = frameInfo.stVFrame.u32BlkId[0];
-        ret = AX_POOL_ReleaseBlock(BlkId);
-        if (ret != 0)
-        {
-            printf("AX_POOL_ReleaseBlock fail!Error Code:0x%X\n", ret);
-            return -1;
-        }
+        // AX_BLK BlkId = frameInfo.stVFrame.u32BlkId[0];
+        // ret = AX_POOL_ReleaseBlock(BlkId);
+        // if (ret != 0)
+        // {
+        //     printf("AX_POOL_ReleaseBlock fail!Error Code:0x%X\n", ret);
+        //     return -1;
+        // }
     }
     break;
     case pi_vdec_h264:
     {
-        AX_VDEC_STREAM_S stream = {0};
-        int unsigned long long pts = 0;
-        stream.u64PTS = pts++;
-        stream.u32Len = buf->n_size;
+        AX_VDEC_STREAM_T stream = {0};
+        memset(&stream, 0, sizeof(AX_VDEC_STREAM_T));
+        static int unsigned long long pts = 0;
+        // stream.u64PTS = pts++;
+        stream.u32StreamPackLen = buf->n_size;
         stream.pu8Addr = (unsigned char *)buf->p_vir;
-        stream.bEndOfFrame = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
-        stream.bEndOfStream = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
+        stream.u64PhyAddr = 0;
+        stream.bEndOfFrame = AX_FALSE;
+        stream.bEndOfStream = AX_FALSE;
+        // printf("0x%x\n", stream.pu8Addr);
 
         int ret;
         std::vector<int> tmp_;
@@ -702,7 +711,7 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
                 ret = AX_VDEC_SendStream(pipe[i].m_vdec_attr.n_vdec_grp, &stream, 200);
                 if (ret != 0)
                 {
-                    ALOGE("AX_VDEC_SendStream 0x%x", ret);
+                    ALOGE("AX_VDEC_SendStream 0x%x,data=0x%x len=%d", ret, stream.pu8Addr, stream.u32StreamPackLen);
                 }
                 tmp_.push_back(pipe[i].m_vdec_attr.n_vdec_grp);
             }
@@ -719,10 +728,10 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
     case pi_vdec_jpeg:
     {
         _create_jvdec_grp(pipe);
-        AX_VDEC_STREAM_S stream = {0};
+        AX_VDEC_STREAM_T stream = {0};
         int unsigned long long pts = 0;
         stream.u64PTS = pts++;
-        stream.u32Len = buf->n_size;
+        stream.u32StreamPackLen = buf->n_size;
         stream.pu8Addr = (unsigned char *)buf->p_vir;
         stream.bEndOfFrame = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
         stream.bEndOfStream = buf->p_vir == NULL ? AX_TRUE : AX_FALSE;
@@ -737,7 +746,7 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
                 ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
                 if (ret != 0)
                 {
-                    ALOGE("AX_VDEC_SendStream 0x%x", ret);
+                    ALOGE("AX_VDEC_SendStream 0x%x,data=0x%x len=%d", ret, stream.pu8Addr, stream.u32StreamPackLen);
                 }
                 tmp_.push_back(pipe[i].m_vdec_attr.n_vdec_grp);
             }

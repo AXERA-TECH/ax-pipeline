@@ -58,6 +58,7 @@ extern "C"
         RUNNER_UNKNOWN = MT_END,
 
         RUNNER_AX620,
+        RUNNER_AX650,
 
         RUNNER_END
     } RUNNER_TYPE_E;

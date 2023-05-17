@@ -15,7 +15,7 @@ function(targetlink name)
 
     target_link_libraries(${name} PRIVATE pthread dl) # ax620a use this
 
-    target_link_libraries(${name} PRIVATE axdl)
+    target_link_libraries(${name} PRIVATE axdl common_pipeline)
 
     # drm
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
@@ -38,7 +38,7 @@ function(targetlink name)
 endfunction()
 
 file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c")
-file(GLOB SRC_LIST_COMMON "../common/common_func.c" "../common/common_joint.c" "../common/common_pipeline/*.cpp" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
+file(GLOB SRC_LIST_COMMON "../common/common_func.c" "../common/common_joint.c" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 # file(GLOB SRC_LIST_RTSP "../rtsp/src/*.c")
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}

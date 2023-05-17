@@ -19,7 +19,11 @@ protected:
 
     int HEIGHT_DET_BBOX_RESTORE = 1080, WIDTH_DET_BBOX_RESTORE = 1920;
     MODEL_TYPE_E m_model_type = MT_UNKNOWN;
+#ifdef AXERA_TARGET_CHIP_AX620
     RUNNER_TYPE_E m_runner_type = RUNNER_AX620;
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    RUNNER_TYPE_E m_runner_type = RUNNER_AX650;
+#endif
     // detection
     float PROB_THRESHOLD = 0.4f;
     float NMS_THRESHOLD = 0.45f;

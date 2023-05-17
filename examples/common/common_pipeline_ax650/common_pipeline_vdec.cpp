@@ -29,6 +29,55 @@
 #include "string.h"
 #include "pthread.h"
 
+extern "C"
+{
+    // #include "common_vdec_utils.h"
+}
+
+#define AX_DEC_RET_STR_CASE(s32Ret) \
+    case (s32Ret):                  \
+        return (#s32Ret)
+
+const char *AX_VdecRetStr(AX_S32 s32Ret)
+{
+    switch (s32Ret)
+    {
+        AX_DEC_RET_STR_CASE(AX_SUCCESS);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_INVALID_GRPID);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_INVALID_CHNID);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_ILLEGAL_PARAM);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NULL_PTR);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_BAD_ADDR);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_SYS_NOTREADY);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_BUSY);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOT_INIT);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOT_CONFIG);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOT_SUPPORT);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOT_PERM);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_EXIST);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_UNEXIST);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOMEM);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NOBUF);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_BUF_EMPTY);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_BUF_FULL);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_QUEUE_EMPTY);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_QUEUE_FULL);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_TIMED_OUT);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_FLOW_END);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_UNKNOWN);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_RUN_ERROR);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_STRM_ERROR);
+        AX_DEC_RET_STR_CASE(AX_ERR_POOL_UNEXIST);
+        AX_DEC_RET_STR_CASE(AX_ERR_POOL_ILLEGAL_PARAM);
+        AX_DEC_RET_STR_CASE(AX_ERR_POOL_NOT_SUPPORT);
+        AX_DEC_RET_STR_CASE(AX_ERR_POOL_NOT_PERM);
+        AX_DEC_RET_STR_CASE(AX_ERR_VDEC_NEED_REALLOC_BUF);
+    default:
+        ALOGE("Unknown return code. 0x%x", s32Ret);
+        return ("unknown code.");
+    }
+}
+
 #if !VDEC_LINK_MODE
 void *_vdec_get_frame_thread(void *arg)
 {
@@ -87,11 +136,11 @@ AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId)
 
     *PoolId = s32PoolId;
 
-    s32Ret = AX_VDEC_AttachPool(VdGrp, s32PoolId);
+    s32Ret = AX_VDEC_AttachPool(VdGrp, 0, s32PoolId);
     if (s32Ret != AX_SUCCESS)
     {
-        AX_POOL_MarkDestroyPool(s32PoolId);
-        ALOGE("Attach pool err. %x\n", s32Ret);
+        AX_POOL_DestroyPool(s32PoolId);
+        ALOGE("Attach pool err. 0x%x\n", s32Ret);
     }
 
     printf("FramePoolInit successfully! %d\n", s32PoolId);
@@ -106,21 +155,25 @@ int _create_vdec_grp(pipeline_t *pipe)
         ALOGE("vdec_grp must lower than %d, got %d\n", MAX_VDEC_GRP_COUNT, pipe->m_vdec_attr.n_vdec_grp);
         return -1;
     }
-    AX_VDEC_GRP_ATTR_S gGrpAttr;
-    memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
+    AX_VDEC_GRP_ATTR_T gGrpAttr;
+    memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_T));
     switch (pipe->m_input_type)
     {
     case pi_vdec_h264:
     {
-        gGrpAttr.enType = PT_H264;
-        gGrpAttr.u32PicWidth = 1920;
-        gGrpAttr.u32PicHeight = 1080;
+        gGrpAttr.enCodecType = PT_H264;
+        gGrpAttr.enInputMode = AX_VDEC_INPUT_MODE_FRAME;
+        gGrpAttr.u32MaxPicWidth = 1920;
+        gGrpAttr.u32MaxPicHeight = 1080;
         gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
-        gGrpAttr.u32FrameBufCnt = 10;
+        // gGrpAttr.u32MaxFrameBufCnt = 10;
+        // gGrpAttr.u32InputFifoDepth = 100;
+        // gGrpAttr.bSdkAutoFramePool = AX_TRUE;
+        gGrpAttr.bSdkAutoFramePool = AX_FALSE;
 #if VDEC_LINK_MODE
-        gGrpAttr.enLinkMode = AX_LINK_MODE;
+        // gGrpAttr.enLinkMode = AX_LINK_MODE;
 #endif
-        AX_POOL s32PoolId;
+        AX_POOL s32PoolId = 0;
         AX_U32 FrameSize = 0;
 
         AX_S32 ret = AX_VDEC_CreateGrp(pipe->m_vdec_attr.n_vdec_grp, &gGrpAttr);
@@ -130,16 +183,60 @@ int _create_vdec_grp(pipeline_t *pipe)
             return -1;
         }
 
-        FrameSize = AX_VDEC_GetPicBufferSize(1920, 1088, PT_H264); // 3655712;
-        printf("Get pool mem size is %d\n", FrameSize);
-        ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
-        if (ret != AX_SUCCESS)
         {
-            printf("FramePoolInit failed! Error:%x\n", ret);
-            return -1;
+            AX_VDEC_CHN_ATTR_T stVdChnAttr = {0};
+
+            stVdChnAttr.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+            stVdChnAttr.enOutputMode = AX_VDEC_OUTPUT_ORIGINAL;
+            stVdChnAttr.u32PicWidth = 1920;
+            stVdChnAttr.u32PicHeight = 1080;
+            stVdChnAttr.u32FrameBufCnt = 5;
+            AX_U32 uPixBits = 8;
+#define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
+#define AX_VDEC_WIDTH_ALIGN AX_SHIFT_LEFT_ALIGN(8)
+            stVdChnAttr.u32FrameStride = AX_COMM_ALIGN(AX_COMM_ALIGN(stVdChnAttr.u32PicWidth, 128) * uPixBits,
+                                                       AX_VDEC_WIDTH_ALIGN * 8) /
+                                         8;
+            // stVdChnAttr.u32FrameStride = AX_COMM_ALIGN(stVdChnAttr.u32PicWidth * 8, AX_VDEC_WIDTH_ALIGN * 8) / 8;
+            stVdChnAttr.u32FramePadding = 0;
+            stVdChnAttr.u32CropX = 0;
+            stVdChnAttr.u32CropY = 0;
+            stVdChnAttr.u32ScaleRatioX = 1;
+            stVdChnAttr.u32ScaleRatioY = 1;
+
+            stVdChnAttr.u32OutputFifoDepth = 0;
+
+            ret = AX_VDEC_SetChnAttr(pipe->m_vdec_attr.n_vdec_grp, 0, &stVdChnAttr);
+            if (ret != AX_SUCCESS)
+            {
+                ALOGE("AX_VDEC_SetChnAttr failed! Error:%x %s\n", ret, AX_VdecRetStr(ret));
+                return -1;
+            }
+            ret = AX_VDEC_EnableChn(pipe->m_vdec_attr.n_vdec_grp, 0);
+            if (ret != AX_SUCCESS)
+            {
+                ALOGE("AX_VDEC_EnableChn failed! Error:%x %s\n", ret, AX_VdecRetStr(ret));
+                return -1;
+            }
         }
+
+        // AX_FRAME_COMPRESS_INFO_T stCompressInfo = {0};
+        if (gGrpAttr.bSdkAutoFramePool != AX_TRUE)
+        {
+            FrameSize = AX_VDEC_GetPicBufferSize(1920, 1080, AX_FORMAT_YUV420_SEMIPLANAR, NULL, PT_H264); // 3655712;
+            printf("Get pool mem size is %d\n", FrameSize);
+            ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
+            if (ret != AX_SUCCESS)
+            {
+                ALOGE("FramePoolInit failed! Error:%x\n", ret);
+                return -1;
+            }
+        }
+
         pipe->m_vdec_attr.poolid = s32PoolId;
-        ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp);
+        AX_VDEC_RECV_PIC_PARAM_T stRecvParam = {0};
+        stRecvParam.s32RecvPicNum = -1;
+        ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp, &stRecvParam);
         if (ret != AX_SUCCESS)
         {
             ALOGE("AX_VDEC_StartRecvStream error: 0x%x\n", ret);
@@ -157,7 +254,7 @@ int _create_vdec_grp(pipeline_t *pipe)
     case pi_vdec_jpeg:
     {
         AX_U32 FrameSize = 0;
-        FrameSize = AX_VDEC_GetPicBufferSize(4096, 4096, PT_JPEG); // 3655712;
+        FrameSize = AX_VDEC_GetPicBufferSize(4096, 4096, AX_FORMAT_RGB888, NULL, PT_JPEG); // 3655712;
         printf("Get pool mem size is %d\n", FrameSize);
 
         // AX_S32 s32Ret = AX_SUCCESS;
@@ -193,8 +290,8 @@ int _destore_jvdec_grp(pipeline_t *pipe)
 {
     int ret = AX_VDEC_StopRecvStream(pipe->m_vdec_attr.n_vdec_grp);
 
-    ret = AX_VDEC_DetachPool(pipe->m_vdec_attr.n_vdec_grp);
-    // AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+    ret = AX_VDEC_DetachPool(pipe->m_vdec_attr.n_vdec_grp, 0);
+    // AX_POOL_DestroyPool(pipe->m_vdec_attr.poolid);
 
     ret = AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
     return 0;
@@ -203,11 +300,11 @@ int _destore_jvdec_grp(pipeline_t *pipe)
 int _destore_vdec_grp(pipeline_t *pipe)
 {
 #if !VDEC_LINK_MODE
-    if(pipe->m_vdec_attr.tid)
-        pthread_join(pipe->m_vdec_attr.tid, NULL);
+    pthread_join(pipe->m_vdec_attr.tid, NULL);
 #endif
     _destore_jvdec_grp(pipe);
-    AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+    AX_VDEC_DetachPool(pipe->m_vdec_attr.n_vdec_grp, 0);
+    AX_POOL_DestroyPool(pipe->m_vdec_attr.poolid);
 
     return 0;
 }
@@ -219,16 +316,17 @@ int _create_jvdec_grp(pipeline_t *pipe)
         ALOGE("vdec_grp must lower than %d, got %d\n", MAX_VDEC_GRP_COUNT, pipe->m_vdec_attr.n_vdec_grp);
         return -1;
     }
-    AX_VDEC_GRP_ATTR_S gGrpAttr;
-    memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_S));
+    AX_VDEC_GRP_ATTR_T gGrpAttr;
+    memset(&gGrpAttr, 0, sizeof(AX_VDEC_GRP_ATTR_T));
 
-    gGrpAttr.enType = PT_JPEG;
-    gGrpAttr.u32PicWidth = 1920;
-    gGrpAttr.u32PicHeight = 1080;
+    gGrpAttr.enCodecType = PT_JPEG;
+    gGrpAttr.u32MaxPicWidth = 1920;
+    gGrpAttr.u32MaxPicHeight = 1080;
     gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
-    gGrpAttr.u32FrameBufCnt = 10;
+    // gGrpAttr.u32MaxFrameBufCnt = 10;
+    gGrpAttr.enInputMode = AX_VDEC_INPUT_MODE_FRAME;
 #if VDEC_LINK_MODE
-    gGrpAttr.enLinkMode = AX_LINK_MODE;
+    // gGrpAttr.enLinkMode = AX_LINK_MODE;
 #endif
     AX_S32 ret = AX_VDEC_CreateGrp(pipe->m_vdec_attr.n_vdec_grp, &gGrpAttr);
     if (ret != AX_SUCCESS)
@@ -236,14 +334,15 @@ int _create_jvdec_grp(pipeline_t *pipe)
         ALOGE("AX_VDEC_CreateGrp error: 0x%x\n", ret);
         return -1;
     }
-    ret = AX_VDEC_AttachPool(pipe->m_vdec_attr.n_vdec_grp, pipe->m_vdec_attr.poolid);
+    ret = AX_VDEC_AttachPool(pipe->m_vdec_attr.n_vdec_grp, 0, pipe->m_vdec_attr.poolid);
     if (ret != AX_SUCCESS)
     {
-        AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
+        AX_POOL_DestroyPool(pipe->m_vdec_attr.poolid);
         printf("Attach pool err. %x\n", ret);
     }
-
-    ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp);
+    AX_VDEC_RECV_PIC_PARAM_T stRecvParam = {0};
+    stRecvParam.s32RecvPicNum = 10;
+    ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp, &stRecvParam);
     if (ret != AX_SUCCESS)
     {
         ALOGE("AX_VDEC_StartRecvStream error: 0x%x\n", ret);

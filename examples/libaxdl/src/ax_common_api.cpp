@@ -6,7 +6,6 @@
 
 #include "string.h"
 
-#include "npu_cv_kit/ax_npu_imgproc.h"
 #include "ax_sys_api.h"
 
 #ifndef MIN
@@ -26,7 +25,8 @@ int ax_sys_memfree(unsigned long long int phyaddr, void *pviraddr)
 {
     return AX_SYS_MemFree(phyaddr, pviraddr);
 }
-
+#ifdef AXERA_TARGET_CHIP_AX620
+#include "npu_cv_kit/ax_npu_imgproc.h"
 void cvt(axdl_image_t *src, AX_NPU_CV_Image *dst)
 {
     memset(dst, 0, sizeof(AX_NPU_CV_Image));
@@ -148,3 +148,5 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
     }
     return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
 }
+#elif defined(AXERA_TARGET_CHIP_AX650)
+#endif
