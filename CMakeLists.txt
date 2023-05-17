@@ -69,6 +69,7 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
     add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
+    add_subdirectory(examples/sample_mp4_ivps_joint_rtsp)
     # add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "ax620"
