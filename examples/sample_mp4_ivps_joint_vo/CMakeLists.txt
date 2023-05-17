@@ -13,7 +13,7 @@ list(APPEND SRC_BASE_LIST
 add_executable(${SampleName}
     ${SRC_BASE_LIST}
 )
-targetlink(${SampleName} "none")
+ax_include_link(${SampleName} "none")
 install(TARGETS ${SampleName} DESTINATION bin)
 
 
@@ -25,6 +25,6 @@ if (SIPY_BUILD)
     )
     SET_TARGET_PROPERTIES(${SampleName} PROPERTIES VERSION ${SIPY_VERSION} SOVERSION ${SIPY_SOVERSION})
     SET_TARGET_PROPERTIES(${SampleName} PROPERTIES OUTPUT_NAME ${SampleName})
-    targetlink(${SampleName} "none")
+    ax_include_link(${SampleName} "none")
     install(TARGETS ${SampleName} DESTINATION lib)
 endif()

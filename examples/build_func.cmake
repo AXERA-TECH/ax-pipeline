@@ -1,4 +1,4 @@
-function(targetlink name input_type)
+function(ax_include_link name input_type)
     target_include_directories(${name} PRIVATE ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(${name} PRIVATE ${OpenCV_LIBS})
 
