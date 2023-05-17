@@ -63,11 +63,13 @@ add_subdirectory(third-party/RtspServer)
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_compile_options(-DAXERA_TARGET_CHIP_AX650)
     add_compile_options(-UAXERA_TARGET_CHIP_AX620)
+    # opencv
+    set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
+    find_package(OpenCV REQUIRED)
     add_subdirectory(examples/common)
     add_subdirectory(examples/libaxdl)
-    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
     add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
-    add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
+    # add_subdirectory(examples/sample_multi_rtsp_ivps_joint_multi_rtsp)
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "ax620"
     OR AXERA_TARGET_CHIP MATCHES "AX620"
@@ -81,6 +83,10 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     )
     add_compile_options(-DAXERA_TARGET_CHIP_AX620)
     add_compile_options(-UAXERA_TARGET_CHIP_AX650)
+    # opencv
+    set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
+    find_package(OpenCV REQUIRED)
+    
     add_subdirectory(examples/common)
     add_subdirectory(examples/libaxdl)
     # add_subdirectory(examples/sample_run_joint)

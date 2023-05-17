@@ -26,7 +26,6 @@
 #include "../utilities/sample_log.h"
 
 #include "ax_ivps_api.h"
-#include "npu_cv_kit/ax_npu_imgproc.h"
 
 #include "fstream"
 #include <getopt.h>
@@ -411,9 +410,15 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
+#ifdef AXERA_TARGET_CHIP_AX620
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    COMMON_SYS_POOL_CFG_T poolcfg[] = {
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 10},
+    };
+#endif
     tCommonArgs.nPoolCfgCnt = 1;
     tCommonArgs.pPoolCfg = poolcfg;
     /*step 1:sys init*/
@@ -425,6 +430,7 @@ int main(int argc, char *argv[])
     }
 
     /*step 3:npu init*/
+#ifdef AXERA_TARGET_CHIP_AX620
     AX_NPU_SDK_EX_ATTR_T sNpuAttr;
     sNpuAttr.eHardMode = AX_NPU_VIRTUAL_1_1;
     s32Ret = AX_NPU_SDK_EX_Init_with_attr(&sNpuAttr);
@@ -433,6 +439,7 @@ int main(int argc, char *argv[])
         ALOGE("AX_NPU_SDK_EX_Init_with_attr failed,s32Ret:0x%x\n", s32Ret);
         goto EXIT_2;
     }
+#endif
 
     s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels);
     if (s32Ret != 0)

@@ -28,7 +28,6 @@
 #include "RTSPClient.h"
 
 #include "ax_ivps_api.h"
-#include "npu_cv_kit/ax_npu_imgproc.h"
 
 #include "fstream"
 #include <getopt.h>
@@ -77,6 +76,7 @@ static struct _g_sample_
 
 void *osd_thread(void *)
 {
+#ifdef AXERA_TARGET_CHIP_AX620
     std::map<int, axdl_canvas_t> pipes_osd_canvas;
     std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
     for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
@@ -155,6 +155,86 @@ void *osd_thread(void *)
         free(canvas.data);
     }
     return NULL;
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    std::map<int, axdl_canvas_t> pipes_osd_canvas;
+    std::map<int, AX_IVPS_RGN_DISP_GROUP_T> pipes_osd_struct;
+    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
+    {
+        pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
+        pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
+        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
+        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
+        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_T));
+        canvas.channel = 4;
+        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
+        canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
+        canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
+    }
+    axdl_results_t mResults;
+    while (!gLoopExit)
+    {
+        pthread_mutex_lock(&g_sample.g_result_mutex);
+        memcpy(&mResults, &g_sample.g_result_disp, sizeof(axdl_results_t));
+        pthread_mutex_unlock(&g_sample.g_result_mutex);
+        for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
+        {
+            auto &osd_pipe = g_sample.pipes_need_osd[i];
+            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
+            {
+                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
+                AX_IVPS_RGN_DISP_GROUP_T &tDisp = pipes_osd_struct[osd_pipe->pipeid];
+
+                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
+
+                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
+
+                tDisp.nNum = 1;
+                tDisp.tChnAttr.nAlpha = 1024;
+                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
+                tDisp.tChnAttr.nZindex = 1;
+                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
+                // tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
+                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
+                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
+
+                tDisp.arrDisp[0].bShow = AX_TRUE;
+                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
+
+                // tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
+                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
+                // tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
+                // tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
+                // tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
+                // tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
+                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
+                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
+                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
+                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
+                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
+                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
+
+                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
+                if (0 != ret)
+                {
+                    static int cnt = 0;
+                    if (cnt++ % 100 == 0)
+                    {
+                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                    }
+                    usleep(30 * 1000);
+                }
+            }
+        }
+        // freeObjs(&mResults);
+        usleep(0);
+    }
+    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
+    {
+        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
+        free(canvas.data);
+    }
+    return NULL;
+#endif
 }
 
 void ai_inference_func(pipeline_buffer_t *buff)
@@ -288,10 +368,15 @@ int main(int argc, char *argv[])
         PrintHelp(argv[0]);
         exit(0);
     }
-
+#ifdef AXERA_TARGET_CHIP_AX620
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    COMMON_SYS_POOL_CFG_T poolcfg[] = {
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 10},
+    };
+#endif
     tCommonArgs.nPoolCfgCnt = 1;
     tCommonArgs.pPoolCfg = poolcfg;
     /*step 1:sys init*/
@@ -303,6 +388,7 @@ int main(int argc, char *argv[])
     }
 
     /*step 3:npu init*/
+#ifdef AXERA_TARGET_CHIP_AX620
     AX_NPU_SDK_EX_ATTR_T sNpuAttr;
     sNpuAttr.eHardMode = AX_NPU_VIRTUAL_1_1;
     s32Ret = AX_NPU_SDK_EX_Init_with_attr(&sNpuAttr);
@@ -311,6 +397,7 @@ int main(int argc, char *argv[])
         ALOGE("AX_NPU_SDK_EX_Init_with_attr failed,s32Ret:0x%x\n", s32Ret);
         goto EXIT_2;
     }
+#endif
 
     s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels);
     if (s32Ret != 0)
@@ -391,7 +478,7 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < pipe_count; i++)
         {
             create_pipeline(&pipelines[i]);
-            if (pipelines[i].m_ivps_attr.n_osd_rgn > 0)
+            if (pipelines[i].enable && pipelines[i].m_ivps_attr.n_osd_rgn > 0)
             {
                 g_sample.pipes_need_osd.push_back(&pipelines[i]);
             }
@@ -407,7 +494,7 @@ int main(int argc, char *argv[])
         RTSPClient *rtspClient = new RTSPClient();
         if (rtspClient->openURL(rtsp_url, 1, 2) == 0)
         {
-            if (rtspClient->playURL(frameHandlerFunc, &pipelines[0], NULL, NULL) == 0)
+            if (rtspClient->playURL(frameHandlerFunc, &pipelines[1], NULL, NULL) == 0)
             {
                 while (!gLoopExit)
                 {
@@ -420,7 +507,7 @@ int main(int argc, char *argv[])
         gLoopExit = 1;
         sleep(1);
         pipeline_buffer_t end_buf = {0};
-        user_input(&pipelines[0], 1, &end_buf);
+        user_input(&pipelines[1], 1, &end_buf);
     }
 
     // 销毁pipeline

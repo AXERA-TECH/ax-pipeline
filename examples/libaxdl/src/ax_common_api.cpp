@@ -149,4 +149,133 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
     return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
 }
 #elif defined(AXERA_TARGET_CHIP_AX650)
+#include "ax_ive_api.h"
+
+static struct ive_init_t
+{
+    ive_init_t()
+    {
+        int ret = AX_IVE_Init();
+        if (ret != 0)
+        {
+            ALOGE("Ive init failed, s32Ret=0x%x!\n", ret);
+        }
+    }
+    ~ive_init_t()
+    {
+        AX_IVE_Exit();
+    }
+} tmp_ive_init_t;
+
+void cvt(axdl_image_t *src, AX_IVE_IMAGE_T *dst)
+{
+    memset(dst, 0, sizeof(AX_IVE_IMAGE_T));
+    dst->u32Height = src->nHeight;
+    dst->u32Width = src->nWidth;
+    dst->au32Stride[0] = src->tStride_C;
+    dst->au64PhyAddr[0] = src->pPhy;
+    dst->au64VirAddr[0] = (AX_U64)src->pVir;
+    switch (src->eDtype)
+    {
+    case axdl_color_space_nv12:
+        dst->enType = AX_IVE_IMAGE_TYPE_YUV420SP;
+        dst->enGlbType = AX_FORMAT_YUV420_SEMIPLANAR;
+
+        dst->au32Stride[1] = dst->au32Stride[0];
+        dst->au64PhyAddr[1] = dst->au64PhyAddr[0] + dst->au32Stride[0] * dst->u32Height;
+        dst->au64VirAddr[1] = dst->au64VirAddr[0] + dst->au32Stride[0] * dst->u32Height;
+        break;
+    case axdl_color_space_nv21:
+        dst->enType = AX_IVE_IMAGE_TYPE_YUV420SP;
+        dst->enGlbType = AX_FORMAT_YUV420_SEMIPLANAR_VU;
+
+        dst->au32Stride[1] = dst->au32Stride[0];
+        dst->au64PhyAddr[1] = dst->au64PhyAddr[0] + dst->au32Stride[0] * dst->u32Height;
+        dst->au64VirAddr[1] = dst->au64VirAddr[0] + dst->au32Stride[0] * dst->u32Height;
+        break;
+    case axdl_color_space_bgr:
+        dst->enType = AX_IVE_IMAGE_TYPE_U8C3_PACKAGE;
+        dst->enGlbType = AX_FORMAT_BGR888;
+        break;
+    case axdl_color_space_rgb:
+        dst->enType = AX_IVE_IMAGE_TYPE_U8C3_PACKAGE;
+        dst->enGlbType = AX_FORMAT_RGB888;
+        break;
+    default:
+        ALOGE("UNKNOW TYPE");
+        break;
+    }
+}
+
+int ax_imgproc_csc(axdl_image_t *src, axdl_image_t *dst)
+{
+    AX_IVE_IMAGE_T ive_src, ive_dst;
+    cvt(src, &ive_src);
+    cvt(dst, &ive_dst);
+    AX_IVE_HANDLE IveHandle;
+    return AX_IVE_CSC(&IveHandle, &ive_src, &ive_dst, AX_IVE_ENGINE_IVE, AX_TRUE);
+}
+int ax_imgproc_warp(axdl_image_t *src, axdl_image_t *dst, const float *pMat33, const int const_val)
+{
+    AX_IVE_IMAGE_T ive_src, ive_dst;
+    cvt(src, &ive_src);
+    cvt(dst, &ive_dst);
+    AX_IVE_HANDLE IveHandle;
+    return -1;
+}
+
+int _ax_imgproc_crop_resize(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, AX_IVE_CROP_RESIZE_CTRL_T *resize_ctrl)
+{
+    AX_IVE_IMAGE_T ive_src, ive_dst;
+    cvt(src, &ive_src);
+    cvt(dst, &ive_dst);
+    AX_IVE_HANDLE IveHandle;
+
+    AX_IVE_RECT_U16_T Box = {0};
+    AX_IVE_RECT_U16_T *ppbox[1] = {0};
+    if (box)
+    {
+        box->x = MAX((int)box->x, 0);
+        box->y = MAX((int)box->y, 0);
+
+        box->w = MIN((int)box->w, (int)src->nWidth - (int)box->x);
+        box->h = MIN((int)box->h, (int)src->nHeight - (int)box->y);
+
+        box->w = int(box->w) - int(box->w) % 2;
+        box->h = int(box->h) - int(box->h) % 2;
+
+        Box.u16X = box->x;
+        Box.u16Y = box->y;
+        Box.u16Width = box->w;
+        Box.u16Height = box->h;
+        ppbox[0] = &Box;
+    }
+
+    AX_IVE_IMAGE_T *p_ive_dst = &ive_dst;
+
+    return AX_IVE_CropResize(&IveHandle, &ive_src, &p_ive_dst, ppbox, resize_ctrl, AX_IVE_ENGINE_IVE, AX_TRUE);
+}
+
+int ax_imgproc_crop_resize(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box)
+{
+    AX_IVE_CROP_RESIZE_CTRL_T resize_ctrl;
+    resize_ctrl.u16Num = 1;
+    resize_ctrl.u32BorderColor = 128;
+    resize_ctrl.enAlign[0] = AX_IVE_ASPECT_RATIO_FORCE_RESIZE;
+    resize_ctrl.enAlign[1] = AX_IVE_ASPECT_RATIO_FORCE_RESIZE;
+    return _ax_imgproc_crop_resize(src, dst, box, &resize_ctrl);
+}
+int ax_imgproc_crop_resize_keep_ratio(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box)
+{
+    AX_IVE_CROP_RESIZE_CTRL_T resize_ctrl;
+    resize_ctrl.u16Num = 1;
+    resize_ctrl.u32BorderColor = 128;
+    resize_ctrl.enAlign[0] = AX_IVE_ASPECT_RATIO_HORIZONTAL_CENTER;
+    resize_ctrl.enAlign[1] = AX_IVE_ASPECT_RATIO_VERTICAL_CENTER;
+    return _ax_imgproc_crop_resize(src, dst, box, &resize_ctrl);
+}
+int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *dst)
+{
+    return -1;
+}
 #endif

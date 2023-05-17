@@ -1,6 +1,6 @@
 #include "common_func.h"
 #include "../utilities/sample_log.h"
-
+#ifdef AXERA_TARGET_CHIP_AX620
 static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10Sdr[] = {
     {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP, 15}, /*vin raw10 use */
     {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 4},  /*vin raw16 use */
@@ -311,3 +311,6 @@ int COMMON_SET_CAM(CAMERA_T gCams[MAX_CAMERAS], COMMON_SYS_CASE_E eSysCase, AX_S
     }
     return 0;
 }
+#elif defined(AXERA_TARGET_CHIP_AX650)
+
+#endif
