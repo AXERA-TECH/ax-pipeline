@@ -2,6 +2,7 @@ function(targetlink name input_type)
     target_include_directories(${name} PRIVATE ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(${name} PRIVATE ${OpenCV_LIBS})
 
+    target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/examples/common/common_pipeline)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../sample/common)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include/npu_cv_kit)

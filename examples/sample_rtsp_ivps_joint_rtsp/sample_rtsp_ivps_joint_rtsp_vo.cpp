@@ -21,7 +21,7 @@
 #include "../libaxdl/include/c_api.h"
 
 #include "../common/common_func.h"
-#include "../common/common_pipeline.h"
+#include "common_pipeline.h"
 
 #include "../utilities/sample_log.h"
 
@@ -287,10 +287,10 @@ static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t times
         fflush(stdout);
         break;
     case FRAME_TYPE_AUDIO:
-        printf("audio\n");
+        // printf("audio\n");
         break;
     case FRAME_TYPE_ETC:
-        printf("etc\n");
+        // printf("etc\n");
         break;
     default:
         break;

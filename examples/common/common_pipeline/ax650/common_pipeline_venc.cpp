@@ -306,6 +306,7 @@ int _create_venc_chn(pipeline_t *pipe)
         if (config.stRCInfo.eRCType == SAMPLE_RC_CBR)
         {
             AX_VENC_H265_CBR_T stH265Cbr;
+            memset(&stH265Cbr, 0, sizeof(stH265Cbr));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265CBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH265Cbr.u32Gop = config.nGOP;
@@ -322,6 +323,7 @@ int _create_venc_chn(pipeline_t *pipe)
         else if (config.stRCInfo.eRCType == SAMPLE_RC_VBR)
         {
             AX_VENC_H265_VBR_T stH265Vbr;
+            memset(&stH265Vbr, 0, sizeof(stH265Vbr));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265VBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH265Vbr.u32Gop = config.nGOP;
@@ -338,6 +340,7 @@ int _create_venc_chn(pipeline_t *pipe)
         else if (config.stRCInfo.eRCType == SAMPLE_RC_FIXQP)
         {
             AX_VENC_H265_FIXQP_T stH265FixQp;
+            memset(&stH265FixQp, 0, sizeof(stH265FixQp));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265FIXQP;
             stH265FixQp.u32Gop = config.nGOP;
             stH265FixQp.u32SrcFrameRate = config.nSrcFrameRate;
@@ -357,6 +360,7 @@ int _create_venc_chn(pipeline_t *pipe)
         if (config.stRCInfo.eRCType == SAMPLE_RC_CBR)
         {
             AX_VENC_H264_CBR_T stH264Cbr;
+            memset(&stH264Cbr, 0, sizeof(stH264Cbr));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264CBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH264Cbr.u32Gop = config.nGOP;
@@ -373,6 +377,7 @@ int _create_venc_chn(pipeline_t *pipe)
         else if (config.stRCInfo.eRCType == SAMPLE_RC_VBR)
         {
             AX_VENC_H264_VBR_T stH264Vbr;
+            memset(&stH264Vbr, 0, sizeof(stH264Vbr));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264VBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH264Vbr.u32Gop = config.nGOP;
@@ -389,6 +394,7 @@ int _create_venc_chn(pipeline_t *pipe)
         else if (config.stRCInfo.eRCType == SAMPLE_RC_FIXQP)
         {
             AX_VENC_H264_FIXQP_T stH264FixQp;
+            memset(&stH264FixQp, 0, sizeof(stH264FixQp));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264FIXQP;
             stH264FixQp.u32Gop = config.nGOP;
             stH264FixQp.u32SrcFrameRate = config.nSrcFrameRate;

@@ -21,7 +21,7 @@
 #include "../libaxdl/include/c_api.h"
 
 #include "../common/common_func.h"
-#include "../common/common_pipeline.h"
+#include "common_pipeline.h"
 
 #include "../utilities/sample_log.h"
 

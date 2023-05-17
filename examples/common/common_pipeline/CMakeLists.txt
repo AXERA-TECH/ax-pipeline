@@ -8,7 +8,7 @@ function(targetlink name)
 endfunction()
 
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
-    file(GLOB SRC_LIST "common_pipeline_ax650/*.cpp")
+    file(GLOB SRC_LIST "ax650/*.cpp")
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "ax620"
     OR AXERA_TARGET_CHIP MATCHES "AX620"
@@ -20,7 +20,7 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "AX630A"
     OR AXERA_TARGET_CHIP MATCHES "AX630a"
 )
-    file(GLOB SRC_LIST "common_pipeline/*.cpp")
+    file(GLOB SRC_LIST "ax620/*.cpp")
 endif()
 
 list(APPEND SRC_BASE_LIST
