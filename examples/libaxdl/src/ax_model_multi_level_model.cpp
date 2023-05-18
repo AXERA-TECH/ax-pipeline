@@ -64,24 +64,24 @@ void ax_model_human_pose_axppl::draw_custom(cv::Mat &image, axdl_results_t *resu
     for (int i = 0; i < results->nObjSize; i++)
     {
         static std::vector<pose::skeleton> pairs = {{15, 13, 0},
-                                                    {13, 11, 0},
-                                                    {16, 14, 0},
-                                                    {14, 12, 0},
+                                                    {13, 11, 1},
+                                                    {16, 14, 2},
+                                                    {14, 12, 3},
                                                     {11, 12, 0},
-                                                    {5, 11, 0},
-                                                    {6, 12, 0},
-                                                    {5, 6, 0},
+                                                    {5, 11, 1},
+                                                    {6, 12, 2},
+                                                    {5, 6, 3},
                                                     {5, 7, 0},
-                                                    {6, 8, 0},
-                                                    {7, 9, 0},
-                                                    {8, 10, 0},
+                                                    {6, 8, 1},
+                                                    {7, 9, 2},
+                                                    {8, 10, 3},
                                                     {1, 2, 0},
-                                                    {0, 1, 0},
-                                                    {0, 2, 0},
-                                                    {1, 3, 0},
+                                                    {0, 1, 1},
+                                                    {0, 2, 2},
+                                                    {1, 3, 3},
                                                     {2, 4, 0},
-                                                    {0, 5, 0},
-                                                    {0, 6, 0}};
+                                                    {0, 5, 1},
+                                                    {0, 6, 2}};
         if (results->mObjects[i].nLandmark == SAMPLE_BODY_LMK_SIZE)
         {
             draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_BODY_LMK_SIZE, offset_x, offset_y);
@@ -126,25 +126,25 @@ void ax_model_animal_pose_hrnet::draw_custom(cv::Mat &image, axdl_results_t *res
     for (int i = 0; i < results->nObjSize; i++)
     {
         static std::vector<pose::skeleton> pairs = {{19, 15, 0},
-                                                    {18, 14, 0},
-                                                    {17, 13, 0},
-                                                    {16, 12, 0},
+                                                    {18, 14, 1},
+                                                    {17, 13, 2},
+                                                    {16, 12, 3},
                                                     {15, 11, 0},
-                                                    {14, 10, 0},
-                                                    {13, 9, 0},
-                                                    {12, 8, 0},
+                                                    {14, 10, 1},
+                                                    {13, 9, 2},
+                                                    {12, 8, 3},
                                                     {11, 6, 0},
-                                                    {10, 6, 0},
-                                                    {9, 7, 0},
-                                                    {8, 7, 0},
+                                                    {10, 6, 1},
+                                                    {9, 7, 2},
+                                                    {8, 7, 3},
                                                     {6, 7, 0},
-                                                    {7, 5, 0},
-                                                    {5, 4, 0},
-                                                    {0, 2, 0},
+                                                    {7, 5, 1},
+                                                    {5, 4, 2},
+                                                    {0, 2, 3},
                                                     {1, 3, 0},
-                                                    {0, 1, 0},
-                                                    {0, 4, 0},
-                                                    {1, 4, 0}};
+                                                    {0, 1, 1},
+                                                    {0, 4, 2},
+                                                    {1, 4, 3}};
         if (results->mObjects[i].nLandmark == SAMPLE_ANIMAL_LMK_SIZE)
         {
             draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_ANIMAL_LMK_SIZE, offset_x, offset_y);
