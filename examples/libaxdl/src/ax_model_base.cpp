@@ -132,6 +132,7 @@ void ax_model_base::enable_track(int frame_rate, int track_buffer)
 {
     disbale_track();
     tracker = bytetracker_create(frame_rate, track_buffer);
+    b_track = true;
 }
 
 void ax_model_base::disbale_track()
@@ -141,6 +142,7 @@ void ax_model_base::disbale_track()
         bytetracker_release(&tracker);
         tracker = nullptr;
     }
+     b_track = false;
 }
 
 void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
@@ -155,7 +157,7 @@ void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fon
                       results->mObjects[i].bbox.w * image.cols,
                       results->mObjects[i].bbox.h * image.rows);
         std::string label_str = results->mObjects[i].objname;
-        if (tracker)
+        if (b_track)
         {
             label_str += " " + std::to_string(results->mObjects[i].track_id);
         }
@@ -322,11 +324,13 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 void ax_model_multi_base_t::enable_track(int frame_rate, int track_buffer)
 {
     model_0->enable_track(frame_rate, track_buffer);
+    b_track = true;
 }
 
 void ax_model_multi_base_t::disbale_track()
 {
     model_0->disbale_track();
+    b_track = false;
 }
 
 int ax_model_multi_base_t::init(void *json_obj)

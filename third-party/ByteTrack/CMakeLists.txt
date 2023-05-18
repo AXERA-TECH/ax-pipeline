@@ -13,7 +13,7 @@ add_library(${LIBRARY_NAME} STATIC
 )
 include_directories(include)
 # add_definitions(-DLINUX)
-add_definitions(-fPIC)
+add_definitions(-fPIC -std=c++17)
 
 install(TARGETS ${LIBRARY_NAME} DESTINATION lib)
 file(GLOB HEADER include/bytetrack.h)

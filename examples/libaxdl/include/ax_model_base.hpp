@@ -70,6 +70,7 @@ protected:
     float FACE_RECOGNITION_THRESHOLD = 0.4f;
     std::vector<ax_model_faceid> face_register_ids;
 
+    bool b_track = false;
     bytetracker_t tracker = nullptr;
     bytetrack_object_t tracker_objs = {0};
 
