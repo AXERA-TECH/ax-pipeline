@@ -5,7 +5,7 @@
 #include "vector"
 #include "string"
 #include "memory"
-
+#include "bytetrack.h"
 #include "opencv2/opencv.hpp"
 
 class ax_model_base
@@ -69,6 +69,9 @@ protected:
     };
     float FACE_RECOGNITION_THRESHOLD = 0.4f;
     std::vector<ax_model_faceid> face_register_ids;
+
+    bytetracker_t tracker = nullptr;
+    bytetrack_object_t tracker_objs = {0};
 
     // multi level model
     std::vector<int> CLASS_IDS;
@@ -143,6 +146,10 @@ public:
     static int get_model_type(void *json_obj, std::string &strModelType);
     static int get_runner_type(void *json_obj, std::string &strRunnerType);
 
+    static bool get_track_enable(void *json_obj);
+    virtual void enable_track(int frame_rate = 30, int track_buffer = 30);
+    virtual void disbale_track();
+
     virtual int init(void *json_obj) = 0;
     virtual void deinit() = 0;
     virtual axdl_color_space_e get_color_space() = 0;
@@ -195,6 +202,10 @@ public:
     {
         model_0->get_det_restore_resolution(width, height);
     }
+
+    virtual void enable_track(int frame_rate = 30, int track_buffer = 30) override;
+    virtual void disbale_track() override;
+
     // virtual int init(char *json_file_path);
     virtual int init(void *json_obj) override;
     virtual void deinit() override;

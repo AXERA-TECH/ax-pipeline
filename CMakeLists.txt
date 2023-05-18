@@ -66,6 +66,8 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     # opencv
     set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
     find_package(OpenCV REQUIRED)
+    
+    add_subdirectory(third-party/ByteTrack)
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
     add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
@@ -87,7 +89,8 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     # opencv
     set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
     find_package(OpenCV REQUIRED)
-    
+
+    add_subdirectory(third-party/ByteTrack)
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
     # add_subdirectory(examples/sample_run_joint)

@@ -26,6 +26,7 @@ std::map<std::string, int> ModelTypeTable = {
 
 #include "ax_model_runner_ax620.hpp"
 #include "ax_model_runner_ax650.hpp"
+#include "ax_model_base.hpp"
 
 template <typename T>
 void update_val(nlohmann::json &jsondata, const char *key, T *val)
@@ -116,6 +117,32 @@ int ax_model_base::get_runner_type(void *json_obj, std::string &strRunnerType)
     return m_runner_type;
 }
 
+bool ax_model_base::get_track_enable(void *json_obj)
+{
+    auto jsondata = *(nlohmann::json *)json_obj;
+    if (jsondata.contains("TRACK_ENABLE"))
+    {
+        bool enable = jsondata["TRACK_ENABLE"];
+        return enable;
+    }
+    return false;
+}
+
+void ax_model_base::enable_track(int frame_rate, int track_buffer)
+{
+    disbale_track();
+    tracker = bytetracker_create(frame_rate, track_buffer);
+}
+
+void ax_model_base::disbale_track()
+{
+    if (tracker)
+    {
+        bytetracker_release(&tracker);
+        tracker = nullptr;
+    }
+}
+
 void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     int x, y;
@@ -127,7 +154,13 @@ void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fon
                       results->mObjects[i].bbox.y * image.rows + offset_y,
                       results->mObjects[i].bbox.w * image.cols,
                       results->mObjects[i].bbox.h * image.rows);
-        label_size = cv::getTextSize(results->mObjects[i].objname, cv::FONT_HERSHEY_SIMPLEX, fontscale, thickness, &baseLine);
+        std::string label_str = results->mObjects[i].objname;
+        if (tracker)
+        {
+            label_str += " " + std::to_string(results->mObjects[i].track_id);
+        }
+
+        label_size = cv::getTextSize(label_str, cv::FONT_HERSHEY_SIMPLEX, fontscale, thickness, &baseLine);
         if (results->mObjects[i].bHasBoxVertices)
         {
             cv::line(image,
@@ -165,7 +198,7 @@ void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fon
         cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255, 255), -1);
 
-        cv::putText(image, results->mObjects[i].objname, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale,
+        cv::putText(image, label_str, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontscale,
                     cv::Scalar(0, 0, 0, 255), thickness);
     }
 }
@@ -229,6 +262,7 @@ void ax_model_single_base_t::deinit()
     {
         ax_sys_memfree(dstFrame.pPhy, dstFrame.pVir);
     }
+    disbale_track();
 }
 
 int ax_model_single_base_t::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
@@ -253,7 +287,46 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
         return ret;
     }
     ret = post_process(pstFrame, crop_resize_box, results);
+    if (tracker)
+    {
+
+        tracker_objs.n_objects = results->nObjSize > TRACK_OBJETCS_MAX_SIZE ? TRACK_OBJETCS_MAX_SIZE : results->nObjSize;
+        for (int i = 0; i < tracker_objs.n_objects; i++)
+        {
+            tracker_objs.objects[i].rect.x = results->mObjects[i].bbox.x;
+            tracker_objs.objects[i].rect.y = results->mObjects[i].bbox.y;
+            tracker_objs.objects[i].rect.width = results->mObjects[i].bbox.w;
+            tracker_objs.objects[i].rect.height = results->mObjects[i].bbox.h;
+            tracker_objs.objects[i].label = results->mObjects[i].label;
+            tracker_objs.objects[i].prob = results->mObjects[i].prob;
+        }
+
+        bytetracker_track(tracker, &tracker_objs);
+        // printf("%d %d \n", tracker_objs.n_objects, tracker_objs.n_track_objects);
+        results->nObjSize = tracker_objs.n_track_objects > SAMPLE_MAX_BBOX_COUNT ? SAMPLE_MAX_BBOX_COUNT : tracker_objs.n_track_objects;
+        for (int i = 0; i < results->nObjSize; i++)
+        {
+            results->mObjects[i].bbox.x = tracker_objs.track_objects[i].rect.x;
+            results->mObjects[i].bbox.y = tracker_objs.track_objects[i].rect.y;
+            results->mObjects[i].bbox.w = tracker_objs.track_objects[i].rect.width;
+            results->mObjects[i].bbox.h = tracker_objs.track_objects[i].rect.height;
+            results->mObjects[i].label = tracker_objs.track_objects[i].label;
+            results->mObjects[i].prob = tracker_objs.track_objects[i].prob;
+            results->mObjects[i].track_id = tracker_objs.track_objects[i].track_id;
+        }
+    }
+
     return ret;
+}
+
+void ax_model_multi_base_t::enable_track(int frame_rate, int track_buffer)
+{
+    model_0->enable_track(frame_rate, track_buffer);
+}
+
+void ax_model_multi_base_t::disbale_track()
+{
+    model_0->disbale_track();
 }
 
 int ax_model_multi_base_t::init(void *json_obj)

@@ -101,6 +101,7 @@ extern "C"
 
         int label;
         float prob;
+        long track_id;
         char objname[SAMPLE_OBJ_NAME_MAX_LEN];
     } axdl_object_t;
 

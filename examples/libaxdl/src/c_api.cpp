@@ -60,6 +60,15 @@ int axdl_parse_param_init(char *json_file_path, void **pModels)
     }
 
     ((ax_model_handle_t *)(*pModels))->model.reset(model);
+    bool track_enable = ax_model_base::get_track_enable(&jsondata);
+    if (track_enable)
+    {
+        ALOGI("====================================");
+        ALOGI("========== enable tracker ==========");
+        ALOGI("====================================");
+        ((ax_model_handle_t *)(*pModels))->model->enable_track();
+    }
+
     return ((ax_model_handle_t *)(*pModels))->model->init(&jsondata);
 }
 

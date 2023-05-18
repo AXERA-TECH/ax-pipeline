@@ -43,7 +43,7 @@ function(ax_include_link name input_type)
 
     # rtsp
     # target_include_directories(${name} PRIVATE ../rtsp/inc)
-    target_link_libraries(${name} PRIVATE RtspServer)
+    target_link_libraries(${name} PRIVATE RtspServer ByteTrack)
 
     if(input_type MATCHES "rtsp")
         target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/RTSP/include)
