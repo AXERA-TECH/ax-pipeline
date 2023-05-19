@@ -55,25 +55,37 @@ volatile AX_S32 gLoopExit = 0;
 int SAMPLE_MAJOR_STREAM_WIDTH = 1920;
 int SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-int SAMPLE_IVPS_ALGO_WIDTH = 960;
-int SAMPLE_IVPS_ALGO_HEIGHT = 540;
+int SAMPLE_IVPS_ALGO_WIDTH[rtsp_max_count] = {960};
+int SAMPLE_IVPS_ALGO_HEIGHT[rtsp_max_count] = {540};
 
 static struct _g_sample_
 {
-    int bRunJoint;
-    void *gModels;
-    std::map<int, ax_osd_helper> osd_helpers;
-    std::vector<pipeline_t *> pipes_need_osd[rtsp_max_count];
+    struct _model
+    {
+        int bRunJoint;
+        void *gModel;
+        ax_osd_helper osd_helper;
+        std::vector<pipeline_t *> pipes_need_osd;
+    } gModels[rtsp_max_count];
+
+    // int bRunJoint[4];
+    // void *gModels[rtsp_max_count];
+    // std::map<int, ax_osd_helper> osd_helpers;
+    // std::vector<pipeline_t *> pipes_need_osd[rtsp_max_count];
+    std::map<int, _model *> osd_target_map;
+    // std::map<int, int> osd_target;
     void Init()
     {
         for (size_t i = 0; i < rtsp_max_count; i++)
         {
-            pipes_need_osd[i].clear();
+            gModels[i].pipes_need_osd.clear();
+            gModels[i].gModel = nullptr;
+            gModels[i].bRunJoint = 0;
             // pthread_mutex_init(&g_result_mutexs[i], NULL);
         }
+        osd_target_map.clear();
         // memset(&g_result_disps[0], 0, sizeof(g_result_disps));
-        bRunJoint = 0;
-        gModels = nullptr;
+
         ALOGN("g_sample Init\n");
     }
     void Deinit()
@@ -81,8 +93,10 @@ static struct _g_sample_
 
         for (size_t i = 0; i < rtsp_max_count; i++)
         {
-            pipes_need_osd[i].clear();
-            // pthread_mutex_destroy(&g_result_mutexs[i]);
+            gModels[i].pipes_need_osd.clear();
+            gModels[i].gModel = nullptr;
+            gModels[i].bRunJoint = 0;
+            // pthread_mutex_init(&g_result_mutexs[i], NULL);
         }
 
         ALOGN("g_sample Deinit\n");
@@ -92,7 +106,7 @@ static struct _g_sample_
 void ai_inference_func(pipeline_buffer_t *buff)
 {
     pipeline_t *pipe = (pipeline_t *)buff->p_pipe;
-    if (g_sample.bRunJoint)
+    if (g_sample.osd_target_map[pipe->pipeid]->bRunJoint)
     {
         static std::map<int, axdl_results_t> mResults;
         axdl_image_t tSrcFrame = {0};
@@ -117,8 +131,9 @@ void ai_inference_func(pipeline_buffer_t *buff)
         tSrcFrame.tStride_W = buff->n_stride;
         tSrcFrame.nSize = buff->n_size;
 
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults[pipe->pipeid]);
-        g_sample.osd_helpers[pipe->pipeid].Update(&mResults[pipe->pipeid]);
+        axdl_inference(g_sample.osd_target_map[pipe->pipeid]->gModel, &tSrcFrame, &mResults[pipe->pipeid]);
+        // ALOGI("pipe=%d detect%d", pipe->pipeid, mResults[pipe->pipeid].nObjSize);
+        g_sample.osd_target_map[pipe->pipeid]->osd_helper.Update(&mResults[pipe->pipeid]);
     }
 }
 
@@ -174,7 +189,7 @@ int main(int argc, char *argv[])
     gLoopExit = 0;
     g_sample.Init();
 
-    AX_S32 isExit = 0, i, ch;
+    AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     char rtsp_url[512];
@@ -264,22 +279,23 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels);
-    if (s32Ret != 0)
-    {
-        ALOGE("sample_parse_param_det failed,run joint skip");
-        g_sample.bRunJoint = 0;
-    }
-    else
-    {
-        s32Ret = axdl_get_ivps_width_height(g_sample.gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
-        ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
-        g_sample.bRunJoint = 1;
-    }
     vpipelines.resize(rtsp_urls.size());
 
     for (size_t i = 0; i < rtsp_urls.size(); i++)
     {
+
+        s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels[i].gModel);
+        if (s32Ret != 0)
+        {
+            ALOGE("sample_parse_param_det failed,run joint skip");
+            g_sample.gModels[i].bRunJoint = 0;
+        }
+        else
+        {
+            s32Ret = axdl_get_ivps_width_height(g_sample.gModels[i].gModel, config_file, &SAMPLE_IVPS_ALGO_WIDTH[i], &SAMPLE_IVPS_ALGO_HEIGHT[i]);
+            ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH[i], SAMPLE_IVPS_ALGO_HEIGHT[i]);
+            g_sample.gModels[i].bRunJoint = 1;
+        }
         auto &pipelines = vpipelines[i];
         pipelines.resize(pipe_count);
         memset(pipelines.data(), 0, pipe_count * sizeof(pipeline_t));
@@ -291,20 +307,20 @@ int main(int argc, char *argv[])
                 pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
                 config1.n_ivps_grp = pipe_count * i + 1; // 重复的会创建失败
                 config1.n_ivps_fps = 60;
-                config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
-                config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
-                if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
+                config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH[i];
+                config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT[i];
+                if (axdl_get_model_type(g_sample.gModels[i].gModel) != MT_SEG_PPHUMSEG)
                 {
                     config1.b_letterbox = 1;
                 }
                 config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
             }
-            pipe1.enable = g_sample.bRunJoint;
+            pipe1.enable = g_sample.gModels[i].bRunJoint;
             pipe1.pipeid = pipe_count * i + 1;
             pipe1.m_input_type = pi_vdec_h264;
-            if (g_sample.gModels && g_sample.bRunJoint)
+            if (g_sample.gModels[i].gModel && g_sample.gModels[i].bRunJoint)
             {
-                switch (axdl_get_color_space(g_sample.gModels))
+                switch (axdl_get_color_space(g_sample.gModels[i].gModel))
                 {
                 case axdl_color_space_rgb:
                     pipe1.m_output_type = po_buff_rgb;
@@ -356,14 +372,16 @@ int main(int argc, char *argv[])
             create_pipeline(&pipelines[j]);
             if (pipelines[j].m_ivps_attr.n_osd_rgn > 0)
             {
-                g_sample.pipes_need_osd[i].push_back(&pipelines[j]);
+                g_sample.gModels[i].pipes_need_osd.push_back(&pipelines[j]);
             }
         }
 
-        if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
+        if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
         {
-            g_sample.osd_helpers[g_sample.pipes_need_osd[i][0]->pipeid].Start(g_sample.gModels, g_sample.pipes_need_osd[i]);
+            g_sample.gModels[i].osd_helper.Start(g_sample.gModels[i].gModel, g_sample.gModels[i].pipes_need_osd);
             // pthread_create(&g_sample.osd_tid[i], NULL, osd_funcs[i], NULL);
+            // g_sample.osd_target_map[pipelines[1].pipeid] = g_sample.gModels[i].pipes_need_osd[0]->pipeid;
+            g_sample.osd_target_map[pipelines[1].pipeid] = &g_sample.gModels[i];
         }
     }
 
@@ -408,9 +426,9 @@ int main(int argc, char *argv[])
         gLoopExit = 1;
         for (size_t i = 0; i < rtsp_urls.size(); i++)
         {
-            if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
+            if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
             {
-                g_sample.osd_helpers[g_sample.pipes_need_osd[i][0]->pipeid].Stop();
+                g_sample.gModels[i].osd_helper.Stop();
                 //            pthread_cancel(g_sample.osd_tid);
                 // s32Ret = pthread_join(g_sample.osd_tid[i], NULL);
                 // if (s32Ret < 0)
@@ -437,7 +455,10 @@ EXIT_5:
 EXIT_4:
 
 EXIT_3:
-    axdl_deinit(&g_sample.gModels);
+    for (size_t i = 0; i < rtsp_urls.size(); i++)
+    {
+        axdl_deinit(&g_sample.gModels[i].gModel);
+    }
 
 EXIT_2:
 
