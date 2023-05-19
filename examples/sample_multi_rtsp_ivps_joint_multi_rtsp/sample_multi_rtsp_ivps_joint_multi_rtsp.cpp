@@ -62,7 +62,7 @@ static struct _g_sample_
 {
     int bRunJoint;
     void *gModels;
-    ax_osd_helper osd_helpers[4];
+    std::map<int, ax_osd_helper> osd_helpers;
     std::vector<pipeline_t *> pipes_need_osd[rtsp_max_count];
     void Init()
     {
@@ -89,12 +89,12 @@ static struct _g_sample_
     }
 } g_sample;
 
-void ai_inference_func0(pipeline_buffer_t *buff)
+void ai_inference_func(pipeline_buffer_t *buff)
 {
-    static int tidx = 0;
+    pipeline_t *pipe = (pipeline_t *)buff->p_pipe;
     if (g_sample.bRunJoint)
     {
-        static axdl_results_t mResults;
+        static std::map<int, axdl_results_t> mResults;
         axdl_image_t tSrcFrame = {0};
         switch (buff->d_type)
         {
@@ -117,111 +117,12 @@ void ai_inference_func0(pipeline_buffer_t *buff)
         tSrcFrame.tStride_W = buff->n_stride;
         tSrcFrame.nSize = buff->n_size;
 
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        g_sample.osd_helpers[tidx].Update(&mResults);
+        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults[pipe->pipeid]);
+        g_sample.osd_helpers[pipe->pipeid].Update(&mResults[pipe->pipeid]);
     }
 }
 
-void ai_inference_func1(pipeline_buffer_t *buff)
-{
-    static int tidx = 1;
-    if (g_sample.bRunJoint)
-    {
-        static axdl_results_t mResults;
-        axdl_image_t tSrcFrame = {0};
-        switch (buff->d_type)
-        {
-        case po_buff_nv12:
-            tSrcFrame.eDtype = axdl_color_space_nv12;
-            break;
-        case po_buff_bgr:
-            tSrcFrame.eDtype = axdl_color_space_bgr;
-            break;
-        case po_buff_rgb:
-            tSrcFrame.eDtype = axdl_color_space_rgb;
-            break;
-        default:
-            break;
-        }
-        tSrcFrame.nWidth = buff->n_width;
-        tSrcFrame.nHeight = buff->n_height;
-        tSrcFrame.pVir = (unsigned char *)buff->p_vir;
-        tSrcFrame.pPhy = buff->p_phy;
-        tSrcFrame.tStride_W = buff->n_stride;
-        tSrcFrame.nSize = buff->n_size;
-
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        g_sample.osd_helpers[tidx].Update(&mResults);
-    }
-}
-
-void ai_inference_func2(pipeline_buffer_t *buff)
-{
-    static int tidx = 2;
-    if (g_sample.bRunJoint)
-    {
-        static axdl_results_t mResults;
-        axdl_image_t tSrcFrame = {0};
-        switch (buff->d_type)
-        {
-        case po_buff_nv12:
-            tSrcFrame.eDtype = axdl_color_space_nv12;
-            break;
-        case po_buff_bgr:
-            tSrcFrame.eDtype = axdl_color_space_bgr;
-            break;
-        case po_buff_rgb:
-            tSrcFrame.eDtype = axdl_color_space_rgb;
-            break;
-        default:
-            break;
-        }
-        tSrcFrame.nWidth = buff->n_width;
-        tSrcFrame.nHeight = buff->n_height;
-        tSrcFrame.pVir = (unsigned char *)buff->p_vir;
-        tSrcFrame.pPhy = buff->p_phy;
-        tSrcFrame.tStride_W = buff->n_stride;
-        tSrcFrame.nSize = buff->n_size;
-
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        g_sample.osd_helpers[tidx].Update(&mResults);
-    }
-}
-
-void ai_inference_func3(pipeline_buffer_t *buff)
-{
-    static int tidx = 3;
-    if (g_sample.bRunJoint)
-    {
-        static axdl_results_t mResults;
-        axdl_image_t tSrcFrame = {0};
-        switch (buff->d_type)
-        {
-        case po_buff_nv12:
-            tSrcFrame.eDtype = axdl_color_space_nv12;
-            break;
-        case po_buff_bgr:
-            tSrcFrame.eDtype = axdl_color_space_bgr;
-            break;
-        case po_buff_rgb:
-            tSrcFrame.eDtype = axdl_color_space_rgb;
-            break;
-        default:
-            break;
-        }
-        tSrcFrame.nWidth = buff->n_width;
-        tSrcFrame.nHeight = buff->n_height;
-        tSrcFrame.pVir = (unsigned char *)buff->p_vir;
-        tSrcFrame.pPhy = buff->p_phy;
-        tSrcFrame.tStride_W = buff->n_stride;
-        tSrcFrame.nSize = buff->n_size;
-
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        g_sample.osd_helpers[tidx].Update(&mResults);
-    }
-}
-
-static void frameHandlerFunc0(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
+static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
 {
     pipeline_t *pipe = (pipeline_t *)arg;
     pipeline_buffer_t buf_h264;
@@ -240,81 +141,6 @@ static void frameHandlerFunc0(void *arg, RTP_FRAME_TYPE frame_type, int64_t time
         break;
     case FRAME_TYPE_ETC:
         // printf("etc\n");
-        break;
-    default:
-        break;
-    }
-}
-
-static void frameHandlerFunc1(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
-{
-    pipeline_t *pipe = (pipeline_t *)arg;
-    pipeline_buffer_t buf_h264;
-
-    switch (frame_type)
-    {
-    case FRAME_TYPE_VIDEO:
-        buf_h264.p_vir = buf;
-        buf_h264.n_size = len;
-        user_input(pipe, 1, &buf_h264);
-        // printf("\rbuf len : %d", len);
-        fflush(stdout);
-        break;
-    case FRAME_TYPE_AUDIO:
-        // printf("audio\n");
-        break;
-    case FRAME_TYPE_ETC:
-        // printf("etc\n");
-        break;
-    default:
-        break;
-    }
-}
-
-static void frameHandlerFunc2(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
-{
-    pipeline_t *pipe = (pipeline_t *)arg;
-    pipeline_buffer_t buf_h264;
-
-    switch (frame_type)
-    {
-    case FRAME_TYPE_VIDEO:
-        buf_h264.p_vir = buf;
-        buf_h264.n_size = len;
-        user_input(pipe, 1, &buf_h264);
-        printf("\rbuf len : %d", len);
-        fflush(stdout);
-        break;
-    case FRAME_TYPE_AUDIO:
-        printf("audio\n");
-        break;
-    case FRAME_TYPE_ETC:
-        printf("etc\n");
-        break;
-    default:
-        break;
-    }
-}
-
-static void frameHandlerFunc3(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
-{
-    pipeline_t *pipe = (pipeline_t *)arg;
-    pipeline_buffer_t buf_h264;
-
-    switch (frame_type)
-    {
-    case FRAME_TYPE_VIDEO:
-        buf_h264.p_vir = buf;
-        buf_h264.n_size = len;
-        user_input(pipe, 1, &buf_h264);
-        printf("\rbuf len : %d", len);
-        fflush(stdout);
-        break;
-    case FRAME_TYPE_AUDIO:
-        printf("audio\n");
-        break;
-    case FRAME_TYPE_ETC:
-        printf("etc\n");
         break;
     default:
         break;
@@ -354,18 +180,6 @@ int main(int argc, char *argv[])
     char rtsp_url[512];
     std::vector<std::string> rtsp_urls;
     std::vector<std::vector<pipeline_t>> vpipelines;
-    std::vector<FrameHandlerFunc> rtsp_cb_funcs{
-        frameHandlerFunc0,
-        frameHandlerFunc1,
-        frameHandlerFunc2,
-        frameHandlerFunc3,
-    };
-    std::vector<pipeline_frame_callback_func> pipeline_framc_cb_func{
-        ai_inference_func0,
-        ai_inference_func1,
-        ai_inference_func2,
-        ai_inference_func3,
-    };
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
@@ -510,7 +324,7 @@ int main(int argc, char *argv[])
             }
             pipe1.n_loog_exit = 0;
             pipe1.m_vdec_attr.n_vdec_grp = i;
-            pipe1.output_func = pipeline_framc_cb_func[i]; // 图像输出的回调函数
+            pipe1.output_func = ai_inference_func; // 图像输出的回调函数
 
             pipeline_t &pipe2 = pipelines[0];
             {
@@ -548,7 +362,7 @@ int main(int argc, char *argv[])
 
         if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
         {
-            g_sample.osd_helpers[i].Start(g_sample.gModels, g_sample.pipes_need_osd[i]);
+            g_sample.osd_helpers[g_sample.pipes_need_osd[i][0]->pipeid].Start(g_sample.gModels, g_sample.pipes_need_osd[i]);
             // pthread_create(&g_sample.osd_tid[i], NULL, osd_funcs[i], NULL);
         }
     }
@@ -561,7 +375,7 @@ int main(int argc, char *argv[])
             RTSPClient *rtspClient = new RTSPClient();
             if (rtspClient->openURL(rtsp_urls[i].c_str(), 1, 2) == 0)
             {
-                if (rtspClient->playURL(rtsp_cb_funcs[i], pipelines.data(), NULL, NULL) == 0)
+                if (rtspClient->playURL(frameHandlerFunc, pipelines.data(), NULL, NULL) == 0)
                 {
                     rtsp_clients.push_back(rtspClient);
                 }
@@ -596,7 +410,7 @@ int main(int argc, char *argv[])
         {
             if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
             {
-                g_sample.osd_helpers[i].Stop();
+                g_sample.osd_helpers[g_sample.pipes_need_osd[i][0]->pipeid].Stop();
                 //            pthread_cancel(g_sample.osd_tid);
                 // s32Ret = pthread_join(g_sample.osd_tid[i], NULL);
                 // if (s32Ret < 0)

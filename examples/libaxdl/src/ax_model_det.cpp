@@ -57,11 +57,11 @@ int ax_model_yolov5::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
 
 int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    if (mSimpleRingBuffer.size())
+    if (mSimpleRingBuffer.size() == 0)
     {
         mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     }
-    
+
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
     int nOutputSize = m_runner->get_num_outputs();
@@ -137,6 +137,10 @@ void ax_model_yolov5_seg::draw_custom(cv::Mat &image, axdl_results_t *results, f
                       results->mObjects[i].bbox.y * image.rows + offset_y,
                       results->mObjects[i].bbox.w * image.cols,
                       results->mObjects[i].bbox.h * image.rows);
+        rect.x = MAX(rect.x, 0);
+        rect.y = MAX(rect.y, 0);
+        rect.width = MIN(image.cols - rect.x - 1, rect.width);
+        rect.height = MIN(image.rows - rect.y - 1, rect.height);
 
         if (results->mObjects[i].bHasMask && results->mObjects[i].mYolov5Mask.data)
         {
@@ -145,7 +149,7 @@ void ax_model_yolov5_seg::draw_custom(cv::Mat &image, axdl_results_t *results, f
             {
                 cv::Mat mask_target;
 
-                cv::resize(mask, mask_target, cv::Size(results->mObjects[i].bbox.w * image.cols, results->mObjects[i].bbox.h * image.rows), 0, 0, cv::INTER_NEAREST);
+                cv::resize(mask, mask_target, cv::Size(rect.width, rect.height), 0, 0, cv::INTER_NEAREST);
 
                 if (results->mObjects[i].label < (int)COCO_COLORS.size())
                 {
