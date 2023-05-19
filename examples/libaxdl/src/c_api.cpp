@@ -124,6 +124,16 @@ int axdl_get_ivps_width_height(void *pModels, char *json_file_path, int *width_i
     }
     return 0;
 }
+
+int axdl_set_ivps_width_height(void *pModels, int width_ivps, int height_ivps)
+{
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
+    ((ax_model_handle_t *)pModels)->model->set_det_restore_resolution(width_ivps, height_ivps);
+}
+
 axdl_color_space_e axdl_get_color_space(void *pModels)
 {
     if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
