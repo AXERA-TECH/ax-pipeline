@@ -32,5 +32,6 @@ void bytetracker_track(bytetracker_t _tracker, bytetrack_object_t *objs)
         objs->track_objects[i].prob = track_results[i].score;
         objs->track_objects[i].track_id = track_results[i].track_id;
         objs->track_objects[i].obj_id = track_results[i].obj_id;
+        objs->track_objects[i].user_data = track_results[i].user_data;
     }
 }

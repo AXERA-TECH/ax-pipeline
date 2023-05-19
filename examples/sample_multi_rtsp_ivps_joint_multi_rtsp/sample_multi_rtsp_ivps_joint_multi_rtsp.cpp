@@ -19,7 +19,7 @@
  */
 
 #include "../libaxdl/include/c_api.h"
-
+#include "../libaxdl/include/ax_osd_helper.hpp"
 #include "../common/common_func.h"
 #include "common_pipeline.h"
 
@@ -41,7 +41,12 @@
 #include "opencv2/opencv.hpp"
 
 #define pipe_count 2
+
+#ifdef AXERA_TARGET_CHIP_AX620
+#define rtsp_max_count 2
+#elif defined(AXERA_TARGET_CHIP_AX650)
 #define rtsp_max_count 4
+#endif
 
 AX_S32 s_sample_framerate = 25;
 
@@ -57,18 +62,16 @@ static struct _g_sample_
 {
     int bRunJoint;
     void *gModels;
-    pthread_mutex_t g_result_mutexs[rtsp_max_count];
-    axdl_results_t g_result_disps[rtsp_max_count];
-    pthread_t osd_tid[4];
+    ax_osd_helper osd_helpers[4];
     std::vector<pipeline_t *> pipes_need_osd[rtsp_max_count];
     void Init()
     {
         for (size_t i = 0; i < rtsp_max_count; i++)
         {
             pipes_need_osd[i].clear();
-            pthread_mutex_init(&g_result_mutexs[i], NULL);
+            // pthread_mutex_init(&g_result_mutexs[i], NULL);
         }
-        memset(&g_result_disps[0], 0, sizeof(g_result_disps));
+        // memset(&g_result_disps[0], 0, sizeof(g_result_disps));
         bRunJoint = 0;
         gModels = nullptr;
         ALOGN("g_sample Init\n");
@@ -79,344 +82,12 @@ static struct _g_sample_
         for (size_t i = 0; i < rtsp_max_count; i++)
         {
             pipes_need_osd[i].clear();
-            pthread_mutex_destroy(&g_result_mutexs[i]);
+            // pthread_mutex_destroy(&g_result_mutexs[i]);
         }
 
         ALOGN("g_sample Deinit\n");
     }
 } g_sample;
-
-void *osd_thread0(void *)
-{
-    static int tidx = 0;
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&mResults, &g_sample.g_result_disps[tidx], sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
-        for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[tidx][i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-}
-
-void *osd_thread1(void *)
-{
-    static int tidx = 1;
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&mResults, &g_sample.g_result_disps[tidx], sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
-        for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[tidx][i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-}
-
-void *osd_thread2(void *)
-{
-    static int tidx = 2;
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&mResults, &g_sample.g_result_disps[tidx], sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
-        for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[tidx][i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-}
-
-void *osd_thread3(void *)
-{
-    static int tidx = 3;
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[tidx][i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&mResults, &g_sample.g_result_disps[tidx], sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
-        for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[tidx][i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd[tidx].size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[tidx][i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-}
 
 void ai_inference_func0(pipeline_buffer_t *buff)
 {
@@ -447,9 +118,7 @@ void ai_inference_func0(pipeline_buffer_t *buff)
         tSrcFrame.nSize = buff->n_size;
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&g_sample.g_result_disps[tidx], &mResults, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
+        g_sample.osd_helpers[tidx].Update(&mResults);
     }
 }
 
@@ -482,9 +151,7 @@ void ai_inference_func1(pipeline_buffer_t *buff)
         tSrcFrame.nSize = buff->n_size;
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&g_sample.g_result_disps[tidx], &mResults, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
+        g_sample.osd_helpers[tidx].Update(&mResults);
     }
 }
 
@@ -517,9 +184,7 @@ void ai_inference_func2(pipeline_buffer_t *buff)
         tSrcFrame.nSize = buff->n_size;
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&g_sample.g_result_disps[tidx], &mResults, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
+        g_sample.osd_helpers[tidx].Update(&mResults);
     }
 }
 
@@ -552,9 +217,7 @@ void ai_inference_func3(pipeline_buffer_t *buff)
         tSrcFrame.nSize = buff->n_size;
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-        pthread_mutex_lock(&g_sample.g_result_mutexs[tidx]);
-        memcpy(&g_sample.g_result_disps[tidx], &mResults, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutexs[tidx]);
+        g_sample.osd_helpers[tidx].Update(&mResults);
     }
 }
 
@@ -703,12 +366,7 @@ int main(int argc, char *argv[])
         ai_inference_func2,
         ai_inference_func3,
     };
-    std::vector<void *(*)(void *)> osd_funcs{
-        osd_thread0,
-        osd_thread1,
-        osd_thread2,
-        osd_thread3,
-    };
+
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
     char config_file[256];
@@ -763,11 +421,11 @@ int main(int argc, char *argv[])
 
 #ifdef AXERA_TARGET_CHIP_AX620
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
+        {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 20},
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 10},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 40},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -834,13 +492,13 @@ int main(int argc, char *argv[])
             {
                 switch (axdl_get_color_space(g_sample.gModels))
                 {
-                case AX_FORMAT_RGB888:
+                case axdl_color_space_rgb:
                     pipe1.m_output_type = po_buff_rgb;
                     break;
-                case AX_FORMAT_BGR888:
+                case axdl_color_space_bgr:
                     pipe1.m_output_type = po_buff_bgr;
                     break;
-                case AX_YUV420_SEMIPLANAR:
+                case axdl_color_space_nv12:
                 default:
                     pipe1.m_output_type = po_buff_nv12;
                     break;
@@ -890,7 +548,8 @@ int main(int argc, char *argv[])
 
         if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
         {
-            pthread_create(&g_sample.osd_tid[i], NULL, osd_funcs[i], NULL);
+            g_sample.osd_helpers[i].Start(g_sample.gModels, g_sample.pipes_need_osd[i]);
+            // pthread_create(&g_sample.osd_tid[i], NULL, osd_funcs[i], NULL);
         }
     }
 
@@ -937,12 +596,13 @@ int main(int argc, char *argv[])
         {
             if (g_sample.pipes_need_osd[i].size() && g_sample.bRunJoint)
             {
+                g_sample.osd_helpers[i].Stop();
                 //            pthread_cancel(g_sample.osd_tid);
-                s32Ret = pthread_join(g_sample.osd_tid[i], NULL);
-                if (s32Ret < 0)
-                {
-                    ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
-                }
+                // s32Ret = pthread_join(g_sample.osd_tid[i], NULL);
+                // if (s32Ret < 0)
+                // {
+                //     ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
+                // }
             }
         }
 

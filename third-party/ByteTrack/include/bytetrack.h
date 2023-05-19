@@ -17,6 +17,7 @@ extern "C"
         track_rect_t rect;
         long obj_id;   // user set (optional)
         long track_id; // automatically generated
+        void *user_data;
     } track_object_t;
 
     typedef struct

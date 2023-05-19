@@ -142,7 +142,7 @@ void ax_model_base::disbale_track()
         bytetracker_release(&tracker);
         tracker = nullptr;
     }
-     b_track = false;
+    b_track = false;
 }
 
 void ax_model_base::draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
@@ -301,6 +301,7 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             tracker_objs.objects[i].rect.height = results->mObjects[i].bbox.h;
             tracker_objs.objects[i].label = results->mObjects[i].label;
             tracker_objs.objects[i].prob = results->mObjects[i].prob;
+            tracker_objs.objects[i].user_data = &results->mObjects[i];
         }
 
         bytetracker_track(tracker, &tracker_objs);
@@ -315,6 +316,28 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             results->mObjects[i].label = tracker_objs.track_objects[i].label;
             results->mObjects[i].prob = tracker_objs.track_objects[i].prob;
             results->mObjects[i].track_id = tracker_objs.track_objects[i].track_id;
+            axdl_object_t *obj = (axdl_object_t *)tracker_objs.objects[i].user_data;
+            memcpy(results->mObjects[i].objname, obj->objname, sizeof(results->mObjects[i].objname));
+            if (obj->bHasBoxVertices)
+            {
+                results->mObjects[i].bHasBoxVertices = obj->bHasBoxVertices;
+                memcpy(results->mObjects[i].bbox_vertices, obj->bbox_vertices, sizeof(results->mObjects[i].bbox_vertices));
+            }
+            if (obj->nLandmark)
+            {
+                results->mObjects[i].nLandmark = obj->nLandmark;
+                results->mObjects[i].landmark = obj->landmark;
+            }
+            if (obj->bHasMask)
+            {
+                results->mObjects[i].bHasMask = obj->bHasMask;
+                memcpy(&results->mObjects[i].mYolov5Mask, &obj->mYolov5Mask, sizeof(results->mObjects[i].mYolov5Mask));
+            }
+            if (obj->bHasFaceFeat)
+            {
+                results->mObjects[i].bHasFaceFeat = obj->bHasFaceFeat;
+                memcpy(&results->mObjects[i].mFaceFeat, &obj->mFaceFeat, sizeof(results->mObjects[i].mFaceFeat));
+            }
         }
     }
 

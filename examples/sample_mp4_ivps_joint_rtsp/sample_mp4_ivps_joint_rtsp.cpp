@@ -19,7 +19,7 @@
  */
 
 #include "../libaxdl/include/c_api.h"
-
+#include "../libaxdl/include/ax_osd_helper.hpp"
 #include "../common/common_func.h"
 #include "common_pipeline.h"
 
@@ -54,14 +54,10 @@ static struct _g_sample_
 {
     int bRunJoint;
     void *gModels;
-    pthread_mutex_t g_result_mutex;
-    axdl_results_t g_result_disp;
-    pthread_t osd_tid;
+    ax_osd_helper osd_helper;
     std::vector<pipeline_t *> pipes_need_osd;
     void Init()
     {
-        pthread_mutex_init(&g_result_mutex, NULL);
-        memset(&g_result_disp, 0, sizeof(axdl_results_t));
         bRunJoint = 0;
         gModels = nullptr;
         ALOGN("g_sample Init\n");
@@ -69,173 +65,10 @@ static struct _g_sample_
     void Deinit()
     {
         pipes_need_osd.clear();
-        pthread_mutex_destroy(&g_result_mutex);
+        
         ALOGN("g_sample Deinit\n");
     }
 } g_sample;
-
-void *osd_thread(void *)
-{
-#ifdef AXERA_TARGET_CHIP_AX620
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_S> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_S));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutex);
-        memcpy(&mResults, &g_sample.g_result_disp, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutex);
-        for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_S &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 1024;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-#elif defined(AXERA_TARGET_CHIP_AX650)
-    std::map<int, axdl_canvas_t> pipes_osd_canvas;
-    std::map<int, AX_IVPS_RGN_DISP_GROUP_T> pipes_osd_struct;
-    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-    {
-        pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
-        memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_T));
-        canvas.channel = 4;
-        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
-        canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
-        canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
-    }
-    axdl_results_t mResults;
-    while (!gLoopExit)
-    {
-        pthread_mutex_lock(&g_sample.g_result_mutex);
-        memcpy(&mResults, &g_sample.g_result_disp, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutex);
-        for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-        {
-            auto &osd_pipe = g_sample.pipes_need_osd[i];
-            if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
-            {
-                axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
-                AX_IVPS_RGN_DISP_GROUP_T &tDisp = pipes_osd_struct[osd_pipe->pipeid];
-
-                memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
-
-                axdl_draw_results(g_sample.gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
-
-                tDisp.nNum = 1;
-                tDisp.tChnAttr.nAlpha = 255;
-                tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 0;
-                tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
-                // tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
-                tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
-                tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
-
-                tDisp.arrDisp[0].bShow = AX_TRUE;
-                tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
-
-                // tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
-                // tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
-                // tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
-                // tDisp.arrDisp[0].uDisp.tOSD.u32BgColorLo = 0xFFFFFFFF;
-                // tDisp.arrDisp[0].uDisp.tOSD.u32BgColorHi = 0xFFFFFFFF;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
-                tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
-                tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-
-                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
-                if (0 != ret)
-                {
-                    static int cnt = 0;
-                    if (cnt++ % 100 == 0)
-                    {
-                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
-                    }
-                    usleep(30 * 1000);
-                }
-            }
-        }
-        // freeObjs(&mResults);
-        usleep(0);
-    }
-    for (size_t i = 0; i < g_sample.pipes_need_osd.size(); i++)
-    {
-        auto &canvas = pipes_osd_canvas[g_sample.pipes_need_osd[i]->pipeid];
-        free(canvas.data);
-    }
-    return NULL;
-#endif
-}
 
 void ai_inference_func(pipeline_buffer_t *buff)
 {
@@ -266,9 +99,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
 
         axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
 
-        pthread_mutex_lock(&g_sample.g_result_mutex);
-        memcpy(&g_sample.g_result_disp, &mResults, sizeof(axdl_results_t));
-        pthread_mutex_unlock(&g_sample.g_result_mutex);
+        g_sample.osd_helper.Update(&mResults);
     }
 }
 
@@ -285,7 +116,7 @@ int _mp4_frame_callback(const void *buff, int len, frame_type_e type, void *rese
     buf_h26x.p_vir = (void *)buff;
     buf_h26x.n_size = len;
     user_input((pipeline_t *)reserve, 1, &buf_h26x);
-    usleep(10*1000);
+    usleep(10 * 1000);
     return 0;
 }
 
@@ -416,8 +247,8 @@ int main(int argc, char *argv[])
         pipeline_t &pipe0 = pipelines[0];
         {
             pipeline_ivps_config_t &config0 = pipe0.m_ivps_attr;
-            config0.n_ivps_grp = 0;  // 重复的会创建失败
-            config0.n_ivps_fps = 30; // 屏幕只能是60gps
+            config0.n_ivps_grp = 0;                  // 重复的会创建失败
+            config0.n_ivps_fps = s_sample_framerate; // 屏幕只能是60gps
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
             config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
@@ -435,7 +266,7 @@ int main(int argc, char *argv[])
         {
             pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
             config1.n_ivps_grp = 1; // 重复的会创建失败
-            config1.n_ivps_fps = 60;
+            config1.n_ivps_fps = s_sample_framerate;
             config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
             if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
@@ -482,7 +313,7 @@ int main(int argc, char *argv[])
 
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
-            pthread_create(&g_sample.osd_tid, NULL, osd_thread, NULL);
+            g_sample.osd_helper.Start(g_sample.gModels,g_sample.pipes_need_osd);
         }
     }
 
@@ -501,15 +332,16 @@ int main(int argc, char *argv[])
         gLoopExit = 1;
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
+            g_sample.osd_helper.Stop();
             //            pthread_cancel(g_sample.osd_tid);
-            if (g_sample.osd_tid)
-            {
-                s32Ret = pthread_join(g_sample.osd_tid, NULL);
-                if (s32Ret < 0)
-                {
-                    ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
-                }
-            }
+            // if (g_sample.osd_tid)
+            // {
+            //     s32Ret = pthread_join(g_sample.osd_tid, NULL);
+            //     if (s32Ret < 0)
+            //     {
+            //         ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
+            //     }
+            // }
         }
 
         for (size_t i = 0; i < pipe_count; i++)
