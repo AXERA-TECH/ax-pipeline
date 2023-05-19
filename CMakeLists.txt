@@ -101,6 +101,7 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     add_subdirectory(examples/sample_vin_ivps_joint_vo)
     # add_subdirectory(examples/sample_vin_joint)
     add_subdirectory(examples/sample_mp4_ivps_joint_vo)
+    add_subdirectory(examples/sample_mp4_ivps_joint_rtsp)
     add_subdirectory(examples/sample_h264_ivps_joint_vo)
     add_subdirectory(examples/sample_vin_ivps_joint_vo_h265)
     add_subdirectory(examples/sample_v4l2_ivps_joint_vo)

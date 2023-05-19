@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLOX_PPL",
     "MODEL_PATH": "./models/ax_person_det.joint",
+    "TRACK_ENABLE": true,
     "CLASS_NAMES": [
         "person"
     ],

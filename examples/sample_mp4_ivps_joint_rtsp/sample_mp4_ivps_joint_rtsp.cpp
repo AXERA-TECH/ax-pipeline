@@ -191,7 +191,7 @@ void *osd_thread(void *)
                 tDisp.nNum = 1;
                 tDisp.tChnAttr.nAlpha = 255;
                 tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
+                tDisp.tChnAttr.nZindex = 0;
                 tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
                 // tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
                 tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;

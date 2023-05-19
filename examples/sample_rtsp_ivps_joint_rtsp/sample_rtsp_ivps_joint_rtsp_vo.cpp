@@ -166,7 +166,7 @@ void *osd_thread(void *)
         auto &tDisp = pipes_osd_struct[g_sample.pipes_need_osd[i]->pipeid];
         memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_T));
         canvas.channel = 4;
-        AX_SYS_MemAlloc(&canvas.dataphy, (void **)&canvas.data, g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4, 128, (const AX_S8 *)"osd_image");
+        canvas.data = (unsigned char *)malloc(g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width * g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
         canvas.width = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
         canvas.height = g_sample.pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
     }
@@ -191,7 +191,7 @@ void *osd_thread(void *)
                 tDisp.nNum = 1;
                 tDisp.tChnAttr.nAlpha = 255;
                 tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
-                tDisp.tChnAttr.nZindex = 1;
+                tDisp.tChnAttr.nZindex = 0;
                 tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
                 // tDisp.tChnAttr.nBitColor.bEnable = AX_FALSE;
                 tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
@@ -201,7 +201,6 @@ void *osd_thread(void *)
                 tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
 
                 // tDisp.arrDisp[0].uDisp.tOSD.bEnable = AX_TRUE;
-                tDisp.arrDisp[0].uDisp.tOSD.u16Alpha = 50;
                 tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
                 // tDisp.arrDisp[0].uDisp.tOSD.u32Zindex = 1;
                 // tDisp.arrDisp[0].uDisp.tOSD.u32ColorKey = 0x0;
@@ -211,9 +210,8 @@ void *osd_thread(void *)
                 tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
                 tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
                 tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
-                // tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
+                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
                 tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
-                tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = img_overlay.dataphy;
 
                 int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
                 if (0 != ret)
