@@ -9,7 +9,7 @@
 	url = https://github.com/ZHEQIUSHUI/RTSP.git
 [submodule "third-party/RtspServer/RtspServer"]
 	path = third-party/RtspServer/RtspServer
-	url = https://github.com/PHZ76/RtspServer.git
+	url = https://github.com/ZHEQIUSHUI/RtspServer.git
 [submodule "third-party/mp4demux/minimp4"]
 	path = third-party/mp4demux/minimp4
 	url = https://github.com/lieff/minimp4.git
