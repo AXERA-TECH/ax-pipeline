@@ -11,9 +11,12 @@ function(ax_include_link name input_type)
     target_link_libraries(${name} PRIVATE pthread dl) # ax620a use this
 
     target_link_libraries(${name} PRIVATE axdl common_pipeline)
+    # drm
+    target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
+    target_link_libraries(${name} PRIVATE drm)
 
     if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
-        target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine gomp stdc++fs)
+        target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
     elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
         OR AXERA_TARGET_CHIP MATCHES "ax620"
         OR AXERA_TARGET_CHIP MATCHES "AX620"
@@ -25,10 +28,6 @@ function(ax_include_link name input_type)
         OR AXERA_TARGET_CHIP MATCHES "AX630A"
         OR AXERA_TARGET_CHIP MATCHES "AX630a"
     )
-        # drm
-        target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
-        target_link_libraries(${name} PRIVATE drm)
-
         # target_link_libraries(sample_vin_ivps_joint_venc_rtsp PRIVATE pthread dl stdc++fs) # ax620u use this
         target_link_libraries(${name} PRIVATE ax_run_joint ax_interpreter_external ax_interpreter ax_sys axsyslog stdc++fs)
         target_link_libraries(${name} PRIVATE ax_venc ax_vdec ax_vo ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp)

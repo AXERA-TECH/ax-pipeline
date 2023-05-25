@@ -33,6 +33,8 @@
 #define ALIGN_UP(x, align) ((((x) + ((align)-1)) / (align)) * (align))
 #endif
 
+int _sent_frame_vo(AX_U32 voChn, AX_VIDEO_FRAME_T *tVideoFrame);
+
 void *_ivps_get_frame_thread(void *arg)
 {
     pipeline_t *pipe = (pipeline_t *)arg;
@@ -58,6 +60,17 @@ void *_ivps_get_frame_thread(void *arg)
 
         tVideoFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(tVideoFrame.u32BlkId[0]);
         tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
+        if (pipe->m_output_type == po_vo_hdmi)
+        {
+            ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
+            // ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
+            //  ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
+            if (ret != 0)
+            {
+                ALOGE("send 0x%x", ret);
+            }
+            //
+        }
 
         // ax_runner_image_t tSrcFrame = {0};
         // tSrcFrame.nWidth = tVideoFrame.u32Width;
@@ -273,6 +286,7 @@ int _create_ivps_grp(pipeline_t *pipe)
     case po_buff_bgr:
     case po_buff_nv12:
     case po_buff_nv21:
+    case po_vo_hdmi:
         if (stPipelineAttr.nOutFifoDepth[nChn] > 0)
         {
             if (0 != pthread_create(&pipe->m_ivps_attr.tid, NULL, _ivps_get_frame_thread, pipe))
@@ -283,7 +297,7 @@ int _create_ivps_grp(pipeline_t *pipe)
         else
         {
 
-            ALOGW("m_output_type set po_buff mode,but pipe->m_ivps_attr.n_fifo_count got %d", pipe->m_ivps_attr.n_fifo_count);
+            ALOGW("m_output_type set po_buff/po_vo_hdmi mode,but pipe->m_ivps_attr.n_fifo_count got %d", pipe->m_ivps_attr.n_fifo_count);
         }
         break;
     default:

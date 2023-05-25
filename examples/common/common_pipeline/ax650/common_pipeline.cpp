@@ -43,6 +43,7 @@ typedef struct
     std::map<int, pipeline_t *> pipeid_pipe;
 
     bool b_maix3_init = false;
+    bool b_hdmi_init = false;
 
     rtsp_server_t rDemoHandle = NULL;
     std::map<int, rtsp_session_t> rtsp_pipeid_sessiones;
@@ -124,6 +125,8 @@ static void PrintRtsp(std::string rtsp_path)
 
 int _create_vo(char *pStr, pipeline_t *pipe);
 void _destory_vo();
+int _create_vo_hdmi(pipeline_t *pipe);
+int _destory_vo_hdmi();
 int _create_ivps_grp(pipeline_t *pipe);
 int _destore_ivps_grp(pipeline_t *pipe);
 int _create_venc_chn(pipeline_t *pipe);
@@ -418,6 +421,29 @@ int create_pipeline(pipeline_t *pipe)
         }
     }
     break;
+    case po_vo_hdmi:
+    {
+        if (!pipeline_handle.b_hdmi_init)
+        {
+            int ret = _create_vo_hdmi(pipe);
+            if (ret != 0)
+            {
+                ALOGE("_create_vo_hdmi failed %d", ret);
+                return -1;
+            }
+
+            pipeline_handle.b_hdmi_init = true;
+        }
+        // AX_MOD_INFO_T srcMod, dstMod;
+        // srcMod.enModId = AX_ID_IVPS;
+        // srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
+        // srcMod.s32ChnId = 0;
+        // dstMod.enModId = AX_ID_VO;
+        // dstMod.s32GrpId = 0;
+        // dstMod.s32ChnId = pipe->m_vo_attr.hdmi.n_chn;
+        // AX_SYS_Link(&srcMod, &dstMod);
+    }
+    break;
     default:
         break;
     }
@@ -518,6 +544,23 @@ int destory_pipeline(pipeline_t *pipe)
             _destory_vo();
             pipeline_handle.b_maix3_init = false;
         }
+    }
+    break;
+    case po_vo_hdmi:
+    {
+        if (pipeline_handle.b_hdmi_init)
+        {
+            _destory_vo_hdmi();
+            pipeline_handle.b_hdmi_init = false;
+        }
+        // AX_MOD_INFO_T srcMod, dstMod;
+        // srcMod.enModId = AX_ID_IVPS;
+        // srcMod.s32GrpId = pipe->m_ivps_attr.n_ivps_grp;
+        // srcMod.s32ChnId = 0;
+        // dstMod.enModId = AX_ID_VO;
+        // dstMod.s32GrpId = 0;
+        // dstMod.s32ChnId = pipe->m_vo_attr.hdmi.n_chn;
+        // AX_SYS_UnLink(&srcMod, &dstMod);
     }
     break;
     default:

@@ -62,7 +62,26 @@ extern "C"
 
         po_vo = 0x40,
         po_vo_sipeed_maix3_screen,
+        po_vo_hdmi,
     } pipeline_output_e;
+    
+    typedef enum
+    {
+        phv_1920x1080p25,
+        phv_1920x1080p30,
+        phv_1920x1080p50,
+        phv_1920x1080p60,
+
+        phv_3840x2160p25,
+        phv_3840x2160p30,
+        phv_3840x2160p50,
+        phv_3840x2160p60,
+
+        phv_4096x2160p25,
+        phv_4096x2160p30,
+        phv_4096x2160p50,
+        phv_4096x2160p60,
+    } pipeline_hdmi_vo_e;
 
     typedef struct
     {
@@ -99,6 +118,20 @@ extern "C"
         unsigned long int tid; // internal variable
     } pipeline_venc_config_t;
 
+    typedef struct 
+    {
+        struct 
+        {
+#define MAX_VO_CHN_COUNT 32
+            int n_vo_count;
+            pipeline_hdmi_vo_e e_hdmi_type;
+            int n_chn;
+            int frame_rate;
+            // int n_chns_len;
+            // int n_chns[MAX_VO_CHN_COUNT];
+        } hdmi;
+    } pipeline_vo_config_t;
+    
     typedef struct
     {
 #define MAX_VDEC_GRP_COUNT 16
@@ -144,6 +177,8 @@ extern "C"
         pipeline_ivps_config_t m_ivps_attr;
 
         pipeline_venc_config_t m_venc_attr;
+
+        pipeline_vo_config_t m_vo_attr;
 
         pipeline_frame_callback_func output_func;
 

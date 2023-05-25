@@ -32,6 +32,10 @@ struct ax_model_handle_t
 {
     std::shared_ptr<ax_model_base> model = nullptr;
     std::mutex locker;
+
+    int fcnt = 0;
+    int fps = -1;
+    struct timespec ts1, ts2;
 };
 
 int axdl_parse_param_init(char *json_file_path, void **pModels)
@@ -201,10 +205,11 @@ int axdl_inference(void *pModels, axdl_image_t *pstFrame, axdl_results_t *pResul
     }
 
     {
-        static int fcnt = 0;
-        static int fps = -1;
+        int &fcnt = ((ax_model_handle_t *)pModels)->fcnt;
+        int &fps = ((ax_model_handle_t *)pModels)->fps;
+        struct timespec &ts1 = ((ax_model_handle_t *)pModels)->ts1,
+                        &ts2 = ((ax_model_handle_t *)pModels)->ts2;
         fcnt++;
-        static struct timespec ts1, ts2;
         clock_gettime(CLOCK_MONOTONIC, &ts2);
         if ((ts2.tv_sec * 1000 + ts2.tv_nsec / 1000000) - (ts1.tv_sec * 1000 + ts1.tv_nsec / 1000000) >= 1000)
         {
