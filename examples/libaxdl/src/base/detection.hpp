@@ -44,6 +44,7 @@ namespace detection
         /* for yolov5-seg */
         cv::Mat mask;
         std::vector<float> mask_feat;
+        std::vector<float> kps_feat;
     } Object;
 
     /* for palm hand detection */
@@ -57,16 +58,18 @@ namespace detection
         cv::Mat affine_trans_mat_inv;
     } PalmObject;
 
-    static float softmax(const float* src, float* dst, int length)
+    static float softmax(const float *src, float *dst, int length)
     {
         const float alpha = *std::max_element(src, src + length);
         float denominator = 0;
         float dis_sum = 0;
-        for (int i = 0; i < length; ++i) {
+        for (int i = 0; i < length; ++i)
+        {
             dst[i] = exp(src[i] - alpha);
             denominator += dst[i];
         }
-        for (int i = 0; i < length; ++i) {
+        for (int i = 0; i < length; ++i)
+        {
             dst[i] /= denominator;
             dis_sum += i * dst[i];
         }
@@ -936,6 +939,69 @@ namespace detection
 
                     feature_ptr += (cls_num + 5 + mask_proto_dim);
                 }
+            }
+        }
+    }
+
+    static void get_out_bbox_kps(std::vector<Object> &proposals, std::vector<Object> &objects, const float nms_threshold, int letterbox_rows, int letterbox_cols, int src_rows, int src_cols)
+    {
+        qsort_descent_inplace(proposals);
+        std::vector<int> picked;
+        nms_sorted_bboxes(proposals, picked, nms_threshold);
+
+        /* yolov8 draw the result */
+        float scale_letterbox;
+        int resize_rows;
+        int resize_cols;
+        if ((letterbox_rows * 1.0 / src_rows) < (letterbox_cols * 1.0 / src_cols))
+        {
+            scale_letterbox = letterbox_rows * 1.0 / src_rows;
+        }
+        else
+        {
+            scale_letterbox = letterbox_cols * 1.0 / src_cols;
+        }
+        resize_cols = int(scale_letterbox * src_cols);
+        resize_rows = int(scale_letterbox * src_rows);
+
+        int tmp_h = (letterbox_rows - resize_rows) / 2;
+        int tmp_w = (letterbox_cols - resize_cols) / 2;
+
+        float ratio_x = (float)src_rows / resize_rows;
+        float ratio_y = (float)src_cols / resize_cols;
+
+        int count = picked.size();
+
+        objects.resize(count);
+        for (int i = 0; i < count; i++)
+        {
+            objects[i] = proposals[picked[i]];
+            float x0 = (objects[i].rect.x);
+            float y0 = (objects[i].rect.y);
+            float x1 = (objects[i].rect.x + objects[i].rect.width);
+            float y1 = (objects[i].rect.y + objects[i].rect.height);
+
+            x0 = (x0 - tmp_w) * ratio_x;
+            y0 = (y0 - tmp_h) * ratio_y;
+            x1 = (x1 - tmp_w) * ratio_x;
+            y1 = (y1 - tmp_h) * ratio_y;
+
+            x0 = std::max(std::min(x0, (float)(src_cols - 1)), 0.f);
+            y0 = std::max(std::min(y0, (float)(src_rows - 1)), 0.f);
+            x1 = std::max(std::min(x1, (float)(src_cols - 1)), 0.f);
+            y1 = std::max(std::min(y1, (float)(src_rows - 1)), 0.f);
+
+            objects[i].rect.x = x0;
+            objects[i].rect.y = y0;
+            objects[i].rect.width = x1 - x0;
+            objects[i].rect.height = y1 - y0;
+
+            for (int j = 0; j < objects[i].kps_feat.size() / 3; j++)
+            {
+                objects[i].kps_feat[j * 3] = std::max(
+                    std::min((objects[i].kps_feat[j * 3] - tmp_w) * ratio_x, (float)(src_cols - 1)), 0.f);
+                objects[i].kps_feat[j * 3 + 1] = std::max(
+                    std::min((objects[i].kps_feat[j * 3 + 1] - tmp_h) * ratio_y, (float)(src_rows - 1)), 0.f);
             }
         }
     }

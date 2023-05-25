@@ -11,7 +11,7 @@
 
 #include "base/pose.hpp"
 
-static inline void draw_pose_result(cv::Mat &img, axdl_object_t *pObj, std::vector<pose::skeleton> &pairs, int joints_num, int offset_x, int offset_y)
+void draw_pose_result(cv::Mat &img, axdl_object_t *pObj, std::vector<pose::skeleton> &pairs, int joints_num, int offset_x, int offset_y)
 {
     for (int i = 0; i < joints_num; i++)
     {

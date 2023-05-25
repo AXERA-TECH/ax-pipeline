@@ -2,6 +2,7 @@
 #include "../../utilities/json.hpp"
 
 #include "../../utilities/sample_log.h"
+#include "base/pose.hpp"
 
 #define ANCHOR_SIZE_PER_STRIDE 6
 
@@ -1112,4 +1113,162 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
         }
     }
     return 0;
+}
+
+int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (mSimpleRingBuffer.size() == 0)
+    {
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
+    }
+
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+
+    if (!grids.size())
+    {
+        for (size_t i = 0; i < 3; i++)
+        {
+            int32_t stride = (1 << i) * 8;
+            int feat_w = get_algo_width() / stride;
+            int feat_h = get_algo_height() / stride;
+            for (int h = 0; h <= feat_h - 1; h++)
+            {
+                for (int w = 0; w <= feat_w - 1; w++)
+                {
+                    float pb_cx = (w + 0.5f);
+                    float pb_cy = (h + 0.5f);
+                    grids.push_back({pb_cx, pb_cy, float(stride), float(w), float(h)});
+                }
+            }
+        }
+    }
+
+    float *output_prob = (float *)m_runner->get_output(0).pVirAddr;
+    float *output_bbox = (float *)m_runner->get_output(3).pVirAddr;
+    float *output_pose_prob = (float *)m_runner->get_output(2).pVirAddr;
+    float *output_pose = (float *)m_runner->get_output(1).pVirAddr;
+
+    for (size_t i = 0; i < grids.size(); i++)
+    {
+        int maxid = -1;
+        float maxval = -FLT_MAX;
+        for (size_t j = 0; j < CLASS_NUM; j++)
+        {
+            if (output_prob[j] > maxval)
+            {
+                maxval = output_prob[j];
+                maxid = j;
+            }
+        }
+
+        if (maxval > PROB_THRESHOLD)
+        {
+            auto grid = grids[i];
+            detection::Object obj;
+            obj.label = maxid;
+            obj.prob = maxval;
+            float x0 = grid[0] - output_bbox[0];
+            float y0 = grid[1] - output_bbox[1];
+            float x1 = grid[0] + output_bbox[2];
+            float y1 = grid[1] + output_bbox[3];
+            float cx = ((x0 + x1) / 2) * grid[2];
+            float cy = ((y0 + y1) / 2) * grid[2];
+            float width = (x1 - x0) * grid[2];
+            float height = (y1 - y0) * grid[2];
+
+            obj.rect.x = cx - width / 2;
+            obj.rect.y = cy - height / 2;
+            obj.rect.width = width;
+            obj.rect.height = height;
+
+            for (size_t k = 0; k < SAMPLE_BODY_LMK_SIZE; k++)
+            {
+                float xp = output_pose[2 * k] * 2;
+                float yp = output_pose[2 * k + 1] * 2;
+                float prob = output_pose_prob[k];
+                xp += grid[3];
+                yp += grid[4];
+                xp *= grid[2];
+                yp *= grid[2];
+                obj.kps_feat.push_back(xp);
+                obj.kps_feat.push_back(yp);
+                obj.kps_feat.push_back(prob);
+            }
+
+            proposals.push_back(obj);
+        }
+
+        output_prob += CLASS_NUM;
+        output_bbox += 4;
+        output_pose_prob += SAMPLE_BODY_LMK_SIZE;
+        output_pose += SAMPLE_BODY_LMK_SIZE * 2;
+    }
+
+    detection::get_out_bbox_kps(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+        results->mObjects[i].nLandmark = SAMPLE_BODY_LMK_SIZE;
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
+        points.resize(results->mObjects[i].nLandmark);
+        results->mObjects[i].landmark = points.data();
+        for (size_t j = 0; j < SAMPLE_BODY_LMK_SIZE; j++)
+        {
+            results->mObjects[i].landmark[j].x = obj.kps_feat[3 * j];
+            results->mObjects[i].landmark[j].y = obj.kps_feat[3 * j + 1];
+        }
+
+        if (obj.label < (int)CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+
+    return 0;
+}
+
+void draw_pose_result(cv::Mat &img, axdl_object_t *pObj, std::vector<pose::skeleton> &pairs, int joints_num, int offset_x, int offset_y);
+
+void ax_model_yolov8_pose_650::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+{
+    draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        static std::vector<pose::skeleton> pairs = {{15, 13, 0},
+                                                    {13, 11, 1},
+                                                    {16, 14, 2},
+                                                    {14, 12, 3},
+                                                    {11, 12, 0},
+                                                    {5, 11, 1},
+                                                    {6, 12, 2},
+                                                    {5, 6, 3},
+                                                    {5, 7, 0},
+                                                    {6, 8, 1},
+                                                    {7, 9, 2},
+                                                    {8, 10, 3},
+                                                    {1, 2, 0},
+                                                    {0, 1, 1},
+                                                    {0, 2, 2},
+                                                    {1, 3, 3},
+                                                    {2, 4, 0},
+                                                    {0, 5, 1},
+                                                    {0, 6, 2}};
+        if (results->mObjects[i].nLandmark == SAMPLE_BODY_LMK_SIZE)
+        {
+            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_BODY_LMK_SIZE, offset_x, offset_y);
+        }
+    }
 }

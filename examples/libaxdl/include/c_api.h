@@ -31,6 +31,7 @@ extern "C"
         MT_DET_SCRFD,
         MT_DET_YOLOV8,
         MT_DET_YOLOV8_SEG,
+        MT_DET_YOLOV8_POSE_650,
         MT_DET_CROWD_COUNT,
 
         // segmentation

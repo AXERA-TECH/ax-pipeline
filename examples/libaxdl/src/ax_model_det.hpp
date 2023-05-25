@@ -137,3 +137,13 @@ protected:
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
 REGISTER(MT_DET_YOLOV8_SEG, ax_model_yolov8_seg)
+
+class ax_model_yolov8_pose_650 : public ax_model_yolov5_face
+{
+protected:
+    std::vector<std::vector<float>> grids;
+    // int NUM_POINT = 17;
+    int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
+    void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+};
+REGISTER(MT_DET_YOLOV8_POSE_650, ax_model_yolov8_pose_650)

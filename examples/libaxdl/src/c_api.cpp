@@ -35,7 +35,7 @@ struct ax_model_handle_t
 
     int fcnt = 0;
     int fps = -1;
-    struct timespec ts1, ts2;
+    struct timespec ts1{0}, ts2{0};
 };
 
 int axdl_parse_param_init(char *json_file_path, void **pModels)
