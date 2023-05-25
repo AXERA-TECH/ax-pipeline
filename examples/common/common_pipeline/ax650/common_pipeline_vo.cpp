@@ -30,6 +30,8 @@
 #include "common_vo.h"
 // #include "ax_vo_api.h"
 
+#define HDMI_MAX_DEV 1
+
 int _create_vo(char *pStr, pipeline_t *pipe)
 {
     ALOGE("");
@@ -308,21 +310,28 @@ static struct
     AX_VO_RECT_T stArea{0, 0, 1920, 1080};
     uint nHz = 60;
     bool inited = false;
-} gHdmiAttr;
+} gHdmiAttr[2];
 
 int _create_vo_hdmi(pipeline_t *pipe)
 {
     ALOGI("%s: +++", __func__);
     AX_VO_Init();
+    if (pipe->m_vo_attr.hdmi.portid < 0 || pipe->m_vo_attr.hdmi.portid > HDMI_MAX_DEV)
+    {
+        ALOGE("pipe->m_vo_attr.hdmi.portid must >=0&& <=%d", HDMI_MAX_DEV);
+        return -1;
+    }
+
+    gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev = pipe->m_vo_attr.hdmi.portid;
     pipeline_hdmi_vo_e _enIntfSync = pipe->m_vo_attr.hdmi.e_hdmi_type;
     int nVideoCount = pipe->m_vo_attr.hdmi.n_vo_count;
     auto enIntfSync = cvt(_enIntfSync);
-    if (!GetDispInfoFromIntfSync(enIntfSync, gHdmiAttr.stArea, gHdmiAttr.nHz))
+    if (!GetDispInfoFromIntfSync(enIntfSync, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nHz))
     {
         return -1;
     }
 
-    if (!InitLayout(nVideoCount, gHdmiAttr.stArea.u32Width, gHdmiAttr.stArea.u32Height, gHdmiAttr.m_arrChns))
+    if (!InitLayout(nVideoCount, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Width, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Height, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns))
     {
         return -1;
     }
@@ -330,15 +339,15 @@ int _create_vo_hdmi(pipeline_t *pipe)
     for (AX_U32 i = 0; i < nVideoCount; ++i)
     {
         VO_CHN voChn = i;
-        gHdmiAttr.m_arrChns[voChn].u32FifoDepth = gHdmiAttr.nPoolCnt;
-        gHdmiAttr.m_arrChns[voChn].u32Priority = 0;
-        gHdmiAttr.m_arrChns[voChn].bKeepPrevFr = AX_TRUE;
+        gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].u32FifoDepth = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nPoolCnt;
+        gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].u32Priority = 0;
+        gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].bKeepPrevFr = AX_TRUE;
     }
 
-    AX_S32 ret = AX_VO_CreateVideoLayer(&gHdmiAttr.voLayer);
+    AX_S32 ret = AX_VO_CreateVideoLayer(&gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
     if (0 != ret)
     {
-        ALOGE("AX_VO_CreateVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr.voLayer, ret);
+        ALOGE("AX_VO_CreateVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, ret);
         return -1;
     }
 
@@ -357,17 +366,17 @@ int _create_vo_hdmi(pipeline_t *pipe)
         memset(&stPubAttr, 0, sizeof(stPubAttr));
         stPubAttr.enIntfType = AX_VO_INTF_HDMI;
         stPubAttr.enIntfSync = enIntfSync;
-        ret = AX_VO_SetPubAttr(gHdmiAttr.voDev, &stPubAttr);
+        ret = AX_VO_SetPubAttr(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, &stPubAttr);
         if (0 != ret)
         {
-            ALOGE("AX_VO_SetPubAttr(dev %d) fail, ret = 0x%x", gHdmiAttr.voDev, ret);
+            ALOGE("AX_VO_SetPubAttr(dev %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, ret);
             throw 1;
         }
 
-        ret = AX_VO_Enable(gHdmiAttr.voDev);
+        ret = AX_VO_Enable(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
         if (0 != ret)
         {
-            ALOGE("AX_VO_Enable(dev %d) fail, ret = 0x%x", gHdmiAttr.voDev, ret);
+            ALOGE("AX_VO_Enable(dev %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, ret);
             throw 1;
         }
         else
@@ -375,7 +384,7 @@ int _create_vo_hdmi(pipeline_t *pipe)
             nState |= VODEV_ENABLED;
         }
 
-        if (!CreatePools(gHdmiAttr.voDev, gHdmiAttr.nPoolCnt, gHdmiAttr.stArea.u32Width, gHdmiAttr.stArea.u32Height, gHdmiAttr.m_LayerPool))
+        if (!CreatePools(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nPoolCnt, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Width, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Height, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_LayerPool))
         {
             ALOGE("%s: CreatePool() fail", __func__);
             throw 1;
@@ -383,43 +392,43 @@ int _create_vo_hdmi(pipeline_t *pipe)
 
         AX_VO_VIDEO_LAYER_ATTR_T stLayerAttr;
         memset(&stLayerAttr, 0, sizeof(stLayerAttr));
-        stLayerAttr.stDispRect.u32Width = gHdmiAttr.stArea.u32Width;
-        stLayerAttr.stDispRect.u32Height = gHdmiAttr.stArea.u32Height;
-        stLayerAttr.stImageSize.u32Width = gHdmiAttr.stArea.u32Width;
-        stLayerAttr.stImageSize.u32Height = gHdmiAttr.stArea.u32Height;
+        stLayerAttr.stDispRect.u32Width = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Width;
+        stLayerAttr.stDispRect.u32Height = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Height;
+        stLayerAttr.stImageSize.u32Width = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Width;
+        stLayerAttr.stImageSize.u32Height = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea.u32Height;
         stLayerAttr.enPixFmt = AX_FORMAT_YUV420_SEMIPLANAR;
 
         /* if layer bind to dev, enSynMode is ignored */
         stLayerAttr.enSyncMode = AX_VO_LAYER_SYNC_NORMAL;
-        stLayerAttr.u32FrameRate = gHdmiAttr.nHz;
-        stLayerAttr.u32FifoDepth = gHdmiAttr.nPoolCnt;
-        stLayerAttr.u32ChnNr = gHdmiAttr.m_arrChns.size();
+        stLayerAttr.u32FrameRate = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nHz;
+        stLayerAttr.u32FifoDepth = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nPoolCnt;
+        stLayerAttr.u32ChnNr = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size();
         // stLayerAttr.u32BkClr = m_stAttr.nBgClr;
         stLayerAttr.u32PrimaryChnId = 0;
         stLayerAttr.enWBMode = AX_VO_LAYER_WB_POOL;
-        stLayerAttr.u32PoolId = gHdmiAttr.m_LayerPool;
+        stLayerAttr.u32PoolId = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_LayerPool;
         stLayerAttr.u32DispatchMode = AX_VO_LAYER_OUT_TO_LINK;
         stLayerAttr.enPartMode = AX_VO_PART_MODE_MULTI;
         stLayerAttr.enBlendMode = AX_VO_BLEND_MODE_DEFAULT;
         // stLayerAttr.u32Toleration = m_stAttr.nTolerance;
-        ret = AX_VO_SetVideoLayerAttr(gHdmiAttr.voLayer, &stLayerAttr);
+        ret = AX_VO_SetVideoLayerAttr(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, &stLayerAttr);
         if (0 != ret)
         {
-            ALOGE("AX_VO_SetVideoLayerAttr(layer %d) fail, ret = 0x%x", gHdmiAttr.voLayer, ret);
+            ALOGE("AX_VO_SetVideoLayerAttr(layer %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, ret);
             throw 1;
         }
         else
         {
             ALOGI("layer %d: [(%d, %d) %dx%d], dispatch mode %d, layer depth %d, ChnNr %d, part mode %d, tolerance %d",
-                  gHdmiAttr.voLayer, stLayerAttr.stDispRect.u32X, stLayerAttr.stDispRect.u32Y, stLayerAttr.stDispRect.u32Width,
+                  gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, stLayerAttr.stDispRect.u32X, stLayerAttr.stDispRect.u32Y, stLayerAttr.stDispRect.u32Width,
                   stLayerAttr.stDispRect.u32Height, stLayerAttr.u32DispatchMode, stLayerAttr.u32FifoDepth, stLayerAttr.u32ChnNr,
                   stLayerAttr.enPartMode, stLayerAttr.u32Toleration);
         }
 
-        ret = AX_VO_BindVideoLayer(gHdmiAttr.voLayer, gHdmiAttr.voDev);
+        ret = AX_VO_BindVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
         if (0 != ret)
         {
-            ALOGE("AX_VO_BindVideoLayer(layer %d dev %d) fail, ret = 0x%x", gHdmiAttr.voLayer, gHdmiAttr.voDev, ret);
+            ALOGE("AX_VO_BindVideoLayer(layer %d dev %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, ret);
             throw 1;
         }
         else
@@ -427,10 +436,10 @@ int _create_vo_hdmi(pipeline_t *pipe)
             nState |= LAYER_BINDED;
         }
 
-        ret = AX_VO_EnableVideoLayer(gHdmiAttr.voLayer);
+        ret = AX_VO_EnableVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
         if (0 != ret)
         {
-            ALOGE("AX_VO_EnableVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr.voLayer, ret);
+            ALOGE("AX_VO_EnableVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, ret);
             throw 1;
         }
         else
@@ -447,30 +456,30 @@ int _create_vo_hdmi(pipeline_t *pipe)
         };
         for (VO_CHN voChn = 0; voChn < stLayerAttr.u32ChnNr; ++voChn)
         {
-            ALOGI("enable voChn %d: [(%d, %d) %dx%d], depth %d prior %d", voChn, gHdmiAttr.m_arrChns[voChn].stRect.u32X,
-                  gHdmiAttr.m_arrChns[voChn].stRect.u32Y, gHdmiAttr.m_arrChns[voChn].stRect.u32Width, gHdmiAttr.m_arrChns[voChn].stRect.u32Height,
-                  gHdmiAttr.m_arrChns[voChn].u32FifoDepth, gHdmiAttr.m_arrChns[voChn].u32Priority);
+            ALOGI("enable voChn %d: [(%d, %d) %dx%d], depth %d prior %d", voChn, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32X,
+                  gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Y, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Width, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Height,
+                  gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].u32FifoDepth, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].u32Priority);
 
-            ret = AX_VO_SetChnAttr(gHdmiAttr.voLayer, voChn, &gHdmiAttr.m_arrChns[voChn]);
+            ret = AX_VO_SetChnAttr(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn, &gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn]);
             if (0 != ret)
             {
-                ALOGE("AX_VO_SetChnAttr(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr.voLayer, voChn, ret);
-                DisableChns(gHdmiAttr.voLayer, voChn);
+                ALOGE("AX_VO_SetChnAttr(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn, ret);
+                DisableChns(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
                 throw 1;
             }
 
             /* set default fps for all chns including logo and idle */
-            if (!SetChnFrameRate(voChn, gHdmiAttr.voLayer, gHdmiAttr.voDev, pipe->m_vo_attr.hdmi.frame_rate))
+            if (!SetChnFrameRate(voChn, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, pipe->m_vo_attr.hdmi.frame_rate))
             {
-                DisableChns(gHdmiAttr.voLayer, voChn);
+                DisableChns(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
                 throw 1;
             }
 
-            ret = AX_VO_EnableChn(gHdmiAttr.voLayer, voChn);
+            ret = AX_VO_EnableChn(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
             if (0 != ret)
             {
-                ALOGE("AX_VO_EnableChn(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr.voLayer, voChn, ret);
-                DisableChns(gHdmiAttr.voLayer, voChn);
+                ALOGE("AX_VO_EnableChn(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn, ret);
+                DisableChns(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
                 throw 1;
             }
         }
@@ -479,89 +488,89 @@ int _create_vo_hdmi(pipeline_t *pipe)
     {
         if (LAYER_ENABLED == (nState & LAYER_ENABLED))
         {
-            AX_VO_DisableVideoLayer(gHdmiAttr.voLayer);
+            AX_VO_DisableVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
         }
 
         if (LAYER_BINDED == (nState & LAYER_BINDED))
         {
-            AX_VO_UnBindVideoLayer(gHdmiAttr.voLayer, gHdmiAttr.voDev);
+            AX_VO_UnBindVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
         }
 
         if (VODEV_ENABLED == (nState & VODEV_ENABLED))
         {
-            AX_VO_Disable(gHdmiAttr.voDev);
+            AX_VO_Disable(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
         }
 
         if (LAYER_CREATED == (nState & LAYER_CREATED))
         {
-            AX_VO_DestroyVideoLayer(gHdmiAttr.voLayer);
+            AX_VO_DestroyVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
         }
 
         return -1;
     }
 
-    gHdmiAttr.inited = true;
+    gHdmiAttr[pipe->m_vo_attr.hdmi.portid].inited = true;
     ALOGI("%s: ---", __func__);
     return 0;
 }
 
-int _destory_vo_hdmi()
+int _destory_vo_hdmi(pipeline_t *pipe)
 {
-    if (!gHdmiAttr.inited)
+    if (!gHdmiAttr[pipe->m_vo_attr.hdmi.portid].inited)
     {
         return 0;
     }
 
     AX_S32 ret;
 
-    const AX_U32 nCount = gHdmiAttr.m_arrChns.size();
+    const AX_U32 nCount = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size();
     for (VO_CHN voChn = 0; voChn < nCount; ++voChn)
     {
-        ret = AX_VO_DisableChn(gHdmiAttr.voLayer, voChn);
+        ret = AX_VO_DisableChn(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
         if (0 != ret)
         {
-            ALOGE("AX_VO_DisableChn(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr.voLayer, voChn, ret);
+            ALOGE("AX_VO_DisableChn(layer %d chn %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn, ret);
             return ret;
         }
     }
 
-    ret = AX_VO_DisableVideoLayer(gHdmiAttr.voLayer);
+    ret = AX_VO_DisableVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
     if (0 != ret)
     {
-        ALOGE("AX_VO_DisableVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr.voLayer, ret);
+        ALOGE("AX_VO_DisableVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, ret);
         return ret;
     }
 
-    ret = AX_VO_UnBindVideoLayer(gHdmiAttr.voLayer, gHdmiAttr.voDev);
+    ret = AX_VO_UnBindVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
     if (0 != ret)
     {
-        ALOGE("AX_VO_UnBindVideoLayer(layer %d dev %d) fail, ret = 0x%x", gHdmiAttr.voLayer, gHdmiAttr.voDev, ret);
+        ALOGE("AX_VO_UnBindVideoLayer(layer %d dev %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, ret);
         return ret;
     }
 
-    ret = AX_VO_Disable(gHdmiAttr.voDev);
+    ret = AX_VO_Disable(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev);
     if (0 != ret)
     {
-        ALOGE("AX_VO_Disable(dev %d) fail, ret = 0x%x", gHdmiAttr.voDev, ret);
+        ALOGE("AX_VO_Disable(dev %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, ret);
         return ret;
     }
 
-    ret = AX_VO_DestroyVideoLayer(gHdmiAttr.voLayer);
+    ret = AX_VO_DestroyVideoLayer(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer);
     if (0 != ret)
     {
-        ALOGE("AX_VO_DestroyVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr.voLayer, ret);
+        ALOGE("AX_VO_DestroyVideoLayer(layer %d) fail, ret = 0x%x", gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, ret);
         return ret;
     }
-    DestoryPool(gHdmiAttr.m_LayerPool);
+    DestoryPool(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_LayerPool);
 
-    gHdmiAttr.inited = false;
+    gHdmiAttr[pipe->m_vo_attr.hdmi.portid].inited = false;
     AX_VO_Deinit();
     ALOGI("%s: ---", __func__);
     return 0;
 }
 
-int _sent_frame_vo(AX_U32 voChn, AX_VIDEO_FRAME_T *tVideoFrame)
+int _sent_frame_vo(pipeline_t *pipe, AX_VIDEO_FRAME_T *tVideoFrame)
 {
-    AX_S32 ret = AX_VO_SendFrame(gHdmiAttr.voLayer, voChn, tVideoFrame, 200);
+    AX_S32 ret = AX_VO_SendFrame(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, pipe->m_vo_attr.hdmi.n_chn, tVideoFrame, 200);
     return ret;
 }

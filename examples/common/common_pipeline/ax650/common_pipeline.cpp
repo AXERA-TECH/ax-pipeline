@@ -126,7 +126,7 @@ static void PrintRtsp(std::string rtsp_path)
 int _create_vo(char *pStr, pipeline_t *pipe);
 void _destory_vo();
 int _create_vo_hdmi(pipeline_t *pipe);
-int _destory_vo_hdmi();
+int _destory_vo_hdmi(pipeline_t*pipe);
 int _create_ivps_grp(pipeline_t *pipe);
 int _destore_ivps_grp(pipeline_t *pipe);
 int _create_venc_chn(pipeline_t *pipe);
@@ -550,7 +550,7 @@ int destory_pipeline(pipeline_t *pipe)
     {
         if (pipeline_handle.b_hdmi_init)
         {
-            _destory_vo_hdmi();
+            _destory_vo_hdmi(pipe);
             pipeline_handle.b_hdmi_init = false;
         }
         // AX_MOD_INFO_T srcMod, dstMod;

@@ -257,6 +257,7 @@ int main(int argc, char *argv[])
         }
         {
             pipeline_vo_config_t &config = pipe0.m_vo_attr;
+            config.hdmi.portid = 0;
             config.hdmi.e_hdmi_type = phv_1920x1080p60;
             config.hdmi.n_chn = 0;
             config.hdmi.n_vo_count = 1;

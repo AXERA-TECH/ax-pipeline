@@ -127,6 +127,7 @@ extern "C"
             pipeline_hdmi_vo_e e_hdmi_type;
             int n_chn;
             int frame_rate;
+            int portid;//hdmi port index,just can be 0 or 1
             // int n_chns_len;
             // int n_chns[MAX_VO_CHN_COUNT];
         } hdmi;

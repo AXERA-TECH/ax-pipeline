@@ -33,7 +33,7 @@
 #define ALIGN_UP(x, align) ((((x) + ((align)-1)) / (align)) * (align))
 #endif
 
-int _sent_frame_vo(AX_U32 voChn, AX_VIDEO_FRAME_T *tVideoFrame);
+int _sent_frame_vo(pipeline_t *pipe, AX_VIDEO_FRAME_T *tVideoFrame);
 
 void *_ivps_get_frame_thread(void *arg)
 {
@@ -62,7 +62,7 @@ void *_ivps_get_frame_thread(void *arg)
         tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
         if (pipe->m_output_type == po_vo_hdmi)
         {
-            ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
+            ret = _sent_frame_vo(pipe, &tVideoFrame);
             // ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
             //  ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
             if (ret != 0)
