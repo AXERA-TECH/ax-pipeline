@@ -213,6 +213,33 @@ void ax_model_base::draw_fps(cv::Mat &image, axdl_results_t *results, float font
                 cv::Scalar(255, 0, 255, 0), thickness * 2);
 }
 
+void ax_model_base::draw_bbox(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], 3);
+        if (results->bObjTrack)
+        {
+            m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
+                                    {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
+                                    {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+        }
+        else
+        {
+            m_drawers[chn].add_text(results->mObjects[d].objname,
+                                    {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
+                                    {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+        }
+    }
+}
+
+void ax_model_base::draw_fps(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    m_drawers[chn].add_text("fps:" + std::to_string(results->niFps),
+                            {0, 0},
+                            {UCHAR_MAX, 0, 0, 0}, 1, 2);
+}
+
 int ax_model_single_base_t::init(void *json_obj)
 {
     auto jsondata = *(nlohmann::json *)json_obj;
@@ -289,9 +316,10 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
         return ret;
     }
     ret = post_process(pstFrame, crop_resize_box, results);
+    results->bObjTrack = 0;
     if (tracker)
     {
-
+        results->bObjTrack = 1;
         tracker_objs.n_objects = results->nObjSize > TRACK_OBJETCS_MAX_SIZE ? TRACK_OBJETCS_MAX_SIZE : results->nObjSize;
         for (int i = 0; i < tracker_objs.n_objects; i++)
         {

@@ -14,5 +14,6 @@ protected:
     SimpleRingBuffer<std::vector<axdl_point_t>> mSimpleRingBuffer;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_DET_CROWD_COUNT, ax_model_crowdcount)

@@ -207,3 +207,11 @@ void ax_model_crowdcount::draw_custom(cv::Mat &image, axdl_results_t *results, f
         cv::circle(image, p, 3, cv::Scalar(255, 0, 255, 0), 3);
     }
 }
+
+void ax_model_crowdcount::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    for (int i = 0; i < results->nCrowdCount; i++)
+    {
+        m_drawers[chn].add_point(&results->mCrowdCountPts[i], {255, 0, 255, 0}, 4);
+    }
+}

@@ -89,7 +89,7 @@ extern "C"
         int n_ivps_grp; // 少于20，并且不能重复
 
         int n_osd_rgn; // rgn的个数，设为0则表示不进行osd，少于 MAX_OSD_RGN_COUNT 个，每一个rgn可以绘制32个目标
-#define MAX_OSD_RGN_COUNT 5
+#define MAX_OSD_RGN_COUNT 16
         int n_osd_rgn_chn[MAX_OSD_RGN_COUNT]; // rgn 的句柄
 
         int n_ivps_fps; // 输出的帧率

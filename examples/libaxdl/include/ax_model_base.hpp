@@ -1,6 +1,7 @@
 #pragma once
 #include "c_api.h"
 #include "ax_model_runner.hpp"
+#include "ax_osd_drawer.hpp"
 
 #include "vector"
 #include "string"
@@ -60,6 +61,23 @@ protected:
         {128, 255, 75, 0}, {128, 0, 0, 255}, {128, 255, 207, 0}, {128, 255, 0, 226}, {128, 255, 245, 0},
         {128, 188, 255, 0}, {128, 0, 255, 18}, {128, 0, 255, 75}, {128, 0, 255, 151}, {128, 255, 56, 0}, {128, 245, 255, 0}};
 
+    const std::vector<ax_osd_drawer::ax_abgr_t> COCO_COLORS_ARGB = {
+        {128, 56, 0, 255}, {128, 226, 255, 0}, {128, 0, 94, 255}, {128, 0, 37, 255}, {128, 0, 255, 94},
+        {128, 255, 226, 0}, {128, 0, 18, 255}, {128, 255, 151, 0}, {128, 170, 0, 255}, {128, 0, 255, 56},
+        {128, 255, 0, 75}, {128, 0, 75, 255}, {128, 0, 255, 169}, {128, 255, 0, 207}, {128, 75, 255, 0},
+        {128, 207, 0, 255}, {128, 37, 0, 255}, {128, 0, 207, 255}, {128, 94, 0, 255}, {128, 0, 255, 113},
+        {128, 255, 18, 0}, {128, 255, 0, 56}, {128, 18, 0, 255}, {128, 0, 255, 226}, {128, 170, 255, 0},
+        {128, 255, 0, 245}, {128, 151, 255, 0}, {128, 132, 255, 0}, {128, 75, 0, 255}, {128, 151, 0, 255},
+        {128, 0, 151, 255}, {128, 132, 0, 255}, {128, 0, 255, 245}, {128, 255, 132, 0}, {128, 226, 0, 255},
+        {128, 255, 37, 0}, {128, 207, 255, 0}, {128, 0, 255, 207}, {128, 94, 255, 0}, {128, 0, 226, 255},
+        {128, 56, 255, 0}, {128, 255, 94, 0}, {128, 255, 113, 0}, {128, 0, 132, 255}, {128, 255, 0, 132},
+        {128, 255, 170, 0}, {128, 255, 0, 188}, {128, 113, 255, 0}, {128, 245, 0, 255}, {128, 113, 0, 255},
+        {128, 255, 188, 0}, {128, 0, 113, 255}, {128, 255, 0, 0}, {128, 0, 56, 255}, {128, 255, 0, 113},
+        {128, 0, 255, 188}, {128, 255, 0, 94}, {128, 255, 0, 18}, {128, 18, 255, 0}, {128, 0, 255, 132},
+        {128, 0, 188, 255}, {128, 0, 245, 255}, {128, 0, 169, 255}, {128, 37, 255, 0}, {128, 255, 0, 151},
+        {128, 188, 0, 255}, {128, 0, 255, 37}, {128, 0, 255, 0}, {128, 255, 0, 170}, {128, 255, 0, 37},
+        {128, 255, 75, 0}, {128, 0, 0, 255}, {128, 255, 207, 0}, {128, 255, 0, 226}, {128, 255, 245, 0},
+        {128, 188, 255, 0}, {128, 0, 255, 18}, {128, 0, 255, 75}, {128, 0, 255, 151}, {128, 255, 56, 0}, {128, 245, 255, 0}};
     // face recognition
     struct ax_model_faceid
     {
@@ -77,6 +95,9 @@ protected:
     // multi level model
     std::vector<int> CLASS_IDS;
 
+    // pipe chn
+    std::map<int, ax_osd_drawer> m_drawers;
+
     int cur_idx = 0;
 
     char fps_info[128];
@@ -87,7 +108,17 @@ protected:
         draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
     }
 
+    // 
+    void draw_bbox(int chn, axdl_results_t *results, float fontscale, int thickness);
+    void draw_fps(int chn, axdl_results_t *results, float fontscale, int thickness);
+    virtual void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+    {
+        draw_bbox(chn, results, fontscale, thickness);
+    }
+
 public:
+    void draw_init(int chn,int chn_width,int chn_height,int max_num_rgn){ m_drawers[chn].init(max_num_rgn, chn_width, chn_height);}
+    ax_osd_drawer&get_drawer(int chn){ return m_drawers[chn]; }
     int get_sub_infer_count()     { return MAX_SUB_INFER_COUNT; }
     int get_max_mask_obj_count()  { return MAX_MASK_OBJ_COUNT ; }
     int get_face_feat_len()       { return FACE_FEAT_LEN      ; }
@@ -161,6 +192,13 @@ public:
     {
         draw_custom(canvas, results, fontscale, thickness, offset_x, offset_y);
         draw_fps(canvas, results, fontscale, thickness, offset_x, offset_y);
+    }
+
+    virtual void draw_results(int chn, axdl_results_t *results, float fontscale, int thickness)
+    {
+        m_drawers[chn].reset();
+        draw_custom(chn, results, fontscale, thickness);
+        draw_fps(chn, results, fontscale, thickness);
     }
 };
 

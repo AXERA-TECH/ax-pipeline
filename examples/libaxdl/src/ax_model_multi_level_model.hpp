@@ -6,6 +6,7 @@ class ax_model_human_pose_axppl : public ax_model_multi_base_t
 {
 protected:
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 
 public:
     int inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
@@ -21,6 +22,7 @@ class ax_model_animal_pose_hrnet : public ax_model_human_pose_axppl
 {
 protected:
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_MLM_ANIMAL_POSE_HRNET, ax_model_animal_pose_hrnet)
 
@@ -28,6 +30,7 @@ class ax_model_hand_pose : public ax_model_multi_base_t
 {
 protected:
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 
     axdl_image_t pstFrame_RGB = {0};
 

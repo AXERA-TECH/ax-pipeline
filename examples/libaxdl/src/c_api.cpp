@@ -35,7 +35,10 @@ struct ax_model_handle_t
 
     int fcnt = 0;
     int fps = -1;
-    struct timespec ts1{0}, ts2{0};
+    struct timespec ts1
+    {
+        0
+    }, ts2{0};
 };
 
 int axdl_parse_param_init(char *json_file_path, void **pModels)
@@ -241,5 +244,33 @@ int axdl_draw_results(void *pModels, axdl_canvas_t *canvas, axdl_results_t *pRes
     cv::Mat image(canvas->height, canvas->width, CV_8UC4, canvas->data);
 
     ((ax_model_handle_t *)pModels)->model->draw_results(image, pResults, fontscale, thickness, offset_x, offset_y);
+    return 0;
+}
+
+void axdl_native_osd_init(void *pModels, int chn, int chn_width, int chn_height, int max_num_rgn)
+{
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return;
+    }
+    ((ax_model_handle_t *)pModels)->model->draw_init(chn, chn_width, chn_height, max_num_rgn);
+}
+
+void *axdl_native_osd_get_handle(void *pModels, int chn)
+{
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return nullptr;
+    }
+    return ((ax_model_handle_t *)pModels)->model->get_drawer(chn).get().data();
+}
+
+int axdl_native_osd_draw_results(void *pModels, int chn, axdl_results_t *pResults, float fontscale, int thickness)
+{
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
+    ((ax_model_handle_t *)pModels)->model->draw_results(chn, pResults, fontscale, thickness);
     return 0;
 }

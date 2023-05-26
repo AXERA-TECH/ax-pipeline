@@ -88,6 +88,38 @@ void ax_model_human_pose_axppl::draw_custom(cv::Mat &image, axdl_results_t *resu
         }
     }
 }
+void ax_model_human_pose_axppl::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    draw_bbox(chn, results, fontscale, thickness);
+    static std::vector<int> head{4, 2, 0, 1, 3};
+    static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
+    static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
+    std::vector<axdl_point_t> pts(leg.size());
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
+        {
+            for (size_t k = 0; k < head.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[head[k]].x;
+                pts[k].y = results->mObjects[d].landmark[head[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, 3);
+            for (size_t k = 0; k < hand_arm.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
+                pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, 3);
+            for (size_t k = 0; k < leg.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[leg[k]].x;
+                pts[k].y = results->mObjects[d].landmark[leg[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, 3);
+        }
+    }
+}
 
 int ax_model_human_pose_axppl::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
@@ -152,6 +184,11 @@ void ax_model_animal_pose_hrnet::draw_custom(cv::Mat &image, axdl_results_t *res
     }
 }
 
+void ax_model_animal_pose_hrnet::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    
+}
+
 void ax_model_hand_pose::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
 {
     draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
@@ -182,6 +219,11 @@ void ax_model_hand_pose::draw_custom(cv::Mat &image, axdl_results_t *results, fl
             draw_pose_result(image, &results->mObjects[i], hand_pairs, SAMPLE_HAND_LMK_SIZE, offset_x, offset_y);
         }
     }
+}
+
+void ax_model_hand_pose::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    
 }
 
 void ax_model_hand_pose::deinit()

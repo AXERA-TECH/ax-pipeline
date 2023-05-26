@@ -45,3 +45,12 @@ void ax_model_pphumseg::draw_custom(cv::Mat &image, axdl_results_t *results, flo
     cv::resize(mask, tmp, cv::Size(image.cols, image.rows), 0, 0, cv::INTER_NEAREST);
     image.setTo(cv::Scalar(66, 0, 0, 128), tmp);
 }
+
+void ax_model_pphumseg::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    if (!results->bPPHumSeg || !results->mPPHumSeg.data)
+    {
+        return;
+    }
+    m_drawers[chn].add_mask(nullptr, &results->mPPHumSeg, {66, 0, 0, 128});
+}

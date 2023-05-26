@@ -165,6 +165,18 @@ void ax_model_yolov5_seg::draw_custom(cv::Mat &image, axdl_results_t *results, f
     }
 }
 
+void ax_model_yolov5_seg::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        if (results->mObjects[i].bHasMask)
+        {
+            m_drawers[chn].add_mask(&results->mObjects[i].bbox, &results->mObjects[i].mYolov5Mask, COCO_COLORS_ARGB[results->mObjects[i].label]);
+        }
+    }
+    draw_bbox(chn, results, fontscale, thickness);
+}
+
 int ax_model_yolov5_face::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
@@ -239,6 +251,18 @@ void ax_model_yolov5_face::draw_custom(cv::Mat &image, axdl_results_t *results, 
             cv::Point p(results->mObjects[i].landmark[j].x * image.cols + offset_x,
                         results->mObjects[i].landmark[j].y * image.rows + offset_y);
             cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), 2);
+        }
+    }
+}
+
+void ax_model_yolov5_face::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    draw_bbox(chn, results, fontscale, thickness);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        for (int j = 0; j < results->mObjects[i].nLandmark; j++)
+        {
+            m_drawers[chn].add_point(&results->mObjects[i].landmark[j], {255, 0, 255, 0}, 4);
         }
     }
 }
@@ -769,6 +793,16 @@ void ax_model_yolopv2::draw_custom(cv::Mat &image, axdl_results_t *results, floa
     draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
 }
 
+void ax_model_yolopv2::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
+    {
+        m_drawers[chn].add_mask(nullptr, &results->mYolopv2seg, {66, 0, 0, 128});
+        m_drawers[chn].add_mask(nullptr, &results->mYolopv2ll, {66, 0, 0, 128});
+    }
+    draw_bbox(chn, results, fontscale, thickness);
+}
+
 int ax_model_yolo_fast_body::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     int nOutputSize = m_runner->get_num_outputs();
@@ -1269,6 +1303,39 @@ void ax_model_yolov8_pose_650::draw_custom(cv::Mat &image, axdl_results_t *resul
         if (results->mObjects[i].nLandmark == SAMPLE_BODY_LMK_SIZE)
         {
             draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_BODY_LMK_SIZE, offset_x, offset_y);
+        }
+    }
+}
+
+void ax_model_yolov8_pose_650::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    draw_bbox(chn, results, fontscale, thickness);
+    static std::vector<int> head{4, 2, 0, 1, 3};
+    static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
+    static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
+    std::vector<axdl_point_t> pts(leg.size());
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
+        {
+            for (size_t k = 0; k < head.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[head[k]].x;
+                pts[k].y = results->mObjects[d].landmark[head[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, 3);
+            for (size_t k = 0; k < hand_arm.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
+                pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, 3);
+            for (size_t k = 0; k < leg.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[leg[k]].x;
+                pts[k].y = results->mObjects[d].landmark[leg[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, 3);
         }
     }
 }

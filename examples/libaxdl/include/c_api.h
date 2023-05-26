@@ -109,6 +109,7 @@ extern "C"
     typedef struct _results_t
     {
         int mModelType; // MODEL_TYPE_E
+        int bObjTrack;
         int nObjSize;
         axdl_object_t mObjects[SAMPLE_MAX_BBOX_COUNT];
 
@@ -167,6 +168,9 @@ extern "C"
     int axdl_inference(void *pModels, axdl_image_t *pstFrame, axdl_results_t *pResults);
 
     int axdl_draw_results(void *pModels, axdl_canvas_t *canvas, axdl_results_t *pResults, float fontscale, int thickness, int offset_x, int offset_y);
+    void axdl_native_osd_init(void *pModels, int chn, int chn_width, int chn_height, int max_num_rgn);
+    void *axdl_native_osd_get_handle(void *pModels, int chn);
+    int axdl_native_osd_draw_results(void *pModels, int chn, axdl_results_t *pResults, float fontscale, int thickness);
 #ifdef __cplusplus
 }
 #endif

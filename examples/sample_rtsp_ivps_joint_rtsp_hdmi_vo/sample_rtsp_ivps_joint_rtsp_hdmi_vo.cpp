@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
             // config0.n_ivps_rotate = 1; // 旋转
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
-            config0.n_fifo_count = 4;
+            config0.n_fifo_count = 1;
             config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
         }
         {

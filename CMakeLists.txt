@@ -53,8 +53,6 @@ if(SIPY_BUILD)
     set(SIPY_VERSION ${SIPY_SOVERSION}.1.2)
 endif()
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
 
 add_subdirectory(third-party/RTSP)
 add_subdirectory(third-party/RtspServer)
@@ -63,6 +61,9 @@ add_subdirectory(third-party/RtspServer)
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_compile_options(-DAXERA_TARGET_CHIP_AX650)
     add_compile_options(-UAXERA_TARGET_CHIP_AX620)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
+
     # opencv
     set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
     find_package(OpenCV REQUIRED)
@@ -91,6 +92,9 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     )
     add_compile_options(-DAXERA_TARGET_CHIP_AX620)
     add_compile_options(-UAXERA_TARGET_CHIP_AX650)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
+
     # opencv
     set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
     find_package(OpenCV REQUIRED)
@@ -98,13 +102,14 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     add_subdirectory(third-party/ByteTrack)
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
+    # deprecated
     # add_subdirectory(examples/sample_run_joint)
-    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
-    # add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
-    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
-    # add_subdirectory(examples/sample_vin_ivps_joint_vo_old)
-    add_subdirectory(examples/sample_vin_ivps_joint_vo)
     # add_subdirectory(examples/sample_vin_joint)
+    # add_subdirectory(examples/sample_vin_ivps_joint_vo_old)
+    # add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
+    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_vo)
+    add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp)
+    add_subdirectory(examples/sample_vin_ivps_joint_vo)
     add_subdirectory(examples/sample_mp4_ivps_joint_vo)
     add_subdirectory(examples/sample_mp4_ivps_joint_rtsp)
     add_subdirectory(examples/sample_h264_ivps_joint_vo)

@@ -18,6 +18,7 @@ protected:
     SimpleRingBuffer<cv::Mat> mSimpleRingBuffer;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_INSEG_YOLOV5_MASK, ax_model_yolov5_seg)
 
@@ -27,6 +28,7 @@ protected:
     SimpleRingBuffer<std::vector<axdl_point_t>> mSimpleRingBuffer;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_DET_YOLOV5_FACE, ax_model_yolov5_face)
 
@@ -95,6 +97,7 @@ protected:
     SimpleRingBuffer<cv::Mat> mSimpleRingBuffer_ll;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_DET_YOLOPV2, ax_model_yolopv2)
 
@@ -145,5 +148,6 @@ protected:
     // int NUM_POINT = 17;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
+    void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_DET_YOLOV8_POSE_650, ax_model_yolov8_pose_650)

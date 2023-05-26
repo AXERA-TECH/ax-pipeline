@@ -1,0 +1,11 @@
+{
+    "MODEL_TYPE": "MT_DET_SCRFD",
+    "MODEL_PATH": "./models/scrfd_500m_bnkps_shape640x640.axmodel",
+    "STRIDES": [8, 16, 32],
+    "CLASS_NAMES": [
+        "face"
+    ],
+    "CLASS_NUM": 1,
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}
