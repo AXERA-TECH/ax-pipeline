@@ -315,6 +315,11 @@ int _destore_ivps_grp(pipeline_t *pipe)
         pthread_join(pipe->m_ivps_attr.tid, NULL);
     }
 
+    for (int i = 0; i < pipe->m_ivps_attr.n_osd_rgn && i < MAX_OSD_RGN_COUNT; i++)
+    {
+        AX_IVPS_RGN_Destroy(pipe->m_ivps_attr.n_osd_rgn_chn[i]);
+    }
+
     s32Ret = AX_IVPS_StopGrp(pipe->m_ivps_attr.n_ivps_grp);
     if (0 != s32Ret)
     {
