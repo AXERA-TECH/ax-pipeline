@@ -104,19 +104,19 @@ void ax_model_human_pose_axppl::draw_custom(int chn, axdl_results_t *results, fl
                 pts[k].x = results->mObjects[d].landmark[head[k]].x;
                 pts[k].y = results->mObjects[d].landmark[head[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, 3);
+            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, thickness * 2);
             for (size_t k = 0; k < hand_arm.size(); k++)
             {
                 pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
                 pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, 3);
+            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, thickness * 2);
             for (size_t k = 0; k < leg.size(); k++)
             {
                 pts[k].x = results->mObjects[d].landmark[leg[k]].x;
                 pts[k].y = results->mObjects[d].landmark[leg[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, 3);
+            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, thickness * 2);
         }
     }
 }
@@ -186,7 +186,6 @@ void ax_model_animal_pose_hrnet::draw_custom(cv::Mat &image, axdl_results_t *res
 
 void ax_model_animal_pose_hrnet::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
 {
-    
 }
 
 void ax_model_hand_pose::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
@@ -223,7 +222,25 @@ void ax_model_hand_pose::draw_custom(cv::Mat &image, axdl_results_t *results, fl
 
 void ax_model_hand_pose::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
 {
-    
+    static std::vector<std::vector<int>> skeletons{{0, 1, 2, 3, 4}, {0, 5, 6, 7, 8}, {0, 9, 10, 11, 12}, {0, 13, 14, 15, 16}, {0, 17, 18, 19, 20}};
+    static std::vector<ax_osd_drawer::ax_abgr_t> colors{{255, 255, 255, 255}, {255, 255, 0, 0}, {255, 0, 255, 0}, {255, 0, 0, 255}, {255, 0, 0, 0}};
+    std::vector<axdl_point_t> pts(5);
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        if (results->mObjects[d].nLandmark == SAMPLE_HAND_LMK_SIZE)
+        {
+            for (size_t s = 0; s < skeletons.size(); s++)
+            {
+                for (size_t k = 0; k < pts.size(); k++)
+                {
+                    pts[k].x = results->mObjects[d].landmark[skeletons[s][k]].x;
+                    pts[k].y = results->mObjects[d].landmark[skeletons[s][k]].y;
+                }
+                m_drawers[chn].add_line(pts.data(), pts.size(), colors[s], thickness * 2);
+            }
+        }
+    }
+    draw_bbox(chn, results, fontscale, thickness);
 }
 
 void ax_model_hand_pose::deinit()

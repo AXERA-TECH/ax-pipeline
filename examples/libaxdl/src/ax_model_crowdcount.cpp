@@ -212,6 +212,6 @@ void ax_model_crowdcount::draw_custom(int chn, axdl_results_t *results, float fo
 {
     for (int i = 0; i < results->nCrowdCount; i++)
     {
-        m_drawers[chn].add_point(&results->mCrowdCountPts[i], {255, 0, 255, 0}, 4);
+        m_drawers[chn].add_point(&results->mCrowdCountPts[i], {255, 0, 255, 0}, thickness * 2);
     }
 }

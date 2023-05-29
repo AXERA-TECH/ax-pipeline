@@ -217,18 +217,37 @@ void ax_model_base::draw_bbox(int chn, axdl_results_t *results, float fontscale,
 {
     for (size_t d = 0; d < results->nObjSize; d++)
     {
-        m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], 3);
-        if (results->bObjTrack)
+        if (results->mObjects[d].bHasBoxVertices)
         {
-            m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
-                                    {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
-                                    {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            m_drawers[chn].add_polygon(results->mObjects[d].bbox_vertices, 4, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+            if (results->bObjTrack && b_draw_obj_name)
+            {
+                m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
+                                        results->mObjects[d].bbox_vertices[0],
+                                        {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            }
+            else if (b_draw_obj_name)
+            {
+                m_drawers[chn].add_text(results->mObjects[d].objname,
+                                        results->mObjects[d].bbox_vertices[0],
+                                        {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            }
         }
         else
         {
-            m_drawers[chn].add_text(results->mObjects[d].objname,
-                                    {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
-                                    {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+            if (results->bObjTrack && b_draw_obj_name)
+            {
+                m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
+                                        {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
+                                        {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            }
+            else if (b_draw_obj_name)
+            {
+                m_drawers[chn].add_text(results->mObjects[d].objname,
+                                        {results->mObjects[d].bbox.x, results->mObjects[d].bbox.y},
+                                        {UCHAR_MAX, 0, 0, 0}, fontscale, 2);
+            }
         }
     }
 }

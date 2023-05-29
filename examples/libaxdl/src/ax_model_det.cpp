@@ -250,7 +250,7 @@ void ax_model_yolov5_face::draw_custom(cv::Mat &image, axdl_results_t *results, 
         {
             cv::Point p(results->mObjects[i].landmark[j].x * image.cols + offset_x,
                         results->mObjects[i].landmark[j].y * image.rows + offset_y);
-            cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), 2);
+            cv::circle(image, p, 1, cv::Scalar(255, 0, 0, 255), thickness * 2);
         }
     }
 }
@@ -262,7 +262,7 @@ void ax_model_yolov5_face::draw_custom(int chn, axdl_results_t *results, float f
     {
         for (int j = 0; j < results->mObjects[i].nLandmark; j++)
         {
-            m_drawers[chn].add_point(&results->mObjects[i].landmark[j], {255, 0, 255, 0}, 4);
+            m_drawers[chn].add_point(&results->mObjects[i].landmark[j], {255, 0, 255, 0}, thickness * 2);
         }
     }
 }
@@ -1323,19 +1323,19 @@ void ax_model_yolov8_pose_650::draw_custom(int chn, axdl_results_t *results, flo
                 pts[k].x = results->mObjects[d].landmark[head[k]].x;
                 pts[k].y = results->mObjects[d].landmark[head[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, 3);
+            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, thickness);
             for (size_t k = 0; k < hand_arm.size(); k++)
             {
                 pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
                 pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, 3);
+            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, thickness);
             for (size_t k = 0; k < leg.size(); k++)
             {
                 pts[k].x = results->mObjects[d].landmark[leg[k]].x;
                 pts[k].y = results->mObjects[d].landmark[leg[k]].y;
             }
-            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, 3);
+            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, thickness);
         }
     }
 }

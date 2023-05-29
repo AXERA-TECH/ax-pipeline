@@ -469,7 +469,7 @@ int _create_vo_hdmi(pipeline_t *pipe)
             }
 
             /* set default fps for all chns including logo and idle */
-            if (!SetChnFrameRate(voChn, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, pipe->m_vo_attr.hdmi.frame_rate))
+            if (!SetChnFrameRate(voChn, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev, pipe->m_vo_attr.hdmi.n_frame_rate))
             {
                 DisableChns(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
                 throw 1;
@@ -482,6 +482,10 @@ int _create_vo_hdmi(pipeline_t *pipe)
                 DisableChns(gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, voChn);
                 throw 1;
             }
+            pipe->m_vo_attr.hdmi.n_chns_count = voChn + 1;
+            pipe->m_vo_attr.hdmi.n_chns[voChn] = voChn;
+            pipe->m_vo_attr.hdmi.n_chn_widths[voChn] = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Width;
+            pipe->m_vo_attr.hdmi.n_chn_heights[voChn] = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Height;
         }
     }
     catch (...)

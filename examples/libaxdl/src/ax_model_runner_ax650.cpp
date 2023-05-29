@@ -154,6 +154,12 @@ int ax_runner_ax650::init(const char *model_file)
     }
     fprintf(stdout, "Engine creating context is done.\n");
 
+    {
+        static int affinity = 0;
+        AX_ENGINE_SetAffinity(m_handle->handle, affinity % 3);
+        affinity++;
+    }
+
     // 5. set io
 
     ret = AX_ENGINE_GetIOInfo(m_handle->handle, &m_handle->io_info);
@@ -262,6 +268,6 @@ axdl_color_space_e ax_runner_ax650::get_color_space()
 int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
 {
     memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
-     return AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data);
+    return AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data);
 }
 #endif

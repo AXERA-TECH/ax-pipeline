@@ -126,10 +126,12 @@ extern "C"
             int n_vo_count;
             pipeline_hdmi_vo_e e_hdmi_type;
             int n_chn;
-            int frame_rate;
-            int portid;//hdmi port index,just can be 0 or 1
-            // int n_chns_len;
-            // int n_chns[MAX_VO_CHN_COUNT];
+            int n_frame_rate;
+            int portid; //hdmi port index,just can be 0 or 1
+            int n_chns_count; // count of chn available
+            int n_chns[MAX_VO_CHN_COUNT]; // chn number
+            int n_chn_widths[MAX_VO_CHN_COUNT]; //chn width to set ivps
+            int n_chn_heights[MAX_VO_CHN_COUNT]; //chn height to set ivps
         } hdmi;
     } pipeline_vo_config_t;
     

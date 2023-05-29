@@ -40,12 +40,12 @@
 
 #include "opencv2/opencv.hpp"
 
-#define pipe_count 2
+#define pipe_count 3
 
 #ifdef AXERA_TARGET_CHIP_AX620
 #define rtsp_max_count 2
 #elif defined(AXERA_TARGET_CHIP_AX650)
-#define rtsp_max_count 4
+#define rtsp_max_count 32
 #endif
 
 AX_S32 s_sample_framerate = 25;
@@ -281,6 +281,20 @@ int main(int argc, char *argv[])
 
     vpipelines.resize(rtsp_urls.size());
 
+    pipeline_t pipe_init_hdmi{0};
+    pipe_init_hdmi.enable = 1;
+    pipe_init_hdmi.m_output_type = po_vo_hdmi;
+    pipe_init_hdmi.m_vo_attr.hdmi.e_hdmi_type = phv_1920x1080p60;
+    pipe_init_hdmi.m_vo_attr.hdmi.n_vo_count = rtsp_urls.size();
+    pipe_init_hdmi.m_vo_attr.hdmi.n_frame_rate = s_sample_framerate;
+    pipe_init_hdmi.m_vo_attr.hdmi.portid = 0;
+
+    s32Ret = create_pipeline(&pipe_init_hdmi);
+    if (s32Ret != 0)
+    {
+        return -1;
+    }
+
     for (size_t i = 0; i < rtsp_urls.size(); i++)
     {
 
@@ -361,6 +375,27 @@ int main(int argc, char *argv[])
             sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", i); // 重复的会创建失败
             pipe2.m_venc_attr.n_venc_chn = i;                            // 重复的会创建失败
             pipe2.m_vdec_attr.n_vdec_grp = i;
+
+            pipeline_t &pipe3 = pipelines[2];
+            {
+                pipeline_vo_config_t &config_vo = pipe3.m_vo_attr;
+                config_vo.hdmi.n_chn = pipe_init_hdmi.m_vo_attr.hdmi.n_chns[i];
+
+                pipeline_ivps_config_t &config3 = pipe3.m_ivps_attr;
+                config3.n_ivps_grp = pipe_count * i + 3; // 重复的会创建失败
+                config3.n_ivps_rotate = 0;               // 旋转90度，现在rtsp流是竖着的画面了
+                config3.n_ivps_fps = s_sample_framerate;
+                config3.n_ivps_width = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_widths[i];
+                config3.n_ivps_height = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_heights[i];
+                config3.n_osd_rgn = pipe1.enable ? 1 : 0;
+                config3.n_fifo_count = 1;
+            }
+            pipe3.enable = 1;
+            pipe3.pipeid = pipe_count * i + 3; // 重复的会创建失败
+            pipe3.m_input_type = pi_vdec_h264;
+            pipe3.m_output_type = po_vo_hdmi;
+            pipe3.n_loog_exit = 0;
+            pipe3.m_vdec_attr.n_vdec_grp = i;
         }
     }
 

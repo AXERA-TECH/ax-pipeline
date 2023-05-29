@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
     else
     {
         s32Ret = axdl_get_ivps_width_height(g_sample.gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
-        ALOGI("IVPS AI channel width=%d heighr=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
+        ALOGI("IVPS AI channel width=%d height=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
         g_sample.bRunJoint = 1;
     }
 
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
             config.hdmi.e_hdmi_type = phv_1920x1080p60;
             config.hdmi.n_chn = 0;
             config.hdmi.n_vo_count = 1;
-            config.hdmi.frame_rate = s_sample_framerate;
+            config.hdmi.n_frame_rate = s_sample_framerate;
         }
         pipe0.enable = 1;
         pipe0.pipeid = 0x90015;

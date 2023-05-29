@@ -96,6 +96,7 @@ protected:
     std::vector<int> CLASS_IDS;
 
     // pipe chn
+    bool b_draw_obj_name = false;
     std::map<int, ax_osd_drawer> m_drawers;
 
     int cur_idx = 0;
