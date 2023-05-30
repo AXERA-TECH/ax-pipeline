@@ -186,6 +186,29 @@ void ax_model_animal_pose_hrnet::draw_custom(cv::Mat &image, axdl_results_t *res
 
 void ax_model_animal_pose_hrnet::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
 {
+    draw_bbox(chn, results, fontscale, thickness);
+    static std::vector<std::vector<int>> skeletons{{19, 15, 11, 6, 7, 5, 4, 1, 3},
+                                                   {18, 14, 10, 6, 7},
+                                                   {17, 13, 9, 7},
+                                                   {16, 12, 8, 7, 5, 4, 0, 1, 0, 2}};
+    static std::vector<ax_osd_drawer::ax_abgr_t> colors{{255, 255, 255, 255}, {255, 255, 0, 0}, {255, 0, 255, 0}, {255, 0, 0, 255}, {255, 0, 0, 0}};
+    std::vector<axdl_point_t> pts;
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        if (results->mObjects[d].nLandmark == SAMPLE_ANIMAL_LMK_SIZE)
+        {
+            for (size_t s = 0; s < skeletons.size(); s++)
+            {
+                pts.resize(skeletons[s].size());
+                for (size_t k = 0; k < pts.size(); k++)
+                {
+                    pts[k].x = results->mObjects[d].landmark[skeletons[s][k]].x;
+                    pts[k].y = results->mObjects[d].landmark[skeletons[s][k]].y;
+                }
+                m_drawers[chn].add_line(pts.data(), pts.size(), colors[s], thickness * 2);
+            }
+        }
+    }
 }
 
 void ax_model_hand_pose::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)

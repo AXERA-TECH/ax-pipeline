@@ -335,10 +335,9 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
         return ret;
     }
     ret = post_process(pstFrame, crop_resize_box, results);
-    results->bObjTrack = 0;
-    if (tracker)
+    results->bObjTrack = b_track ? 1 : 0;
+    if (b_track)
     {
-        results->bObjTrack = 1;
         tracker_objs.n_objects = results->nObjSize > TRACK_OBJETCS_MAX_SIZE ? TRACK_OBJETCS_MAX_SIZE : results->nObjSize;
         for (int i = 0; i < tracker_objs.n_objects; i++)
         {

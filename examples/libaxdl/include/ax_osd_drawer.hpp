@@ -196,8 +196,8 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpWidth = canvas.cols;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpHeight = canvas.rows;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = pos.x * nWidth;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = pos.y * nHeight - canvas.rows;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = MAX(0, pos.x * nWidth);
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = MAX(0, pos.y * nHeight - canvas.rows);
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.pBitmap = canvas.data;
     }
 
@@ -253,8 +253,8 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpWidth = mask_color.cols;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpHeight = mask_color.rows;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = box ? box->x * nWidth : 0;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = box ? box->y * nHeight : 0;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = box ? MAX(0, box->x * nWidth) : 0;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = box ? MAX(0, box->y * nHeight) : 0;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.pBitmap = mask_color.data;
     }
 };

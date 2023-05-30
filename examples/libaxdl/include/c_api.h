@@ -71,7 +71,7 @@ extern "C"
 
     typedef struct _point_t
     {
-        float x, y;
+        float x, y, score;
     } axdl_point_t;
 
     typedef struct _mat_t

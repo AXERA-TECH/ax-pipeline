@@ -503,6 +503,7 @@ int ax_model_yolov7_face::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop
         {
             results->mObjects[i].landmark[j].x = obj.landmark[j].x;
             results->mObjects[i].landmark[j].y = obj.landmark[j].y;
+            results->mObjects[i].landmark[j].score = obj.kps_feat[j];
         }
         if (obj.label < (int)CLASS_NAMES.size())
         {
@@ -1259,6 +1260,7 @@ int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *
         {
             results->mObjects[i].landmark[j].x = obj.kps_feat[3 * j];
             results->mObjects[i].landmark[j].y = obj.kps_feat[3 * j + 1];
+            results->mObjects[i].landmark[j].score = obj.kps_feat[3 * j + 2];
         }
 
         if (obj.label < (int)CLASS_NAMES.size())
