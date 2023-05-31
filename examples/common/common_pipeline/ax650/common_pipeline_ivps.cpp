@@ -276,6 +276,7 @@ int _create_ivps_grp(pipeline_t *pipe)
             pipe->m_ivps_attr.n_osd_rgn_chn[i] = hChnRgn;
             continue;
         }
+        ALOGE("AX_IVPS_RGN_Create(Grp: %d)", pipe->m_ivps_attr.n_ivps_grp);
         pipe->m_ivps_attr.n_osd_rgn = i;
         break;
     }

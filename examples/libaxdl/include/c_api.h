@@ -76,7 +76,7 @@ extern "C"
 
     typedef struct _mat_t
     {
-        int w, h;
+        int w, h, c, s;
         unsigned char *data;
     } axdl_mat_t;
 

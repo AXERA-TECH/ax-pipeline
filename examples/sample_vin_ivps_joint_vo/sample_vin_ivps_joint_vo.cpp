@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
             config0.n_ivps_rotate = 1; // 旋转
             config0.n_ivps_width = 854;
             config0.n_ivps_height = 480;
-            config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+            config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
         }
         pipe0.enable = 1;
         pipe0.pipeid = 0x90015;

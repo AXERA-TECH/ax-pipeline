@@ -64,7 +64,7 @@ extern "C"
         po_vo_sipeed_maix3_screen,
         po_vo_hdmi,
     } pipeline_output_e;
-    
+
     typedef enum
     {
         phv_1920x1080p25,
@@ -83,13 +83,29 @@ extern "C"
         phv_4096x2160p60,
     } pipeline_hdmi_vo_e;
 
+#ifdef AXERA_TARGET_CHIP_AX620
+#define MAX_IVPS_GRP_COUNT 20
+#define MAX_OSD_RGN_COUNT 16
+#define MAX_VENC_CHN_COUNT 64
+#define MAX_VDEC_GRP_COUNT 16
+#define MAX_VO_CHN_COUNT 32
+#define MAX_VIN_PIPE_COUNT 4
+#define MAX_VIN_CHN_COUNT 3
+#elif defined(AXERA_TARGET_CHIP_AX650)
+#define MAX_IVPS_GRP_COUNT 256
+#define MAX_OSD_RGN_COUNT 16
+#define MAX_VENC_CHN_COUNT 64
+#define MAX_VDEC_GRP_COUNT 164
+#define MAX_VO_CHN_COUNT 32
+#define MAX_VIN_PIPE_COUNT 4
+#define MAX_VIN_CHN_COUNT 3
+#endif
+
     typedef struct
     {
-#define MAX_IVPS_GRP_COUNT 20
         int n_ivps_grp; // 少于20，并且不能重复
 
-        int n_osd_rgn; // rgn的个数，设为0则表示不进行osd，少于 MAX_OSD_RGN_COUNT 个，每一个rgn可以绘制32个目标
-#define MAX_OSD_RGN_COUNT 16
+        int n_osd_rgn;                        // rgn的个数，设为0则表示不进行osd，少于 MAX_OSD_RGN_COUNT 个，每一个rgn可以绘制32个目标
         int n_osd_rgn_chn[MAX_OSD_RGN_COUNT]; // rgn 的句柄
 
         int n_ivps_fps; // 输出的帧率
@@ -106,42 +122,39 @@ extern "C"
 
         int b_letterbox; // 填充，一般用于ai检测
 
-        int n_fifo_count; // [0]表示不输出，[1-4]表示队列的个数，大于[0]则可以在调用回调输出图像
+        int n_fifo_count;      // [0]表示不输出，[1-4]表示队列的个数，大于[0]则可以在调用回调输出图像
         unsigned long int tid; // internal variable
     } pipeline_ivps_config_t;
 
     typedef struct
     {
-#define MAX_VENC_CHN_COUNT 64
-        int n_venc_chn;     // 少于64 并且不能重复
-        char end_point[32]; // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
+        int n_venc_chn;        // 少于64 并且不能重复
+        char end_point[32];    // rtsp的节点名称 例如 rtsp://x.x.x.x:554/end_point
         unsigned long int tid; // internal variable
     } pipeline_venc_config_t;
 
-    typedef struct 
+    typedef struct
     {
-        struct 
+        int n_vdec_grp;        // 少于 16，允许重复
+        int poolid;            // internal variable,dont touch，内部使用，不要有任何操作
+        unsigned long int tid; // internal variable
+    } pipeline_vdec_config_t;
+
+    typedef struct
+    {
+        struct
         {
-#define MAX_VO_CHN_COUNT 32
             int n_vo_count;
             pipeline_hdmi_vo_e e_hdmi_type;
             int n_chn;
             int n_frame_rate;
-            int portid; //hdmi port index,just can be 0 or 1
-            int n_chns_count; // count of chn available
-            int n_chns[MAX_VO_CHN_COUNT]; // chn number
-            int n_chn_widths[MAX_VO_CHN_COUNT]; //chn width to set ivps
-            int n_chn_heights[MAX_VO_CHN_COUNT]; //chn height to set ivps
+            int portid;                          // hdmi port index,just can be 0 or 1
+            int n_chns_count;                    // count of chn available
+            int n_chns[MAX_VO_CHN_COUNT];        // chn number
+            int n_chn_widths[MAX_VO_CHN_COUNT];  // chn width to set ivps
+            int n_chn_heights[MAX_VO_CHN_COUNT]; // chn height to set ivps
         } hdmi;
     } pipeline_vo_config_t;
-    
-    typedef struct
-    {
-#define MAX_VDEC_GRP_COUNT 16
-        int n_vdec_grp; // 少于 16，允许重复
-        int poolid;     // internal variable,dont touch，内部使用，不要有任何操作
-        unsigned long int tid; // internal variable
-    } pipeline_vdec_config_t;
 
     typedef struct
     {
@@ -169,10 +182,10 @@ extern "C"
         // 可以用来控制线程退出（如果有的话）
         volatile int n_loog_exit;
 
-// for input
-#define MAX_VIN_PIPE_COUNT 4
+        // for input
+
         int n_vin_pipe; // lower than 4
-#define MAX_VIN_CHN_COUNT 3
+
         int n_vin_chn; // lower than 3
 
         pipeline_vdec_config_t m_vdec_attr;

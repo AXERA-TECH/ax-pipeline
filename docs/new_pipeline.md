@@ -16,7 +16,7 @@ pipeline_t pipe_rtsp;
     config.n_ivps_fps = 25;
     config.n_ivps_width = 1920;
     config.n_ivps_height = 1080;
-    config.n_osd_rgn = 1; // osd rgn 的个数（最多五个），一个rgn可以osd 32个目标，现在用的是自定义的rgba画布，所以指挥占用一个rgn里的一个目标，所以这里只创建一个
+    config.n_osd_rgn = 4; // osd rgn 的个数（最多五个），一个rgn可以osd 32个目标，现在用的是自定义的rgba画布，所以指挥占用一个rgn里的一个目标，所以这里只创建一个
 }
 pipe_rtsp.enable = 1;
 pipe_rtsp.pipeid = 0x90015;
@@ -92,7 +92,7 @@ create_pipeline(&pipe_ai);
     config.n_ivps_rotate = 1; // 旋转
     config.n_ivps_width = 854;
     config.n_ivps_height = 480;
-    config.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+    config.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
 }
 pipe_vo.enable = 1;
 pipe_vo.pipeid = 0x90015;

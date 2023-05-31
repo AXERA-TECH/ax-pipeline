@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 10},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 20},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
             config2.n_ivps_fps = s_sample_framerate;
             config2.n_ivps_width = 1920;
             config2.n_ivps_height = 1080;
-            config2.n_osd_rgn = 1;
+            config2.n_osd_rgn = 4;
         }
         pipe2.enable = 1;
         pipe2.pipeid = 0x90017; // 重复的会创建失败

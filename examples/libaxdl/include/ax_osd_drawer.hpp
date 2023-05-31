@@ -1,3 +1,4 @@
+#pragma once
 #include "mutex"
 #include "vector"
 #include "map"
@@ -13,6 +14,8 @@
 
 #include "opencv2/opencv.hpp"
 
+#define MAX_NUM_PTS 10
+
 class ax_osd_drawer
 {
 private:
@@ -22,15 +25,18 @@ private:
     std::vector<AX_IVPS_RGN_DISP_GROUP_T> vRgns;
 #endif
 
-    SimpleRingBuffer<std::vector<unsigned char>> mRingBufferMatText, mRingBufferMatMask;
+    SimpleRingBuffer<axdl_mat_t> mRingBufferMatText, mRingBufferMatMask;
     int nWidth, nHeight;
     int index = -1;
 
     bool add_index()
     {
+        int limit = vRgns.size() * AX_IVPS_REGION_MAX_DISP_NUM;
+        // printf("%d,%d,%d\n", index, vRgns.size(), limit);
         index++;
-        if (index >= vRgns.size() * AX_IVPS_REGION_MAX_DISP_NUM)
+        if (index >= limit)
         {
+            printf("limit %d,%d,%d\n", index, vRgns.size(), limit);
             return false;
         }
         return true;
@@ -73,6 +79,8 @@ public:
     {
         mRingBufferMatText.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
         mRingBufferMatMask.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        memset(mRingBufferMatText.data(), 0, mRingBufferMatText.size() * sizeof(axdl_mat_t));
+        memset(mRingBufferMatMask.data(), 0, mRingBufferMatMask.size() * sizeof(axdl_mat_t));
         vRgns.resize(num_rgn);
         nWidth = image_width;
         nHeight = image_height;
@@ -150,7 +158,7 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nAlpha = 255;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nColor = color.iargb;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nLineWidth = linewidth;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nPointNum = std::min(num, 10);
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nPointNum = std::min(num, MAX_NUM_PTS);
         for (size_t i = 0; i < vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum; i++)
         {
             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tPTs[i].nX = pts[i].x * nWidth;
@@ -185,8 +193,18 @@ public:
         auto label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, fontsize, linewidth, &baseLine);
 
         auto &canvas_ptr = mRingBufferMatText.next();
-        canvas_ptr.resize(4 * (label_size.height + baseLine) * label_size.width);
-        auto canvas = cv::Mat(label_size.height + baseLine, label_size.width, CV_8UC4, canvas_ptr.data());
+        if (canvas_ptr.w < 4 * (label_size.height + baseLine) * label_size.width)
+        {
+            if (canvas_ptr.data)
+            {
+                delete[] canvas_ptr.data;
+                canvas_ptr.data = nullptr;
+            }
+            canvas_ptr.w = 4 * (label_size.height + baseLine) * label_size.width;
+            canvas_ptr.data = new unsigned char[canvas_ptr.w];
+        }
+
+        auto canvas = cv::Mat(label_size.height + baseLine, label_size.width, CV_8UC4, canvas_ptr.data);
         memset(canvas.data, 255, canvas.cols * canvas.rows * 4);
         cv::putText(canvas, text, cv::Point(0, label_size.height), cv::FONT_HERSHEY_SIMPLEX, fontsize,
                     cv::Scalar(color.abgr[0], color.abgr[1], color.abgr[2], color.abgr[3]), linewidth);
@@ -212,7 +230,7 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nAlpha = 255;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nColor = color.iargb;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nLineWidth = linewidth;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = std::min(num, 10);
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = std::min(num, MAX_NUM_PTS);
         for (size_t i = 0; i < vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum; i++)
         {
             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[i].nX = pts[i].x * nWidth;
@@ -241,8 +259,18 @@ public:
         cv::Mat mask_mat(mask->h, mask->w, CV_8U, mask->data);
         cv::Mat mask_target;
         auto &mask_color_ptr = mRingBufferMatMask.next();
-        mask_color_ptr.resize(4 * rect.height * rect.width);
-        auto mask_color = cv::Mat(rect.height, rect.width, CV_8UC4, mask_color_ptr.data());
+        if (mask_color_ptr.w < 4 * rect.height * rect.width)
+        {
+            if (mask_color_ptr.data)
+            {
+                delete[] mask_color_ptr.data;
+                mask_color_ptr.data = nullptr;
+            }
+            mask_color_ptr.w = 4 * rect.height * rect.width;
+            mask_color_ptr.data = new unsigned char[mask_color_ptr.w];
+        }
+
+        auto mask_color = cv::Mat(rect.height, rect.width, CV_8UC4, mask_color_ptr.data);
         memset(mask_color.data, 0, mask_color.cols * mask_color.rows * 4);
 
         cv::resize(mask_mat, mask_target, cv::Size(rect.width, rect.height), 0, 0, cv::INTER_NEAREST);

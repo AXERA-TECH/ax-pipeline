@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
             config0.n_ivps_fps = s_sample_framerate;
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
-            config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+            config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
         }
         pipe0.enable = 1;
         pipe0.pipeid = 0x90015;
@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
             config2.n_ivps_fps = 60;   // 爱芯派的屏幕必须要60fps，分辨率也必须为854*480
             config2.n_ivps_width = 854;
             config2.n_ivps_height = 480;
-            config2.n_osd_rgn = 1;
+            config2.n_osd_rgn = 4;
         }
         pipe2.enable = 1;
         pipe2.pipeid = 0x90017; // 重复的会创建失败

@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 40},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, rtsp_urls.size() * 15},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
                 config.n_ivps_fps = s_sample_framerate;
                 config.n_ivps_width = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_widths[i];
                 config.n_ivps_height = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_heights[i];
-                config.n_osd_rgn = pipe1.enable ? 1 : 0;
+                config.n_osd_rgn = 4;
                 config.n_fifo_count = 1;
             }
             pipe0.enable = 1;

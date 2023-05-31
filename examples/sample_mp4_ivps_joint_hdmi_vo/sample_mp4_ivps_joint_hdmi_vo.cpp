@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
-    int loopPlay = 0;
+    int loopPlay = 1;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     char h26xfile[512];
     signal(SIGPIPE, SIG_IGN);
@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 10},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 20},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
             config0.n_fifo_count = 1;
-            config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+            config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
         }
         {
             pipeline_vo_config_t &config = pipe0.m_vo_attr;

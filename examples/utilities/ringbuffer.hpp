@@ -33,7 +33,12 @@ public:
     {
         return mBuffer[idx];
     }
-    
+
+    T *data()
+    {
+        return mBuffer.data();
+    }
+
     size_t size()
     {
         return mBuffer.size();

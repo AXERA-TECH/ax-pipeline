@@ -356,6 +356,8 @@ int ax_model_face_feat_extactor_sub::post_process(axdl_image_t *pstFrame, axdl_b
     _normalize(feat.data(), FACE_FEAT_LEN);
     results->mObjects[cur_idx].mFaceFeat.w = FACE_FEAT_LEN * 4;
     results->mObjects[cur_idx].mFaceFeat.h = 1;
+    results->mObjects[cur_idx].mFaceFeat.c = 1;
+    results->mObjects[cur_idx].mFaceFeat.s = results->mObjects[cur_idx].mFaceFeat.w;
     results->mObjects[cur_idx].mFaceFeat.data = (unsigned char *)feat.data();
     return 0;
 }

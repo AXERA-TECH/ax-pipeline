@@ -154,11 +154,11 @@ int ax_runner_ax650::init(const char *model_file)
     }
     fprintf(stdout, "Engine creating context is done.\n");
 
-    {
-        static int affinity = 0;
-        AX_ENGINE_SetAffinity(m_handle->handle, affinity % 3);
-        affinity++;
-    }
+    // {
+    //     static int affinity = 0;
+    //     AX_ENGINE_SetAffinity(m_handle->handle, affinity % 3);
+    //     affinity++;
+    // }
 
     // 5. set io
 

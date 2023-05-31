@@ -75,15 +75,26 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     }
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
+#ifdef AXERA_TARGET_CHIP_AX620
+    float *output_ptr[3] = {(float *)pOutputsInfo[0].pVirAddr,
+                            (float *)pOutputsInfo[1].pVirAddr,
+                            (float *)pOutputsInfo[2].pVirAddr};
+    int seg_idx = 3;
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    float *output_ptr[3] = {(float *)pOutputsInfo[0].pVirAddr,
+                            (float *)pOutputsInfo[2].pVirAddr,
+                            (float *)pOutputsInfo[3].pVirAddr};
+    int seg_idx = 1;
+#endif
+
     for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
         auto &output = pOutputsInfo[i];
-        auto ptr = (float *)output.pVirAddr;
-        generate_proposals_yolov5_seg(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
+        generate_proposals_yolov5_seg(STRIDES[i], output_ptr[i], PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
     }
     static const int DEFAULT_MASK_PROTO_DIM = 32;
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
-    auto &output = pOutputsInfo[3];
+    auto &output = pOutputsInfo[seg_idx];
     auto ptr = (float *)output.pVirAddr;
     detection::get_out_bbox_mask(proposals, objects, MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -115,6 +126,8 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             results->mObjects[i].mYolov5Mask.data = mask.data;
             results->mObjects[i].mYolov5Mask.w = mask.cols;
             results->mObjects[i].mYolov5Mask.h = mask.rows;
+            results->mObjects[i].mYolov5Mask.c = mask.channels();
+            results->mObjects[i].mYolov5Mask.s = mask.step1();
         }
 
         if (obj.label < (int)CLASS_NAMES.size())
@@ -766,9 +779,14 @@ int ax_model_yolopv2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_res
     results->bYolopv2Mask = 1;
     results->mYolopv2seg.h = da_seg_mask.rows;
     results->mYolopv2seg.w = da_seg_mask.cols;
+    results->mYolopv2seg.c = da_seg_mask.channels();
+    results->mYolopv2seg.s = da_seg_mask.step1();
     results->mYolopv2seg.data = da_seg_mask.data;
+
     results->mYolopv2ll.h = ll_seg_mask.rows;
     results->mYolopv2ll.w = ll_seg_mask.cols;
+    results->mYolopv2ll.c = ll_seg_mask.channels();
+    results->mYolopv2ll.s = ll_seg_mask.step1();
     results->mYolopv2ll.data = ll_seg_mask.data;
     return 0;
 }
@@ -1081,7 +1099,7 @@ int ax_model_yolov8::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
 
 int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    if (mSimpleRingBuffer.size())
+    if (mSimpleRingBuffer.size() == 0)
     {
         mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     }
@@ -1136,6 +1154,8 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             results->mObjects[i].mYolov5Mask.data = mask.data;
             results->mObjects[i].mYolov5Mask.w = mask.cols;
             results->mObjects[i].mYolov5Mask.h = mask.rows;
+            results->mObjects[i].mYolov5Mask.c = mask.channels();
+            results->mObjects[i].mYolov5Mask.s = mask.step1();
         }
 
         if (obj.label < (int)CLASS_NAMES.size())

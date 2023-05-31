@@ -21,6 +21,8 @@ int ax_model_pphumseg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_re
     }
     results->mPPHumSeg.h = seg_h;
     results->mPPHumSeg.w = seg_w;
+    results->mPPHumSeg.c = seg_mat.channels();
+    results->mPPHumSeg.s = seg_mat.step1();
     results->mPPHumSeg.data = seg_mat.data;
 
     for (int j = 0; j < seg_h * seg_w; ++j)

@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
             config0.n_ivps_fps = s_sample_framerate;
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
-            config0.n_osd_rgn = 1; // osd rgn 的个数（最多五个），一个rgn可以osd 32个目标，现在用的是自定义的rgba画布，所以指挥占用一个rgn里的一个目标，所以这里只创建一个
+            config0.n_osd_rgn = 4; // osd rgn 的个数（最多五个），一个rgn可以osd 32个目标，现在用的是自定义的rgba画布，所以指挥占用一个rgn里的一个目标，所以这里只创建一个
         }
         pipe0.enable = 1;
         pipe0.pipeid = 0x90015;
@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
             config2.n_ivps_fps = s_sample_framerate;
             config2.n_ivps_width = 960;
             config2.n_ivps_height = 540;
-            config2.n_osd_rgn = 1;
+            config2.n_osd_rgn = 4;
         }
         pipe2.enable = 1;
         pipe2.pipeid = 0x90017; // 重复的会创建失败

@@ -13,7 +13,7 @@
         config0.n_ivps_rotate = 1; // 旋转
         config0.n_ivps_width = 854;
         config0.n_ivps_height = 480;
-        config0.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+        config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
     }
 ```
 可以参考以下结构体进行修改，结构体定义在 [pipeline_ivps_config_t](../examples/common/common_pipeline.h#L67)

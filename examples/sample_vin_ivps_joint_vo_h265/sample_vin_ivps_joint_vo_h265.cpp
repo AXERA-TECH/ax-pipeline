@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
             config.n_ivps_rotate = 1;    // 旋转
             config.n_ivps_width = 854;
             config.n_ivps_height = 480;
-            config.n_osd_rgn = 1; // osd rgn 的个数，一个rgn可以osd 32个目标
+            config.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
         }
         pipe0.enable = 1;
         pipe0.pipeid = pipeidx++;
@@ -409,7 +409,7 @@ int main(int argc, char *argv[])
             config.n_ivps_fps = 25;
             config.n_ivps_width = 960;
             config.n_ivps_height = 540;
-            config.n_osd_rgn = 1;
+            config.n_osd_rgn = 4;
             config.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
         }
         pipe2.enable = 1;

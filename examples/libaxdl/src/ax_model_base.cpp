@@ -331,7 +331,7 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     ret = m_runner->inference(&dstFrame, crop_resize_box);
     if (ret != 0)
     {
-        ALOGE("inference failed %d", ret);
+        ALOGE("inference failed 0x%x", ret);
         return ret;
     }
     ret = post_process(pstFrame, crop_resize_box, results);
