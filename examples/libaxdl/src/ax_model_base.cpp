@@ -219,7 +219,11 @@ void ax_model_base::draw_bbox(int chn, axdl_results_t *results, float fontscale,
     {
         if (results->mObjects[d].bHasBoxVertices)
         {
-            m_drawers[chn].add_polygon(results->mObjects[d].bbox_vertices, 4, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+            if (results->bObjTrack)
+                m_drawers[chn].add_polygon(results->mObjects[d].bbox_vertices, 4, COCO_COLORS_ARGB[results->mObjects[d].track_id % COCO_COLORS_ARGB.size()], thickness);
+            else
+                m_drawers[chn].add_polygon(results->mObjects[d].bbox_vertices, 4, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+
             if (results->bObjTrack && b_draw_obj_name)
             {
                 m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
@@ -235,7 +239,11 @@ void ax_model_base::draw_bbox(int chn, axdl_results_t *results, float fontscale,
         }
         else
         {
-            m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+            if (results->bObjTrack)
+                m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].track_id % COCO_COLORS_ARGB.size()], thickness);
+            else
+                m_drawers[chn].add_rect(&results->mObjects[d].bbox, COCO_COLORS_ARGB[results->mObjects[d].label % COCO_COLORS_ARGB.size()], thickness);
+
             if (results->bObjTrack && b_draw_obj_name)
             {
                 m_drawers[chn].add_text(std::string(results->mObjects[d].objname) + " " + std::to_string(results->mObjects[d].track_id),
@@ -278,6 +286,7 @@ int ax_model_single_base_t::init(void *json_obj)
     update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
 
     update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
+    update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
 
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
@@ -467,6 +476,7 @@ int ax_model_multi_base_t::init(void *json_obj)
         update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
         MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
         update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
+        update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
 
         model_0->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
         model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);

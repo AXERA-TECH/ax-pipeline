@@ -2,6 +2,7 @@
     "MODEL_TYPE": "MT_DET_YOLOX_PPL",
     "MODEL_PATH": "./models/ax_bvc_1024x864.joint",
     "TRACK_ENABLE": true,
+    "OSD_DRAW_NAME": false,
     "CLASS_NAMES": [
         "person",
         "vehicle",
