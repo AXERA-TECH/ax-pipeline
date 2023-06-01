@@ -155,7 +155,7 @@ private:
                 }
             }
             // freeObjs(&mResults);
-            usleep(0);
+            usleep(1*1000);
         }
         for (size_t i = 0; i < pipes_need_osd.size(); i++)
         {
@@ -201,7 +201,7 @@ private:
                 }
             }
 
-            usleep(0);
+            usleep(1*1000);
         }
 #endif
         ALOGI("osd thread:----");

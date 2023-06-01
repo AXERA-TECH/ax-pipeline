@@ -27,6 +27,7 @@
 #include "utilities/file.hpp"
 #include "middleware/io.hpp"
 #include "sample_run_joint.h"
+#include "../include/ax_common_api.h"
 #include "sample_log.h"
 #include <vector>
 
@@ -51,7 +52,8 @@ typedef struct
     AX_JOINT_IO_T joint_io_arr;
     AX_JOINT_IO_SETTING_T joint_io_setting;
 
-    AX_NPU_CV_Image algo_input_nv12, algo_input_rgb, algo_input_bgr;
+    ax_imgproc_t imgproc;
+    
     AX_JOINT_COLOR_SPACE_T SAMPLE_ALOG_FORMAT;
     int SAMPLE_ALGO_WIDTH = 0;
     int SAMPLE_ALGO_HEIGHT = 0;
@@ -69,7 +71,7 @@ AX_S32 alloc_joint_buffer(const AX_JOINT_IOMETA_T *pMeta, AX_JOINT_IO_BUFFER_T *
     return AX_ERR_NPU_JOINT_SUCCESS;
 }
 
-AX_S32 prepare_io(AX_NPU_CV_Image *algo_input, AX_JOINT_IO_T &io, const AX_JOINT_IO_INFO_T *io_info, const uint32_t &batch)
+AX_S32 prepare_io(axdl_image_t *algo_input, AX_JOINT_IO_T &io, const AX_JOINT_IO_INFO_T *io_info, const uint32_t &batch)
 {
     memset(&io, 0, sizeof(io));
 
@@ -235,9 +237,6 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
 
     memset(&handle->joint_io_arr, 0, sizeof(handle->joint_io_arr));
     memset(&handle->joint_io_setting, 0, sizeof(handle->joint_io_setting));
-    memset(&handle->algo_input_nv12, 0, sizeof(handle->algo_input_nv12));
-    memset(&handle->algo_input_rgb, 0, sizeof(handle->algo_input_rgb));
-    memset(&handle->algo_input_bgr, 0, sizeof(handle->algo_input_bgr));
 
     auto io_info = AX_JOINT_GetIOInfo(handle->joint_handle);
     handle->SAMPLE_ALGO_WIDTH = io_info->pInputs->pShape[2];
@@ -265,47 +264,19 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
         return deinit_joint();
     }
 
-    handle->algo_input_nv12.nWidth = handle->algo_input_rgb.nWidth = handle->algo_input_bgr.nWidth = handle->SAMPLE_ALGO_WIDTH;
-    handle->algo_input_nv12.nHeight = handle->algo_input_rgb.nHeight = handle->algo_input_bgr.nHeight = handle->SAMPLE_ALGO_HEIGHT;
-    handle->algo_input_nv12.tStride.nW = handle->algo_input_rgb.tStride.nW = handle->algo_input_bgr.tStride.nW = handle->SAMPLE_ALGO_WIDTH;
-
-    handle->algo_input_nv12.eDtype = AX_NPU_CV_FDT_NV12;
-    handle->algo_input_rgb.eDtype = AX_NPU_CV_FDT_RGB;
-    handle->algo_input_bgr.eDtype = AX_NPU_CV_FDT_BGR;
-
-    handle->algo_input_nv12.nSize = handle->algo_input_nv12.nWidth * handle->algo_input_nv12.nHeight * 1.5;
-    handle->algo_input_rgb.nSize = handle->algo_input_rgb.nWidth * handle->algo_input_rgb.nHeight * 3;
-    handle->algo_input_bgr.nSize = handle->algo_input_bgr.nWidth * handle->algo_input_bgr.nHeight * 3;
-
-    ret = AX_SYS_MemAlloc((AX_U64 *)&handle->algo_input_nv12.pPhy, (void **)&handle->algo_input_nv12.pVir, handle->algo_input_nv12.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
-    if (ret != AX_ERR_NPU_JOINT_SUCCESS)
-    {
-        ALOGE("error alloc image sys mem %x", ret);
-        return deinit_joint();
-    }
-    ret = AX_SYS_MemAlloc((AX_U64 *)&handle->algo_input_rgb.pPhy, (void **)&handle->algo_input_rgb.pVir, handle->algo_input_rgb.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
-    if (ret != AX_ERR_NPU_JOINT_SUCCESS)
-    {
-        ALOGE("error alloc image sys mem %x", ret);
-        return deinit_joint();
-    }
-    ret = AX_SYS_MemAlloc((AX_U64 *)&handle->algo_input_bgr.pPhy, (void **)&handle->algo_input_bgr.pVir, handle->algo_input_bgr.nSize, 0x100, (AX_S8 *)"SAMPLE-CV");
-    if (ret != AX_ERR_NPU_JOINT_SUCCESS)
-    {
-        ALOGE("error alloc image sys mem %x", ret);
-        return deinit_joint();
-    }
-
     switch (handle->SAMPLE_ALOG_FORMAT)
     {
     case AX_JOINT_CS_NV12:
-        ret = prepare_io(&handle->algo_input_nv12, handle->joint_io_arr, io_info, 1);
+        handle->imgproc.init(handle->SAMPLE_ALGO_WIDTH, handle->SAMPLE_ALGO_HEIGHT, true, axdl_color_space_nv12);
+        ret = prepare_io(handle->imgproc.get(axdl_color_space_nv12), handle->joint_io_arr, io_info, 1);
         break;
     case AX_JOINT_CS_RGB:
-        ret = prepare_io(&handle->algo_input_rgb, handle->joint_io_arr, io_info, 1);
+        handle->imgproc.init(handle->SAMPLE_ALGO_WIDTH, handle->SAMPLE_ALGO_HEIGHT, true, axdl_color_space_rgb);
+        ret = prepare_io(handle->imgproc.get(axdl_color_space_rgb), handle->joint_io_arr, io_info, 1);
         break;
     case AX_JOINT_CS_BGR:
-        ret = prepare_io(&handle->algo_input_bgr, handle->joint_io_arr, io_info, 1);
+        handle->imgproc.init(handle->SAMPLE_ALGO_WIDTH, handle->SAMPLE_ALGO_HEIGHT, true, axdl_color_space_bgr);
+        ret = prepare_io(handle->imgproc.get(axdl_color_space_bgr), handle->joint_io_arr, io_info, 1);
         break;
     default:
         ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
@@ -359,14 +330,14 @@ int sample_run_joint_release(void *yhandle)
             AX_JOINT_Adv_Deinit();
         };
         DestroyJoint();
-        AX_SYS_MemFree((AX_U64)handle->algo_input_nv12.pPhy, (void *)handle->algo_input_nv12.pVir);
-        AX_SYS_MemFree((AX_U64)handle->algo_input_rgb.pPhy, (void *)handle->algo_input_rgb.pVir);
-        AX_SYS_MemFree((AX_U64)handle->algo_input_bgr.pPhy, (void *)handle->algo_input_bgr.pVir);
+        handle->imgproc.deinit();
 
         delete handle;
     }
     return 0;
 }
+
+void cvt(AX_NPU_CV_Image *src, axdl_image_t *dst);
 
 int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void *crop_resize_box)
 {
@@ -379,88 +350,11 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
     }
 
     AX_NPU_CV_Image *pstFrame = (AX_NPU_CV_Image *)_pstFrame;
-
-    AX_NPU_SDK_EX_MODEL_TYPE_T ModelType;
-    AX_JOINT_GetVNPUMode(handle->joint_handle, &ModelType);
-    switch (pstFrame->eDtype)
+    axdl_image_t dst;
+    cvt(pstFrame, &dst);
+    if (handle->imgproc.process(&dst) != 0)
     {
-    case AX_NPU_CV_FDT_NV12:
-        npu_crop_resize(pstFrame, &handle->algo_input_nv12, (AX_NPU_CV_Box *)crop_resize_box, ModelType,
-                        AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
-        break;
-    case AX_NPU_CV_FDT_RGB:
-        npu_crop_resize(pstFrame, &handle->algo_input_rgb, (AX_NPU_CV_Box *)crop_resize_box, ModelType,
-                        AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
-        break;
-    case AX_NPU_CV_FDT_BGR:
-        npu_crop_resize(pstFrame, &handle->algo_input_bgr, (AX_NPU_CV_Box *)crop_resize_box, ModelType,
-                        AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
-        break;
-    default:
-        ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
-        return -1;
-    }
-
-    switch (handle->SAMPLE_ALOG_FORMAT)
-    {
-    case AX_JOINT_CS_NV12:
-    {
-        switch (pstFrame->eDtype)
-        {
-        case AX_NPU_CV_FDT_NV12:
-            break;
-        case AX_NPU_CV_FDT_RGB:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_rgb, &handle->algo_input_nv12);
-            break;
-        case AX_NPU_CV_FDT_BGR:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_bgr, &handle->algo_input_nv12);
-            break;
-
-        default:
-            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
-            return -1;
-        }
-    }
-    break;
-    case AX_JOINT_CS_RGB:
-    {
-        switch (pstFrame->eDtype)
-        {
-        case AX_NPU_CV_FDT_NV12:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_nv12, &handle->algo_input_bgr);
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_bgr, &handle->algo_input_rgb);
-            break;
-        case AX_NPU_CV_FDT_RGB:
-            break;
-        case AX_NPU_CV_FDT_BGR:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_bgr, &handle->algo_input_rgb);
-            break;
-        default:
-            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
-            return -1;
-        }
-    }
-    break;
-    case AX_JOINT_CS_BGR:
-    {
-        switch (pstFrame->eDtype)
-        {
-        case AX_NPU_CV_FDT_NV12:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_nv12, &handle->algo_input_bgr);
-            break;
-        case AX_NPU_CV_FDT_RGB:
-            AX_NPU_CV_CSC(ModelType, &handle->algo_input_rgb, &handle->algo_input_bgr);
-            break;
-        case AX_NPU_CV_FDT_BGR:
-            break;
-        default:
-            ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
-            return -1;
-        }
-    }
-    break;
-    default:
-        ALOGE("now ax-pipeline just only support NV12/RGB/BGR input format,you can modify by yourself");
+        ALOGE("image process failed");
         return -1;
     }
 

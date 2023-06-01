@@ -36,7 +36,7 @@ void cvt(axdl_image_t *src, AX_NPU_CV_Image *dst)
     dst->nHeight = src->nHeight;
     dst->nWidth = src->nWidth;
     dst->nSize = src->nSize;
-    dst->tStride.nW = src->tStride_C;
+    dst->tStride.nW = src->tStride_W;
     switch (src->eDtype)
     {
     case axdl_color_space_nv12:
@@ -53,6 +53,35 @@ void cvt(axdl_image_t *src, AX_NPU_CV_Image *dst)
         break;
     default:
         dst->eDtype = AX_NPU_CV_FDT_UNKNOWN;
+        break;
+    }
+}
+
+void cvt(AX_NPU_CV_Image *src, axdl_image_t *dst)
+{
+    memset(dst, 0, sizeof(axdl_image_t));
+    dst->pPhy = src->pPhy;
+    dst->pVir = (unsigned char *)src->pVir;
+    dst->nHeight = src->nHeight;
+    dst->nWidth = src->nWidth;
+    dst->nSize = src->nSize;
+    dst->tStride_W = src->tStride.nW;
+    switch (src->eDtype)
+    {
+    case AX_NPU_CV_FDT_NV12:
+        dst->eDtype = axdl_color_space_nv12;
+        break;
+    case AX_NPU_CV_FDT_NV21:
+        dst->eDtype = axdl_color_space_nv21;
+        break;
+    case AX_NPU_CV_FDT_BGR:
+        dst->eDtype = axdl_color_space_bgr;
+        break;
+    case AX_NPU_CV_FDT_RGB:
+        dst->eDtype = axdl_color_space_rgb;
+        break;
+    default:
+        dst->eDtype = axdl_color_space_unknown;
         break;
     }
 }
