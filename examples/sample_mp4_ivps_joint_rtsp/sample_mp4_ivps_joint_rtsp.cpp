@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
-    int loopPlay = 0;
+    int loopPlay = 1;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     char h26xfile[512];
     signal(SIGPIPE, SIG_IGN);

@@ -1170,6 +1170,124 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     return 0;
 }
 
+void draw_pose_result(cv::Mat &img, axdl_object_t *pObj, std::vector<pose::skeleton> &pairs, int joints_num, int offset_x, int offset_y);
+
+void ax_model_yolov8_pose::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+{
+    draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        static std::vector<pose::skeleton> pairs = {{15, 13, 0},
+                                                    {13, 11, 1},
+                                                    {16, 14, 2},
+                                                    {14, 12, 3},
+                                                    {11, 12, 0},
+                                                    {5, 11, 1},
+                                                    {6, 12, 2},
+                                                    {5, 6, 3},
+                                                    {5, 7, 0},
+                                                    {6, 8, 1},
+                                                    {7, 9, 2},
+                                                    {8, 10, 3},
+                                                    {1, 2, 0},
+                                                    {0, 1, 1},
+                                                    {0, 2, 2},
+                                                    {1, 3, 3},
+                                                    {2, 4, 0},
+                                                    {0, 5, 1},
+                                                    {0, 6, 2}};
+        if (results->mObjects[i].nLandmark == SAMPLE_BODY_LMK_SIZE)
+        {
+            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_BODY_LMK_SIZE, offset_x, offset_y);
+        }
+    }
+}
+
+void ax_model_yolov8_pose::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    draw_bbox(chn, results, fontscale, thickness);
+    static std::vector<int> head{4, 2, 0, 1, 3};
+    static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
+    static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
+    std::vector<axdl_point_t> pts(leg.size());
+    for (size_t d = 0; d < results->nObjSize; d++)
+    {
+        if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
+        {
+            for (size_t k = 0; k < head.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[head[k]].x;
+                pts[k].y = results->mObjects[d].landmark[head[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, thickness);
+            for (size_t k = 0; k < hand_arm.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
+                pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, thickness);
+            for (size_t k = 0; k < leg.size(); k++)
+            {
+                pts[k].x = results->mObjects[d].landmark[leg[k]].x;
+                pts[k].y = results->mObjects[d].landmark[leg[k]].y;
+            }
+            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, thickness);
+        }
+    }
+}
+
+int ax_model_yolov8_pose::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (mSimpleRingBuffer.size() == 0)
+    {
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT * SAMPLE_MAX_BBOX_COUNT);
+    }
+
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+
+    int nOutputSize = m_runner->get_num_outputs();
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+
+    for (uint32_t i = 0; i < nOutputSize; ++i)
+    {
+        auto feat_ptr = (float *)pOutputsInfo[i].pVirAddr;
+        detection::generate_proposals_yolov8_pose(STRIDES[i], feat_ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), SAMPLE_BODY_LMK_SIZE);
+    }
+    detection::get_out_bbox_kps(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+        results->mObjects[i].nLandmark = SAMPLE_BODY_LMK_SIZE;
+        std::vector<axdl_point_t> &points = mSimpleRingBuffer.next();
+        points.resize(results->mObjects[i].nLandmark);
+        results->mObjects[i].landmark = points.data();
+        for (size_t j = 0; j < SAMPLE_BODY_LMK_SIZE; j++)
+        {
+            results->mObjects[i].landmark[j].x = obj.kps_feat[3 * j];
+            results->mObjects[i].landmark[j].y = obj.kps_feat[3 * j + 1];
+            results->mObjects[i].landmark[j].score = obj.kps_feat[3 * j + 2];
+        }
+
+        if (obj.label < (int)CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+}
+
 int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
@@ -1294,70 +1412,4 @@ int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *
     }
 
     return 0;
-}
-
-void draw_pose_result(cv::Mat &img, axdl_object_t *pObj, std::vector<pose::skeleton> &pairs, int joints_num, int offset_x, int offset_y);
-
-void ax_model_yolov8_pose_650::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
-{
-    draw_bbox(image, results, fontscale, thickness, offset_x, offset_y);
-    for (int i = 0; i < results->nObjSize; i++)
-    {
-        static std::vector<pose::skeleton> pairs = {{15, 13, 0},
-                                                    {13, 11, 1},
-                                                    {16, 14, 2},
-                                                    {14, 12, 3},
-                                                    {11, 12, 0},
-                                                    {5, 11, 1},
-                                                    {6, 12, 2},
-                                                    {5, 6, 3},
-                                                    {5, 7, 0},
-                                                    {6, 8, 1},
-                                                    {7, 9, 2},
-                                                    {8, 10, 3},
-                                                    {1, 2, 0},
-                                                    {0, 1, 1},
-                                                    {0, 2, 2},
-                                                    {1, 3, 3},
-                                                    {2, 4, 0},
-                                                    {0, 5, 1},
-                                                    {0, 6, 2}};
-        if (results->mObjects[i].nLandmark == SAMPLE_BODY_LMK_SIZE)
-        {
-            draw_pose_result(image, &results->mObjects[i], pairs, SAMPLE_BODY_LMK_SIZE, offset_x, offset_y);
-        }
-    }
-}
-
-void ax_model_yolov8_pose_650::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
-{
-    draw_bbox(chn, results, fontscale, thickness);
-    static std::vector<int> head{4, 2, 0, 1, 3};
-    static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
-    static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
-    std::vector<axdl_point_t> pts(leg.size());
-    for (size_t d = 0; d < results->nObjSize; d++)
-    {
-        if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
-        {
-            for (size_t k = 0; k < head.size(); k++)
-            {
-                pts[k].x = results->mObjects[d].landmark[head[k]].x;
-                pts[k].y = results->mObjects[d].landmark[head[k]].y;
-            }
-            m_drawers[chn].add_line(pts.data(), head.size(), {255, 0, 255, 0}, thickness);
-            for (size_t k = 0; k < hand_arm.size(); k++)
-            {
-                pts[k].x = results->mObjects[d].landmark[hand_arm[k]].x;
-                pts[k].y = results->mObjects[d].landmark[hand_arm[k]].y;
-            }
-            m_drawers[chn].add_line(pts.data(), hand_arm.size(), {255, 0, 0, 255}, thickness);
-            for (size_t k = 0; k < leg.size(); k++)
-            {
-                pts[k].x = results->mObjects[d].landmark[leg[k]].x;
-                pts[k].y = results->mObjects[d].landmark[leg[k]].y;
-            }
-            m_drawers[chn].add_line(pts.data(), leg.size(), {255, 255, 0, 0}, thickness);
-        }
-    }
 }

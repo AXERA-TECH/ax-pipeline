@@ -1006,6 +1006,70 @@ namespace detection
         }
     }
 
+    static void generate_proposals_yolov8_pose(int stride, const float *feat, float prob_threshold, std::vector<Object> &objects,
+                                               int letterbox_cols, int letterbox_rows, const int num_point = 17)
+    {
+        int feat_w = letterbox_cols / stride;
+        int feat_h = letterbox_rows / stride;
+        int reg_max = 16;
+
+        std::vector<float> dis_after_sm(reg_max, 0.f);
+        for (int h = 0; h <= feat_h - 1; h++)
+        {
+            for (int w = 0; w <= feat_w - 1; w++)
+            {
+                // process cls score
+                auto scores = feat;
+                auto bboxes = feat + 1;
+                auto kps = feat + 1 + 4 * reg_max;
+
+                float box_prob = sigmoid(*scores);
+                if (box_prob > prob_threshold)
+                {
+                    float pred_ltrb[4];
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float dis = softmax(bboxes + k * reg_max, dis_after_sm.data(), reg_max);
+                        pred_ltrb[k] = dis * stride;
+                    }
+
+                    float pb_cx = (w + 0.5f) * stride;
+                    float pb_cy = (h + 0.5f) * stride;
+
+                    float x0 = pb_cx - pred_ltrb[0];
+                    float y0 = pb_cy - pred_ltrb[1];
+                    float x1 = pb_cx + pred_ltrb[2];
+                    float y1 = pb_cy + pred_ltrb[3];
+
+                    x0 = std::max(std::min(x0, (float)(letterbox_cols - 1)), 0.f);
+                    y0 = std::max(std::min(y0, (float)(letterbox_rows - 1)), 0.f);
+                    x1 = std::max(std::min(x1, (float)(letterbox_cols - 1)), 0.f);
+                    y1 = std::max(std::min(y1, (float)(letterbox_rows - 1)), 0.f);
+
+                    Object obj;
+                    obj.rect.x = x0;
+                    obj.rect.y = y0;
+                    obj.rect.width = x1 - x0;
+                    obj.rect.height = y1 - y0;
+                    obj.label = 0;
+                    obj.prob = box_prob;
+                    obj.kps_feat.clear();
+                    for (int k = 0; k < num_point; k++)
+                    {
+                        float kps_x = (kps[k * 3] * 2.f + w) * stride;
+                        float kps_y = (kps[k * 3 + 1] * 2.f + h) * stride;
+                        float kps_s = sigmoid(kps[k * 3 + 2]);
+                        obj.kps_feat.push_back(kps_x);
+                        obj.kps_feat.push_back(kps_y);
+                        obj.kps_feat.push_back(kps_s);
+                    }
+                    objects.push_back(obj);
+                }
+                feat += (1 + 4 * reg_max + 3 * num_point);
+            }
+        }
+    }
+
     static void get_out_bbox_mask(std::vector<Object> &proposals, std::vector<Object> &objects, int objs_max_count, const float *mask_proto, int mask_proto_dim, int mask_stride, const float nms_threshold, int letterbox_rows, int letterbox_cols, int src_rows, int src_cols)
     {
         qsort_descent_inplace(proposals);

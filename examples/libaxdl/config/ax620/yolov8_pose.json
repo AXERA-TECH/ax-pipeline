@@ -1,0 +1,11 @@
+{
+    "MODEL_TYPE": "MT_DET_YOLOV8_POSE",
+    "MODEL_PATH": "./models/yolov8s-pose.joint",
+    "STRIDES": [8, 16, 32],
+    "CLASS_NAMES": [
+        "person"
+    ],
+    "CLASS_NUM": 1,
+    "NMS_THRESHOLD": 0.44999998807907104,
+    "PROB_THRESHOLD": 0.4000000059604645
+}
