@@ -144,7 +144,7 @@ int ax_imgproc_crop_resize_keep_ratio(axdl_image_t *src, axdl_image_t *dst, axdl
     return _ax_imgproc_crop_resize(src, dst, box, AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
 }
 
-int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box)
+int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
 {
     cv::Point2f src_pts[4];
 
@@ -173,6 +173,8 @@ int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_
     cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
     cv::Mat affine_trans_mat_inv;
     cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+    memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
+    memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
 
     float mat3x3[3][3] = {
         {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
@@ -182,7 +184,7 @@ int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_
     return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
 }
 
-int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box)
+int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
 {
     cv::Point2f src_pts[4];
 
@@ -232,6 +234,8 @@ int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst,
     cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
     cv::Mat affine_trans_mat_inv;
     cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+    memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
+    memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
 
     float mat3x3[3][3] = {
         {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},

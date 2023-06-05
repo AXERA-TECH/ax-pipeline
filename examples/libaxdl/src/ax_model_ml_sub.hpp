@@ -6,8 +6,8 @@
 class ax_model_ml_sub : public ax_model_single_base_t
 {
 protected:
-    cv::Mat affine_trans_mat;
-    cv::Mat affine_trans_mat_inv;
+    cv::Mat affine_trans_mat = cv::Mat(2, 3, CV_64F);
+    cv::Mat affine_trans_mat_inv = cv::Mat(2, 3, CV_64F);
     SimpleRingBuffer<std::vector<axdl_point_t>> mSimpleRingBuffer;
 };
 

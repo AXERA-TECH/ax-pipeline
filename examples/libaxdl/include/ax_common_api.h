@@ -21,8 +21,8 @@ extern "C"
     int ax_imgproc_warp(axdl_image_t *src, axdl_image_t *dst, const float *pMat33, const int const_val);
     int ax_imgproc_crop_resize(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box);
     int ax_imgproc_crop_resize_keep_ratio(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box);
-    int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box);
-    int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box);
+    int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv);
+    int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv);
     int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *dst);
 #ifdef __cplusplus
 }
