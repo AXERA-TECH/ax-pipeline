@@ -38,6 +38,7 @@ extern "C"
         // segmentation
         MT_SEG = 0x20000,
         MT_SEG_PPHUMSEG,
+        MT_SEG_DINOV2,
 
         // instance segmentation
         MT_INSEG = 0x30000,

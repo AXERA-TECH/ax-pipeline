@@ -267,7 +267,30 @@ axdl_color_space_e ax_runner_ax650::get_color_space()
 
 int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
 {
-    memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
+    unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
+    unsigned char *src = (unsigned char *)pstFrame->pVir;
+
+    switch (m_handle->algo_colorformat)
+    {
+    case AX_FORMAT_RGB888:
+    case AX_FORMAT_BGR888:
+        for (size_t i = 0; i < pstFrame->nHeight; i++)
+        {
+            memcpy(dst + i * pstFrame->nWidth * 3, src + i * pstFrame->tStride_W * 3, pstFrame->nWidth * 3);
+        }
+        break;
+    case AX_FORMAT_YUV420_SEMIPLANAR:
+    case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+        for (size_t i = 0; i < pstFrame->nHeight * 1.5; i++)
+        {
+            memcpy(dst + i * pstFrame->nWidth, src + i * pstFrame->tStride_W, pstFrame->nWidth);
+        }
+        break;
+    default:
+        break;
+    }
+
+    // memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
     return AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data);
 }
 #endif

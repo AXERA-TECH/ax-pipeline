@@ -144,111 +144,6 @@ int ax_imgproc_crop_resize_keep_ratio(axdl_image_t *src, axdl_image_t *dst, axdl
     return _ax_imgproc_crop_resize(src, dst, box, AX_NPU_CV_IMAGE_HORIZONTAL_CENTER, AX_NPU_CV_IMAGE_VERTICAL_CENTER);
 }
 
-int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
-{
-    cv::Point2f src_pts[4];
-
-    cv::Point2f dst_pts[4];
-    dst_pts[0] = cv::Point2f(0, 0);
-    dst_pts[1] = cv::Point2f(dst->nWidth, 0);
-    dst_pts[2] = cv::Point2f(dst->nWidth, dst->nHeight);
-    dst_pts[3] = cv::Point2f(0, dst->nHeight);
-
-    axdl_bbox_t bbox;
-    if (box)
-    {
-        src_pts[0] = cv::Point2f(bbox.x, bbox.y);
-        src_pts[1] = cv::Point2f(bbox.x + bbox.w, bbox.y);
-        src_pts[2] = cv::Point2f(bbox.x + bbox.w, bbox.y + bbox.h);
-        src_pts[3] = cv::Point2f(bbox.x, bbox.y + bbox.h);
-    }
-    else
-    {
-        src_pts[0] = cv::Point2f(0, 0);
-        src_pts[1] = cv::Point2f(src->nWidth, 0);
-        src_pts[2] = cv::Point2f(src->nWidth, src->nHeight);
-        src_pts[3] = cv::Point2f(0, src->nHeight);
-    }
-
-    cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
-    cv::Mat affine_trans_mat_inv;
-    cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
-    if (m)
-        memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
-    if (m_inv)
-        memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
-
-    float mat3x3[3][3] = {
-        {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
-        {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
-        {0, 0, 1}};
-    // //这里要用AX_NPU_MODEL_TYPE_1_1_2
-    return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
-}
-
-int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
-{
-    cv::Point2f src_pts[4];
-
-    cv::Point2f dst_pts[4];
-    dst_pts[0] = cv::Point2f(0, 0);
-    dst_pts[1] = cv::Point2f(dst->nWidth, 0);
-    dst_pts[2] = cv::Point2f(dst->nWidth, dst->nHeight);
-    dst_pts[3] = cv::Point2f(0, dst->nHeight);
-
-    axdl_bbox_t bbox;
-    if (box)
-    {
-        // bbox.x = box->x;
-        // bbox.y = box->y;
-        // bbox.w = box->w;
-        // bbox.h = box->h;
-        memcpy(&bbox, box, sizeof(axdl_bbox_t));
-    }
-    else
-    {
-        bbox.x = 0;
-        bbox.y = 0;
-        bbox.w = src->nWidth;
-        bbox.h = src->nHeight;
-    }
-
-    if ((bbox.w / bbox.h) >
-        (float(dst->nWidth) / float(dst->nHeight)))
-    {
-        float offset = ((bbox.w * (float(dst->nHeight) / float(dst->nWidth))) - bbox.h) / 2;
-
-        src_pts[0] = cv::Point2f(bbox.x, bbox.y - offset);
-        src_pts[1] = cv::Point2f(bbox.x + bbox.w, bbox.y - offset);
-        src_pts[2] = cv::Point2f(bbox.x + bbox.w, bbox.y + bbox.h + offset);
-        src_pts[3] = cv::Point2f(bbox.x, bbox.y + bbox.h + offset);
-    }
-    else
-    {
-        float offset = ((bbox.h * (float(dst->nWidth) / float(dst->nHeight))) - bbox.w) / 2;
-
-        src_pts[0] = cv::Point2f(bbox.x - offset, bbox.y);
-        src_pts[1] = cv::Point2f(bbox.x + bbox.w + offset, bbox.y);
-        src_pts[2] = cv::Point2f(bbox.x + bbox.w + offset, bbox.y + bbox.h);
-        src_pts[3] = cv::Point2f(bbox.x - offset, bbox.y + bbox.h);
-    }
-
-    cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
-    cv::Mat affine_trans_mat_inv;
-    cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
-    if (m)
-        memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
-    if (m_inv)
-        memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
-
-    float mat3x3[3][3] = {
-        {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
-        {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
-        {0, 0, 1}};
-    // //这里要用AX_NPU_MODEL_TYPE_1_1_2
-    return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
-}
-
 int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *dst)
 {
     static float target[10] = {38.2946, 51.6963,
@@ -453,3 +348,108 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
     return ax_imgproc_warp(src, dst, &mat3x3[0], 128);
 }
 #endif
+
+int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
+{
+    cv::Point2f src_pts[4];
+
+    cv::Point2f dst_pts[4];
+    dst_pts[0] = cv::Point2f(0, 0);
+    dst_pts[1] = cv::Point2f(dst->nWidth, 0);
+    dst_pts[2] = cv::Point2f(dst->nWidth, dst->nHeight);
+    dst_pts[3] = cv::Point2f(0, dst->nHeight);
+
+    axdl_bbox_t bbox;
+    if (box)
+    {
+        src_pts[0] = cv::Point2f(bbox.x, bbox.y);
+        src_pts[1] = cv::Point2f(bbox.x + bbox.w, bbox.y);
+        src_pts[2] = cv::Point2f(bbox.x + bbox.w, bbox.y + bbox.h);
+        src_pts[3] = cv::Point2f(bbox.x, bbox.y + bbox.h);
+    }
+    else
+    {
+        src_pts[0] = cv::Point2f(0, 0);
+        src_pts[1] = cv::Point2f(src->nWidth, 0);
+        src_pts[2] = cv::Point2f(src->nWidth, src->nHeight);
+        src_pts[3] = cv::Point2f(0, src->nHeight);
+    }
+
+    cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
+    cv::Mat affine_trans_mat_inv;
+    cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+    if (m)
+        memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
+    if (m_inv)
+        memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
+
+    float mat3x3[3][3] = {
+        {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
+        {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
+        {0, 0, 1}};
+    // //这里要用AX_NPU_MODEL_TYPE_1_1_2
+    return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
+}
+
+int ax_imgproc_crop_resize_keep_ratio_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *box, double *m, double *m_inv)
+{
+    cv::Point2f src_pts[4];
+
+    cv::Point2f dst_pts[4];
+    dst_pts[0] = cv::Point2f(0, 0);
+    dst_pts[1] = cv::Point2f(dst->nWidth, 0);
+    dst_pts[2] = cv::Point2f(dst->nWidth, dst->nHeight);
+    dst_pts[3] = cv::Point2f(0, dst->nHeight);
+
+    axdl_bbox_t bbox;
+    if (box)
+    {
+        // bbox.x = box->x;
+        // bbox.y = box->y;
+        // bbox.w = box->w;
+        // bbox.h = box->h;
+        memcpy(&bbox, box, sizeof(axdl_bbox_t));
+    }
+    else
+    {
+        bbox.x = 0;
+        bbox.y = 0;
+        bbox.w = src->nWidth;
+        bbox.h = src->nHeight;
+    }
+
+    if ((bbox.w / bbox.h) >
+        (float(dst->nWidth) / float(dst->nHeight)))
+    {
+        float offset = ((bbox.w * (float(dst->nHeight) / float(dst->nWidth))) - bbox.h) / 2;
+
+        src_pts[0] = cv::Point2f(bbox.x, bbox.y - offset);
+        src_pts[1] = cv::Point2f(bbox.x + bbox.w, bbox.y - offset);
+        src_pts[2] = cv::Point2f(bbox.x + bbox.w, bbox.y + bbox.h + offset);
+        src_pts[3] = cv::Point2f(bbox.x, bbox.y + bbox.h + offset);
+    }
+    else
+    {
+        float offset = ((bbox.h * (float(dst->nWidth) / float(dst->nHeight))) - bbox.w) / 2;
+
+        src_pts[0] = cv::Point2f(bbox.x - offset, bbox.y);
+        src_pts[1] = cv::Point2f(bbox.x + bbox.w + offset, bbox.y);
+        src_pts[2] = cv::Point2f(bbox.x + bbox.w + offset, bbox.y + bbox.h);
+        src_pts[3] = cv::Point2f(bbox.x - offset, bbox.y + bbox.h);
+    }
+
+    cv::Mat affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
+    cv::Mat affine_trans_mat_inv;
+    cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
+    if (m)
+        memcpy(m, affine_trans_mat.data, sizeof(double) * 6);
+    if (m_inv)
+        memcpy(m_inv, affine_trans_mat_inv.data, sizeof(double) * 6);
+
+    float mat3x3[3][3] = {
+        {(float)affine_trans_mat_inv.at<double>(0, 0), (float)affine_trans_mat_inv.at<double>(0, 1), (float)affine_trans_mat_inv.at<double>(0, 2)},
+        {(float)affine_trans_mat_inv.at<double>(1, 0), (float)affine_trans_mat_inv.at<double>(1, 1), (float)affine_trans_mat_inv.at<double>(1, 2)},
+        {0, 0, 1}};
+    // //这里要用AX_NPU_MODEL_TYPE_1_1_2
+    return ax_imgproc_warp(src, dst, &mat3x3[0][0], 128);
+}

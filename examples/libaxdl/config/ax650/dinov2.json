@@ -1,0 +1,4 @@
+{
+    "MODEL_TYPE": "MT_SEG_DINOV2",
+    "MODEL_PATH": "./models/dinov2_small_518_precision_opt.axmodel"
+}

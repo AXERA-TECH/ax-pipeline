@@ -116,7 +116,7 @@ int _mp4_frame_callback(const void *buff, int len, frame_type_e type, void *rese
     buf_h26x.p_vir = (void *)buff;
     buf_h26x.n_size = len;
     user_input((pipeline_t *)reserve, 1, &buf_h26x);
-    usleep(10 * 1000);
+    usleep(20 * 1000);
     return 0;
 }
 
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
             config1.n_ivps_fps = s_sample_framerate;
             config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
-            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
+            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels) != MT_SEG_DINOV2)
             {
                 config1.b_letterbox = 1;
             }

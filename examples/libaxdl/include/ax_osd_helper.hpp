@@ -155,7 +155,7 @@ private:
                 }
             }
             // freeObjs(&mResults);
-            usleep(1*1000);
+            usleep(1 * 1000);
         }
         for (size_t i = 0; i < pipes_need_osd.size(); i++)
         {
@@ -164,10 +164,23 @@ private:
         }
 #elif defined(AXERA_TARGET_CHIP_AX650)
 
+        std::map<int, axdl_canvas_t> pipes_osd_canvas;
+        std::map<int, AX_IVPS_RGN_DISP_GROUP_T> pipes_osd_struct;
         for (size_t i = 0; i < pipes_need_osd.size(); i++)
         {
+            pipes_osd_canvas[pipes_need_osd[i]->pipeid];
+            pipes_osd_struct[pipes_need_osd[i]->pipeid];
+            auto &canvas = pipes_osd_canvas[pipes_need_osd[i]->pipeid];
+            auto &tDisp = pipes_osd_struct[pipes_need_osd[i]->pipeid];
+            memset(&tDisp, 0, sizeof(AX_IVPS_RGN_DISP_GROUP_T));
+            canvas.channel = 4;
+            canvas.data = (unsigned char *)malloc(pipes_need_osd[i]->m_ivps_attr.n_ivps_width * pipes_need_osd[i]->m_ivps_attr.n_ivps_height * 4);
+            canvas.width = pipes_need_osd[i]->m_ivps_attr.n_ivps_width;
+            canvas.height = pipes_need_osd[i]->m_ivps_attr.n_ivps_height;
+
             axdl_native_osd_init(gModels, pipes_need_osd[i]->pipeid, pipes_need_osd[i]->m_ivps_attr.n_ivps_width, pipes_need_osd[i]->m_ivps_attr.n_ivps_height, pipes_need_osd[i]->m_ivps_attr.n_osd_rgn);
         }
+
         axdl_results_t mResults;
 
         while (!gLoopExit)
@@ -180,28 +193,74 @@ private:
                 auto &osd_pipe = pipes_need_osd[i];
                 if (osd_pipe && osd_pipe->m_ivps_attr.n_osd_rgn)
                 {
-                    axdl_native_osd_draw_results(gModels, osd_pipe->pipeid, &mResults, 0.6, 2);
-                    AX_IVPS_RGN_DISP_GROUP_T *rgn_disp_grp = (AX_IVPS_RGN_DISP_GROUP_T *)axdl_native_osd_get_handle(gModels, osd_pipe->pipeid);
-                    if (rgn_disp_grp)
+                    if (true)
                     {
-                        for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
+                        axdl_native_osd_draw_results(gModels, osd_pipe->pipeid, &mResults, 0.6, 2);
+                        AX_IVPS_RGN_DISP_GROUP_T *rgn_disp_grp = (AX_IVPS_RGN_DISP_GROUP_T *)axdl_native_osd_get_handle(gModels, osd_pipe->pipeid);
+                        if (rgn_disp_grp)
                         {
-                            int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
-                            if (0 != ret)
+                            for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
                             {
-                                static int cnt = 0;
-                                if (cnt++ % 100 == 0)
+                                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
+                                if (0 != ret)
                                 {
-                                    ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                    static int cnt = 0;
+                                    if (cnt++ % 100 == 0)
+                                    {
+                                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                    }
+                                    usleep(30 * 1000);
                                 }
-                                usleep(30 * 1000);
                             }
+                        }
+                    }
+                    else
+                    {
+                        axdl_canvas_t &img_overlay = pipes_osd_canvas[osd_pipe->pipeid];
+                        AX_IVPS_RGN_DISP_GROUP_T &tDisp = pipes_osd_struct[osd_pipe->pipeid];
+
+                        memset(img_overlay.data, 0, img_overlay.width * img_overlay.height * img_overlay.channel);
+
+                        axdl_draw_results(gModels, &img_overlay, &mResults, 0.6, 1.0, 0, 0);
+
+                        tDisp.nNum = 1;
+                        tDisp.tChnAttr.nAlpha = 255;
+                        tDisp.tChnAttr.eFormat = AX_FORMAT_RGBA8888;
+                        tDisp.tChnAttr.nZindex = 0;
+                        tDisp.tChnAttr.nBitColor.nColor = 0xFF0000;
+                        tDisp.tChnAttr.nBitColor.nColorInv = 0xFF;
+                        tDisp.tChnAttr.nBitColor.nColorInvThr = 0xA0A0A0;
+
+                        tDisp.arrDisp[0].bShow = AX_TRUE;
+                        tDisp.arrDisp[0].eType = AX_IVPS_RGN_TYPE_OSD;
+                        tDisp.arrDisp[0].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
+                        tDisp.arrDisp[0].uDisp.tOSD.u32BmpWidth = img_overlay.width;
+                        tDisp.arrDisp[0].uDisp.tOSD.u32BmpHeight = img_overlay.height;
+                        tDisp.arrDisp[0].uDisp.tOSD.u32DstXoffset = 0;
+                        tDisp.arrDisp[0].uDisp.tOSD.u32DstYoffset = osd_pipe->m_output_type == po_vo_sipeed_maix3_screen ? 32 : 0;
+                        tDisp.arrDisp[0].uDisp.tOSD.u64PhyAddr = 0;
+                        tDisp.arrDisp[0].uDisp.tOSD.pBitmap = img_overlay.data;
+
+                        int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[0], &tDisp);
+                        if (0 != ret)
+                        {
+                            static int cnt = 0;
+                            if (cnt++ % 100 == 0)
+                            {
+                                ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                            }
+                            usleep(30 * 1000);
                         }
                     }
                 }
             }
 
-            usleep(1*1000);
+            usleep(1 * 1000);
+        }
+        for (size_t i = 0; i < pipes_need_osd.size(); i++)
+        {
+            auto &canvas = pipes_osd_canvas[pipes_need_osd[i]->pipeid];
+            free(canvas.data);
         }
 #endif
         ALOGI("osd thread:----");
