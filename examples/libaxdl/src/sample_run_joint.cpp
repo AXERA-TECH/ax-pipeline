@@ -22,7 +22,6 @@
 #include "ax_sys_api.h"
 #include "joint.h"
 #include "joint_adv.h"
-#include "npu_cv_kit/ax_npu_imgproc.h"
 
 #include "utilities/file.hpp"
 #include "middleware/io.hpp"
@@ -53,7 +52,7 @@ typedef struct
     AX_JOINT_IO_SETTING_T joint_io_setting;
 
     ax_imgproc_t imgproc;
-    
+
     AX_JOINT_COLOR_SPACE_T SAMPLE_ALOG_FORMAT;
     int SAMPLE_ALGO_WIDTH = 0;
     int SAMPLE_ALGO_HEIGHT = 0;
@@ -121,40 +120,6 @@ AX_S32 prepare_io(axdl_image_t *algo_input, AX_JOINT_IO_T &io, const AX_JOINT_IO
         }
     }
     return AX_ERR_NPU_JOINT_SUCCESS;
-}
-
-int npu_crop_resize(const AX_NPU_CV_Image *input_image, AX_NPU_CV_Image *output_image, AX_NPU_CV_Box *box,
-                    AX_NPU_SDK_EX_MODEL_TYPE_T model_type, AX_NPU_CV_ImageResizeAlignParam horizontal,
-                    AX_NPU_CV_ImageResizeAlignParam vertical)
-{
-    AX_NPU_CV_Color color;
-    color.nYUVColorValue[0] = 128;
-    color.nYUVColorValue[1] = 128;
-    AX_NPU_SDK_EX_MODEL_TYPE_T virtual_npu_mode_type = model_type;
-
-    if (box)
-    {
-        box->fX = MAX((int)box->fX, 0);
-        box->fY = MAX((int)box->fY, 0);
-
-        box->fW = MIN((int)box->fW, (int)input_image->nWidth - (int)box->fX);
-        box->fH = MIN((int)box->fH, (int)input_image->nHeight - (int)box->fY);
-        box->fW = int(box->fW) - int(box->fW) % 2;
-        box->fH = int(box->fH) - int(box->fH) % 2;
-    }
-
-    AX_NPU_CV_Box *ppBox[1];
-    ppBox[0] = box;
-
-    int ret = AX_NPU_CV_CropResizeImage(virtual_npu_mode_type, input_image, 1, &output_image, ppBox, horizontal, vertical, color);
-
-    if (ret != AX_NPU_DEV_STATUS_SUCCESS)
-    {
-        ALOGE("AX_NPU_CV_CropResizeImage err code: %X", ret);
-        return ret;
-    }
-
-    return 0;
 }
 
 int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_attr *attr)
@@ -337,8 +302,6 @@ int sample_run_joint_release(void *yhandle)
     return 0;
 }
 
-void cvt(AX_NPU_CV_Image *src, axdl_image_t *dst);
-
 int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void *crop_resize_box)
 {
     handle_t *handle = (handle_t *)yhandle;
@@ -349,10 +312,7 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
         return -1;
     }
 
-    AX_NPU_CV_Image *pstFrame = (AX_NPU_CV_Image *)_pstFrame;
-    axdl_image_t dst;
-    cvt(pstFrame, &dst);
-    if (handle->imgproc.process(&dst) != 0)
+    if (handle->imgproc.process((axdl_image_t *)_pstFrame) != 0)
     {
         ALOGE("image process failed");
         return -1;

@@ -70,12 +70,8 @@ axdl_color_space_e ax_runner_ax620::get_color_space()
     }
 }
 
-void cvt(axdl_image_t *src, AX_NPU_CV_Image *dst);
-
 int ax_runner_ax620::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
 {
-    AX_NPU_CV_Image npu_image;
-    cvt(pstFrame, &npu_image);
-    return sample_run_joint_inference(m_handle->m_handle, &npu_image, crop_resize_box);
+    return sample_run_joint_inference(m_handle->m_handle, pstFrame, crop_resize_box);
 }
 #endif
