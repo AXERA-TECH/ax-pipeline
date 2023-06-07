@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
             config.n_ivps_fps = 60;
             config.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
-            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG)
+            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels) != MT_SEG_DINOV2)
             {
                 config.b_letterbox = 1;
             }
