@@ -95,13 +95,27 @@ private:
             return -1;
             break;
         }
-        if (make_broder)
+        if (box)
         {
-            return ax_imgproc_crop_resize_keep_ratio(image, target_image, box);
+            if (make_broder)
+            {
+                return ax_imgproc_crop_resize_keep_ratio_warp(image, target_image, box, nullptr, nullptr);
+            }
+            else
+            {
+                return ax_imgproc_crop_resize_warp(image, target_image, box, nullptr, nullptr);
+            }
         }
         else
         {
-            return ax_imgproc_crop_resize(image, target_image, box);
+            if (make_broder)
+            {
+                return ax_imgproc_crop_resize_keep_ratio(image, target_image, box);
+            }
+            else
+            {
+                return ax_imgproc_crop_resize(image, target_image, box);
+            }
         }
     }
 
@@ -237,6 +251,11 @@ public:
     int process(axdl_image_t *src, axdl_bbox_t *box, axdl_image_t *dst)
     {
         return process(src, box, dst, target_color);
+    }
+
+    int process(axdl_image_t *src, axdl_bbox_t *box)
+    {
+        return process(src, box, nullptr, target_color);
     }
 
     int process(axdl_image_t *src, axdl_image_t *dst, axdl_color_space_e _target_color)

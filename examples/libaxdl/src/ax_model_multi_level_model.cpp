@@ -141,7 +141,7 @@ int ax_model_human_pose_axppl::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
     {
         int idx = idxs[i];
         model_1->set_current_index(idx);
-        ret = model_1->inference(pstFrame, crop_resize_box, results);
+        ret = model_1->inference(pstFrame, &results->mObjects[idx].bbox, results);
         if (ret)
             return ret;
         if (idx != 0)

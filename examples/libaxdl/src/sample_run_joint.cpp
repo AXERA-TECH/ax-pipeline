@@ -312,7 +312,7 @@ int sample_run_joint_inference(void *yhandle, const void *_pstFrame, const void 
         return -1;
     }
 
-    if (handle->imgproc.process((axdl_image_t *)_pstFrame) != 0)
+    if (handle->imgproc.process((axdl_image_t *)_pstFrame, (axdl_bbox_t *)crop_resize_box) != 0)
     {
         ALOGE("image process failed");
         return -1;

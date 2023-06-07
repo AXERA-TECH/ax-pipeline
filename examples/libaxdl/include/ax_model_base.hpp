@@ -16,7 +16,7 @@ protected:
     int MAX_MASK_OBJ_COUNT   = 8;
     int MAX_SUB_INFER_COUNT  = 3;
     int FACE_FEAT_LEN        = 512;
-    bool use_warp_preprocess = true; // 当crop resize不行时使用
+    // bool use_warp_preprocess = true; // 当crop resize不行时使用
 
     int HEIGHT_DET_BBOX_RESTORE = 1080, WIDTH_DET_BBOX_RESTORE = 1920;
     MODEL_TYPE_E m_model_type = MT_UNKNOWN;
