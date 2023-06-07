@@ -816,8 +816,22 @@ void ax_model_yolopv2::draw_custom(int chn, axdl_results_t *results, float fonts
 {
     if (results->bYolopv2Mask && results->mYolopv2ll.data && results->mYolopv2seg.data)
     {
-        m_drawers[chn].add_mask(nullptr, &results->mYolopv2seg, {66, 0, 0, 128});
-        m_drawers[chn].add_mask(nullptr, &results->mYolopv2ll, {66, 0, 0, 128});
+        if (base_canvas.empty())
+        {
+            base_canvas = cv::Mat(results->mYolopv2seg.h, results->mYolopv2seg.w, CV_8UC4);
+        }
+        cv::Mat seg_mask(results->mYolopv2seg.h, results->mYolopv2seg.w, CV_8UC1, results->mYolopv2seg.data);
+        cv::Mat ll_mask(results->mYolopv2ll.h, results->mYolopv2ll.w, CV_8UC1, results->mYolopv2ll.data);
+        memset(base_canvas.data, 0, results->mYolopv2seg.h * results->mYolopv2seg.w * 4);
+        base_canvas.setTo(cv::Scalar(128, 0, 0, 128), seg_mask);
+        base_canvas.setTo(cv::Scalar(128, 0, 128, 0), ll_mask);
+        axdl_mat_t mask;
+        mask.data = base_canvas.data;
+        mask.w = base_canvas.cols;
+        mask.h = base_canvas.rows;
+        mask.s = base_canvas.step1();
+        mask.c = 4;
+        m_drawers[chn].add_mask(nullptr, &mask);
     }
     draw_bbox(chn, results, fontscale, thickness);
 }
