@@ -25,7 +25,7 @@ private:
     std::vector<AX_IVPS_RGN_DISP_GROUP_T> vRgns;
 #endif
 
-    SimpleRingBuffer<axdl_mat_t> mRingBufferMatText, mRingBufferMatMask;
+    SimpleRingBuffer<axdl_mat_t> mRingBufferMatText, mRingBufferMatMask, mRingBufferMatMaskV2;
     int nWidth, nHeight;
     int index = -1;
 
@@ -79,8 +79,10 @@ public:
     {
         mRingBufferMatText.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
         mRingBufferMatMask.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mRingBufferMatMaskV2.resize(num_rgn * SAMPLE_RINGBUFFER_CACHE_COUNT);
         memset(mRingBufferMatText.data(), 0, mRingBufferMatText.size() * sizeof(axdl_mat_t));
         memset(mRingBufferMatMask.data(), 0, mRingBufferMatMask.size() * sizeof(axdl_mat_t));
+        memset(mRingBufferMatMaskV2.data(), 0, mRingBufferMatMaskV2.size() * sizeof(axdl_mat_t));
         vRgns.resize(num_rgn);
         nWidth = image_width;
         nHeight = image_height;
@@ -283,6 +285,52 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpHeight = mask_color.rows;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = box ? MAX(0, box->x * nWidth) : 0;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = box ? MAX(0, box->y * nHeight) : 0;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.pBitmap = mask_color.data;
+    }
+
+    void add_mask(axdl_bbox_t *box, axdl_mat_t *mask)
+    {
+        if (!add_index())
+        {
+            return;
+        }
+        cv::Rect rect(0,
+                      0,
+                      box ? box->w * nWidth
+                          : nWidth,
+                      box ? box->h * nHeight
+                          : nHeight);
+        if (rect.width <= 0 || rect.height <= 0)
+        {
+            printf("%d %d  %d %d\n", rect.width, rect.height, mask->w, mask->h);
+            return;
+        }
+
+        cv::Mat mask_mat(mask->h, mask->w, CV_8UC4, mask->data);
+
+        auto &mask_color_ptr = mRingBufferMatMaskV2.next();
+        if (mask_color_ptr.w < 4 * rect.height * rect.width)
+        {
+            if (mask_color_ptr.data)
+            {
+                delete[] mask_color_ptr.data;
+                mask_color_ptr.data = nullptr;
+            }
+            mask_color_ptr.w = 4 * rect.height * rect.width;
+            mask_color_ptr.data = new unsigned char[mask_color_ptr.w];
+        }
+
+        auto mask_color = cv::Mat(rect.height, rect.width, CV_8UC4, mask_color_ptr.data);
+
+        cv::resize(mask_mat, mask_color, cv::Size(rect.width, rect.height));
+
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_TRUE;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].eType = AX_IVPS_RGN_TYPE_OSD;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.enRgbFormat = AX_FORMAT_RGBA8888;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpWidth = mask_color.cols;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32BmpHeight = mask_color.rows;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstXoffset = 0;
+        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.u32DstYoffset = 0;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tOSD.pBitmap = mask_color.data;
     }
 };

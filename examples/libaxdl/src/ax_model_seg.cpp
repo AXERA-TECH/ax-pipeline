@@ -80,7 +80,7 @@ int ax_model_dinov2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     cv::Mat &seg_mat = mSimpleRingBuffer.next();
     if (seg_mat.empty())
     {
-        seg_mat = cv::Mat(37, 37, CV_8UC4, cv::Scalar(200, 0, 0, 200));
+        seg_mat = cv::Mat(37, 37, CV_8UC4, cv::Scalar(255, 0, 0, 200));
     }
 
     float *pca_features_data = (float *)pca_features.data;
@@ -123,5 +123,6 @@ void ax_model_dinov2::draw_custom(int chn, axdl_results_t *results, float fontsc
     {
         return;
     }
-    // m_drawers[chn].add_mask(nullptr, &results->mPPHumSeg, {66, 0, 0, 128});
+    axdl_bbox_t box{0, 0, 0.25, 0.25};
+    m_drawers[chn].add_mask(&box, &results->mPPHumSeg);
 }
