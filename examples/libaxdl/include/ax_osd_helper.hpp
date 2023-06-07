@@ -102,52 +102,53 @@ private:
                         {
                             for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
                             {
-
-                                if (osd_pipe->m_output_type == po_vo_sipeed_maix3_screen)
+                                if (rgn_disp_grp[d].nNum > 0 && rgn_disp_grp[d].nNum <= AX_IVPS_REGION_MAX_DISP_NUM)
                                 {
-                                    for (size_t k = 0; k < rgn_disp_grp[d].nNum; k++)
+                                    if (osd_pipe->m_output_type == po_vo_sipeed_maix3_screen)
                                     {
-                                        if (rgn_disp_grp[d].arrDisp[k].bShow)
+                                        for (size_t k = 0; k < rgn_disp_grp[d].nNum; k++)
                                         {
-                                            switch (rgn_disp_grp[d].arrDisp[k].eType)
+                                            if (rgn_disp_grp[d].arrDisp[k].bShow)
                                             {
-                                            case AX_IVPS_RGN_TYPE_LINE:
-                                                for (size_t j = 0; j < 10; j++)
+                                                switch (rgn_disp_grp[d].arrDisp[k].eType)
                                                 {
-                                                    rgn_disp_grp[d].arrDisp[k].uDisp.tLine.tPTs[j].nY += 32;
+                                                case AX_IVPS_RGN_TYPE_LINE:
+                                                    for (size_t j = 0; j < 10; j++)
+                                                    {
+                                                        rgn_disp_grp[d].arrDisp[k].uDisp.tLine.tPTs[j].nY += 32;
+                                                    }
+                                                    break;
+                                                case AX_IVPS_RGN_TYPE_RECT:
+                                                    rgn_disp_grp[d].arrDisp[k].uDisp.tPolygon.tRect.nY += 32;
+                                                    break;
+                                                case AX_IVPS_RGN_TYPE_POLYGON:
+                                                    for (size_t j = 0; j < 10; j++)
+                                                    {
+                                                        rgn_disp_grp[d].arrDisp[k].uDisp.tPolygon.tPTs[j].nY += 32;
+                                                    }
+                                                    break;
+                                                case AX_IVPS_RGN_TYPE_MOSAIC:
+                                                    rgn_disp_grp[d].arrDisp[k].uDisp.tMosaic.tRect.nY += 32;
+                                                    break;
+                                                case AX_IVPS_RGN_TYPE_OSD:
+                                                    rgn_disp_grp[d].arrDisp[k].uDisp.tOSD.u32DstYoffset += 32;
+                                                    break;
+                                                default:
+                                                    break;
                                                 }
-                                                break;
-                                            case AX_IVPS_RGN_TYPE_RECT:
-                                                rgn_disp_grp[d].arrDisp[k].uDisp.tPolygon.tRect.nY += 32;
-                                                break;
-                                            case AX_IVPS_RGN_TYPE_POLYGON:
-                                                for (size_t j = 0; j < 10; j++)
-                                                {
-                                                    rgn_disp_grp[d].arrDisp[k].uDisp.tPolygon.tPTs[j].nY += 32;
-                                                }
-                                                break;
-                                            case AX_IVPS_RGN_TYPE_MOSAIC:
-                                                rgn_disp_grp[d].arrDisp[k].uDisp.tMosaic.tRect.nY += 32;
-                                                break;
-                                            case AX_IVPS_RGN_TYPE_OSD:
-                                                rgn_disp_grp[d].arrDisp[k].uDisp.tOSD.u32DstYoffset += 32;
-                                                break;
-                                            default:
-                                                break;
                                             }
                                         }
                                     }
-                                }
-
-                                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
-                                if (0 != ret)
-                                {
-                                    static int cnt = 0;
-                                    if (cnt++ % 100 == 0)
+                                    int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
+                                    if (0 != ret)
                                     {
-                                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                        static int cnt = 0;
+                                        if (cnt++ % 100 == 0)
+                                        {
+                                            ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                        }
+                                        usleep(30 * 1000);
                                     }
-                                    usleep(30 * 1000);
                                 }
                             }
                         }
@@ -201,15 +202,18 @@ private:
                         {
                             for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
                             {
-                                int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
-                                if (0 != ret)
+                                if (rgn_disp_grp[d].nNum > 0 && rgn_disp_grp[d].nNum <= AX_IVPS_REGION_MAX_DISP_NUM)
                                 {
-                                    static int cnt = 0;
-                                    if (cnt++ % 100 == 0)
+                                    int ret = AX_IVPS_RGN_Update(osd_pipe->m_ivps_attr.n_osd_rgn_chn[d], &rgn_disp_grp[d]);
+                                    if (0 != ret)
                                     {
-                                        ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                        static int cnt = 0;
+                                        if (cnt++ % 100 == 0)
+                                        {
+                                            ALOGE("AX_IVPS_RGN_Update fail, ret=0x%x, hChnRgn=%d", ret, osd_pipe->m_ivps_attr.n_osd_rgn_chn[0]);
+                                        }
+                                        usleep(30 * 1000);
                                     }
-                                    usleep(30 * 1000);
                                 }
                             }
                         }

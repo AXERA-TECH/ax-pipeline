@@ -285,7 +285,7 @@ int ax_model_single_base_t::init(void *json_obj)
     MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
     update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
 
-    update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
+    // update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
     update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
 
     std::string strModelType;
