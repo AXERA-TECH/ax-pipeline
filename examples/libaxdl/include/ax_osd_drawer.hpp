@@ -78,7 +78,7 @@ public:
     void init(int num_rgn, int image_width, int image_height)
     {
         mRingBufferMatText.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
-        mRingBufferMatMask.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mRingBufferMatMask.resize(num_rgn * SAMPLE_MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
         mRingBufferMatMaskV2.resize(num_rgn * SAMPLE_RINGBUFFER_CACHE_COUNT);
         memset(mRingBufferMatText.data(), 0, mRingBufferMatText.size() * sizeof(axdl_mat_t));
         memset(mRingBufferMatMask.data(), 0, mRingBufferMatMask.size() * sizeof(axdl_mat_t));
@@ -87,6 +87,22 @@ public:
         nWidth = image_width;
         nHeight = image_height;
         reset();
+    }
+
+    void resize(int text_cnt, int mask_cnt, int maskv2_cnt)
+    {
+        if (text_cnt > 0)
+        {
+            mRingBufferMatText.resize(text_cnt);
+        }
+        if (mask_cnt > 0)
+        {
+            mRingBufferMatMask.resize(mask_cnt);
+        }
+        if (maskv2_cnt > 0)
+        {
+            mRingBufferMatMaskV2.resize(maskv2_cnt);
+        }
     }
 
     void reset()

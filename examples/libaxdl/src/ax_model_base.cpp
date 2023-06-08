@@ -279,8 +279,8 @@ int ax_model_single_base_t::init(void *json_obj)
     update_val(jsondata, "MODEL_PATH", &MODEL_PATH);
     update_val(jsondata, "STRIDES", &STRIDES);
 
-    update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
-    MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+    // update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+    // MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
     update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
     MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
     update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
@@ -471,20 +471,20 @@ int ax_model_multi_base_t::init(void *json_obj)
         model_1->init((void *)&json_minor);
 
         update_val(json_minor, "FACE_RECOGNITION_THRESHOLD", &FACE_RECOGNITION_THRESHOLD);
-        update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
-        MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
+        // update_val(jsondata, "MAX_MASK_OBJ_COUNT", &MAX_MASK_OBJ_COUNT);
+        // MAX_MASK_OBJ_COUNT = MIN(MAX_MASK_OBJ_COUNT, SAMPLE_MAX_BBOX_COUNT);
         update_val(jsondata, "MAX_SUB_INFER_COUNT", &MAX_SUB_INFER_COUNT);
         MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
         update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
         update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
 
         model_0->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
-        model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        // model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
         model_0->set_sub_infer_count(MAX_SUB_INFER_COUNT);
         model_0->set_face_feat_len(FACE_FEAT_LEN);
 
         model_1->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
-        model_1->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
+        // model_1->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);
         model_1->set_sub_infer_count(MAX_SUB_INFER_COUNT);
         model_1->set_face_feat_len(FACE_FEAT_LEN);
     }

@@ -60,7 +60,7 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     }
 
     std::vector<detection::Object> proposals;
@@ -96,7 +96,7 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
     auto &output = pOutputsInfo[seg_idx];
     auto ptr = (float *)output.pVirAddr;
-    detection::get_out_bbox_mask(proposals, objects, MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
+    detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
 
     std::sort(objects.begin(), objects.end(),
@@ -1115,7 +1115,7 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 {
     if (mSimpleRingBuffer.size() == 0)
     {
-        mSimpleRingBuffer.resize(MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mSimpleRingBuffer.resize(SAMPLE_MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
     }
 
     std::vector<detection::Object> proposals;
@@ -1138,7 +1138,7 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     static const int DEFAULT_MASK_SAMPLE_STRIDE = 4;
     auto &output = pOutputsInfo[9];
     auto ptr = (float *)output.pVirAddr;
-    detection::get_out_bbox_mask(proposals, objects, MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
+    detection::get_out_bbox_mask(proposals, objects, SAMPLE_MAX_MASK_OBJ_COUNT, ptr, DEFAULT_MASK_PROTO_DIM, DEFAULT_MASK_SAMPLE_STRIDE, NMS_THRESHOLD,
                                  get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
 
     std::sort(objects.begin(), objects.end(),

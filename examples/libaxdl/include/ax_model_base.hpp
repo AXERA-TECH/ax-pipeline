@@ -13,7 +13,7 @@ class ax_model_base
 {
 protected:
     // int MAX_FACE_BBOX_COUNT  = 64;
-    int MAX_MASK_OBJ_COUNT   = 8;
+    // int MAX_MASK_OBJ_COUNT   = 8;
     int MAX_SUB_INFER_COUNT  = 3;
     int FACE_FEAT_LEN        = 512;
     // bool use_warp_preprocess = true; // 当crop resize不行时使用
@@ -121,11 +121,11 @@ public:
     void draw_init(int chn,int chn_width,int chn_height,int max_num_rgn){ m_drawers[chn].init(max_num_rgn, chn_width, chn_height);}
     ax_osd_drawer& get_drawer(int chn){ return m_drawers[chn]; }
     int get_sub_infer_count()     { return MAX_SUB_INFER_COUNT; }
-    int get_max_mask_obj_count()  { return MAX_MASK_OBJ_COUNT ; }
+    // int get_max_mask_obj_count()  { return MAX_MASK_OBJ_COUNT ; }
     int get_face_feat_len()       { return FACE_FEAT_LEN      ; }
 
     int set_sub_infer_count(int val)     { MAX_SUB_INFER_COUNT = val; }
-    int set_max_mask_obj_count(int val)  { MAX_MASK_OBJ_COUNT  = val; }
+    // int set_max_mask_obj_count(int val)  { MAX_MASK_OBJ_COUNT  = val; }
     int set_face_feat_len(int val)       { FACE_FEAT_LEN       = val; }
 
     // 当前处理的的对象在 results->mObjects 的索引（多级模型用）

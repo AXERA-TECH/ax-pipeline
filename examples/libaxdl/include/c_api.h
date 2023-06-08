@@ -7,6 +7,7 @@ extern "C"
 #endif
 
 #define SAMPLE_MAX_BBOX_COUNT 64
+#define SAMPLE_MAX_MASK_OBJ_COUNT 8
 #define SAMPLE_OBJ_NAME_MAX_LEN 20
 #define SAMPLE_RINGBUFFER_CACHE_COUNT 8
     typedef enum _MODEL_TYPE_E
