@@ -345,7 +345,7 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     }
     ret = post_process(pstFrame, crop_resize_box, results);
     results->bObjTrack = b_track ? 1 : 0;
-    if (b_track)
+    if (b_track && tracker)
     {
         tracker_objs.n_objects = results->nObjSize > TRACK_OBJETCS_MAX_SIZE ? TRACK_OBJETCS_MAX_SIZE : results->nObjSize;
         for (int i = 0; i < tracker_objs.n_objects; i++)
@@ -403,12 +403,14 @@ void ax_model_multi_base_t::enable_track(int frame_rate, int track_buffer)
 {
     model_0->enable_track(frame_rate, track_buffer);
     b_track = true;
+    model_1->set_track_enable(b_track);
 }
 
 void ax_model_multi_base_t::disbale_track()
 {
     model_0->disbale_track();
     b_track = false;
+    model_1->set_track_enable(b_track);
 }
 
 int ax_model_multi_base_t::init(void *json_obj)
