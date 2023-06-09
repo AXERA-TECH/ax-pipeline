@@ -22,7 +22,8 @@
 #include "../libaxdl/include/ax_osd_helper.hpp"
 #include "../common/common_func.h"
 #include "common_pipeline.h"
-#include "../../third-party/mp4demux/Mp4Demuxer.h"
+#include "../common/video_demux.hpp"
+// #include "../../third-party/mp4demux/Mp4Demuxer.h"
 #include "../utilities/sample_log.h"
 
 #include "ax_ivps_api.h"
@@ -120,7 +121,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-int _mp4_frame_callback(const void *buff, int len, frame_type_e type, void *reserve)
+int _mp4_frame_callback(const void *buff, int len, void *reserve)
 {
     if (len == 0)
     {
@@ -378,25 +379,14 @@ int main(int argc, char *argv[])
 
     {
 
-        std::vector<mp4_handle_t> mp4_handles;
+        std::vector<VideoDemux *> video_handles;
         for (size_t i = 0; i < config_files.size(); i++)
         {
             auto &pipelines = vpipelines[i];
-            // RTSPClient *rtspClient = new RTSPClient();
-            // if (rtspClient->openURL(rtsp_url, 1, 2) == 0)
-            // {
-            //     if (rtspClient->playURL(frameHandlerFunc, pipelines.data(), NULL, NULL) == 0)
-            //     {
-            //         rtsp_clients.push_back(rtspClient);
-            //     }
-            // }
-            mp4_handle_t handle = mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
-            mp4_handles.push_back(handle);
-            // while (!gLoopExit)
-            // {
-            //     usleep(1000 * 1000);
-            // }
-            // mp4_close(&handle);
+
+            VideoDemux *handle = new VideoDemux; // mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
+            handle->Open(h26xfile, loopPlay, _mp4_frame_callback, &pipelines[0]);
+            video_handles.push_back(handle);
         }
 
         while (!gLoopExit)
@@ -405,9 +395,12 @@ int main(int argc, char *argv[])
         }
         for (size_t i = 0; i < config_files.size(); i++)
         {
-            auto handle = mp4_handles[i];
-            mp4_close(&handle);
+            auto handle = video_handles[i];
+            handle->Stop();
+            delete handle;
+            // mp4_close(&handle);
         }
+        video_handles.clear();
 
         gLoopExit = 1;
         sleep(1);
