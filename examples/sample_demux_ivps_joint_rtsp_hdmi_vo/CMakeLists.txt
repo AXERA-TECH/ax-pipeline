@@ -1,9 +1,9 @@
-set(SampleName sample_multi_rtsp_ivps_joint_multi_rtsp)
+set(SampleName sample_demux_ivps_joint_rtsp_hdmi_vo)
 
 include(../build_func.cmake)
 
-file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c")
-file(GLOB SRC_LIST_COMMON   "${BSP_MSP_DIR}/../sample/common/common_sys.c" 
+file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c" "../../third-party/mp4demux/Mp4Demuxer.cpp")
+file(GLOB SRC_LIST_COMMON   "${BSP_MSP_DIR}/../sample/common/common_sys.c"
                             "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}

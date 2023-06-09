@@ -25,7 +25,7 @@
 
 #include "../utilities/sample_log.h"
 
-#include "RTSPClient.h"
+#include "../common/video_demux.hpp"
 
 #include "ax_ivps_api.h"
 
@@ -40,12 +40,12 @@
 
 #include "opencv2/opencv.hpp"
 
-#define pipe_count 3
+#define pipe_count 2
 
 #ifdef AXERA_TARGET_CHIP_AX620
 #define rtsp_max_count 2
 #elif defined(AXERA_TARGET_CHIP_AX650)
-#define rtsp_max_count 32
+#define rtsp_max_count 4
 #endif
 
 AX_S32 s_sample_framerate = 25;
@@ -137,29 +137,13 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
+static int frameHandlerFunc(const void *buf, int len, void *arg)
 {
     pipeline_t *pipe = (pipeline_t *)arg;
     pipeline_buffer_t buf_h264;
-
-    switch (frame_type)
-    {
-    case FRAME_TYPE_VIDEO:
-        buf_h264.p_vir = buf;
-        buf_h264.n_size = len;
-        user_input(pipe, 1, &buf_h264);
-        // printf("\rbuf len : %d", len);
-        fflush(stdout);
-        break;
-    case FRAME_TYPE_AUDIO:
-        // printf("audio\n");
-        break;
-    case FRAME_TYPE_ETC:
-        // printf("etc\n");
-        break;
-    default:
-        break;
-    }
+    buf_h264.p_vir = (void *)buf;
+    buf_h264.n_size = len;
+    user_input(pipe, 1, &buf_h264);
 }
 
 // 允许外部调用
@@ -176,7 +160,7 @@ static AX_VOID PrintHelp(char *testApp)
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: model config file path\n");
 
-    printf("\t-f: rtsp url\n");
+    printf("\t-f: mp4 file/rtsp url(just only support h264 format)\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -254,7 +238,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, rtsp_urls.size() * 20},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, rtsp_urls.size() * 15},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -280,20 +264,6 @@ int main(int argc, char *argv[])
 #endif
 
     vpipelines.resize(rtsp_urls.size());
-
-    pipeline_t pipe_init_hdmi{0};
-    pipe_init_hdmi.enable = 1;
-    pipe_init_hdmi.m_output_type = po_vo_hdmi;
-    pipe_init_hdmi.m_vo_attr.hdmi.e_hdmi_type = phv_1920x1080p60;
-    pipe_init_hdmi.m_vo_attr.hdmi.n_vo_count = rtsp_urls.size();
-    pipe_init_hdmi.m_vo_attr.hdmi.n_frame_rate = s_sample_framerate;
-    pipe_init_hdmi.m_vo_attr.hdmi.portid = 0;
-
-    s32Ret = create_pipeline(&pipe_init_hdmi);
-    if (s32Ret != 0)
-    {
-        return -1;
-    }
 
     for (size_t i = 0; i < rtsp_urls.size(); i++)
     {
@@ -375,27 +345,6 @@ int main(int argc, char *argv[])
             sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", i); // 重复的会创建失败
             pipe2.m_venc_attr.n_venc_chn = i;                            // 重复的会创建失败
             pipe2.m_vdec_attr.n_vdec_grp = i;
-
-            pipeline_t &pipe3 = pipelines[2];
-            {
-                pipeline_vo_config_t &config_vo = pipe3.m_vo_attr;
-                config_vo.hdmi.n_chn = pipe_init_hdmi.m_vo_attr.hdmi.n_chns[i];
-
-                pipeline_ivps_config_t &config3 = pipe3.m_ivps_attr;
-                config3.n_ivps_grp = pipe_count * i + 3; // 重复的会创建失败
-                config3.n_ivps_rotate = 0;               // 旋转90度，现在rtsp流是竖着的画面了
-                config3.n_ivps_fps = s_sample_framerate;
-                config3.n_ivps_width = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_widths[i];
-                config3.n_ivps_height = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_heights[i];
-                config3.n_osd_rgn = 4;
-                config3.n_fifo_count = 1;
-            }
-            pipe3.enable = 1;
-            pipe3.pipeid = pipe_count * i + 3; // 重复的会创建失败
-            pipe3.m_input_type = pi_vdec_h264;
-            pipe3.m_output_type = po_vo_hdmi;
-            pipe3.n_loog_exit = 0;
-            pipe3.m_vdec_attr.n_vdec_grp = i;
         }
     }
 
@@ -421,17 +370,14 @@ int main(int argc, char *argv[])
     }
 
     {
-        std::vector<RTSPClient *> rtsp_clients;
+        std::vector<VideoDemux *> video_demuxes;
         for (size_t i = 0; i < rtsp_urls.size(); i++)
         {
             auto &pipelines = vpipelines[i];
-            RTSPClient *rtspClient = new RTSPClient();
-            if (rtspClient->openURL(rtsp_urls[i].c_str(), 1, 2) == 0)
+            VideoDemux *demux = new VideoDemux();
+            if (demux->Open(rtsp_urls[i].c_str(), true, frameHandlerFunc, pipelines.data()))
             {
-                if (rtspClient->playURL(frameHandlerFunc, pipelines.data(), NULL, NULL) == 0)
-                {
-                    rtsp_clients.push_back(rtspClient);
-                }
+                video_demuxes.push_back(demux);
             }
         }
 
@@ -439,11 +385,11 @@ int main(int argc, char *argv[])
         {
             usleep(1000 * 1000);
         }
-        for (size_t i = 0; i < rtsp_urls.size(); i++)
+        for (size_t i = 0; i < video_demuxes.size(); i++)
         {
-            RTSPClient *rtspClient = rtsp_clients[i];
-            rtspClient->closeURL();
-            delete rtspClient;
+            VideoDemux *demux = video_demuxes[i];
+            demux->Stop();
+            delete demux;
         }
 
         gLoopExit = 1;
