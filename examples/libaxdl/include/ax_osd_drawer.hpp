@@ -77,9 +77,9 @@ public:
 
     void init(int num_rgn, int image_width, int image_height)
     {
-        mRingBufferMatText.resize(num_rgn * SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
-        mRingBufferMatMask.resize(num_rgn * SAMPLE_MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
-        mRingBufferMatMaskV2.resize(num_rgn * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mRingBufferMatText.resize(SAMPLE_MAX_BBOX_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mRingBufferMatMask.resize(SAMPLE_MAX_MASK_OBJ_COUNT * SAMPLE_RINGBUFFER_CACHE_COUNT);
+        mRingBufferMatMaskV2.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
         memset(mRingBufferMatText.data(), 0, mRingBufferMatText.size() * sizeof(axdl_mat_t));
         memset(mRingBufferMatMask.data(), 0, mRingBufferMatMask.size() * sizeof(axdl_mat_t));
         memset(mRingBufferMatMaskV2.data(), 0, mRingBufferMatMaskV2.size() * sizeof(axdl_mat_t));
