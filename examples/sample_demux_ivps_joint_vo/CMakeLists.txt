@@ -1,4 +1,4 @@
-set(SampleName sample_mp4_ivps_joint_vo)
+set(SampleName sample_demux_ivps_joint_vo)
 
 include(../build_func.cmake)
 

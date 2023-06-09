@@ -152,7 +152,7 @@ static AX_VOID PrintHelp(char *testApp)
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: model config file path\n");
 
-    printf("\t-f: rtsp url\n");
+    printf("\t-f: mp4 file/rtsp url(just only support h264 format)\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
     AX_S32 s32Ret = 0;
     int loopPlay = 1;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
-    char h26xfile[512];
+    char video_url[512];
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
@@ -184,8 +184,8 @@ int main(int argc, char *argv[])
         switch (ch)
         {
         case 'f':
-            strcpy(h26xfile, optarg);
-            ALOGI("video url : %s", h26xfile);
+            strcpy(video_url, optarg);
+            ALOGI("video url : %s", video_url);
             break;
         case 'p':
         {
@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
             auto &pipelines = vpipelines[i];
 
             VideoDemux *handle = new VideoDemux; // mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
-            handle->Open(h26xfile, loopPlay, _mp4_frame_callback, &pipelines[0]);
+            handle->Open(video_url, loopPlay, _mp4_frame_callback, &pipelines[0]);
             video_handles.push_back(handle);
         }
 

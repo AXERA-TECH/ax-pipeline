@@ -25,7 +25,8 @@
 
 #include "../utilities/sample_log.h"
 
-#include "RTSPClient.h"
+// #include "RTSPClient.h"
+#include "../common/video_demux.hpp"
 
 #include "ax_ivps_api.h"
 
@@ -137,29 +138,13 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-static void frameHandlerFunc(void *arg, RTP_FRAME_TYPE frame_type, int64_t timestamp, unsigned char *buf, int len)
+static int frameHandlerFunc(const void *buf, int len, void *arg)
 {
     pipeline_t *pipe = (pipeline_t *)arg;
     pipeline_buffer_t buf_h264;
-
-    switch (frame_type)
-    {
-    case FRAME_TYPE_VIDEO:
-        buf_h264.p_vir = buf;
-        buf_h264.n_size = len;
-        user_input(pipe, 1, &buf_h264);
-        // printf("\rbuf len : %d", len);
-        fflush(stdout);
-        break;
-    case FRAME_TYPE_AUDIO:
-        // printf("audio\n");
-        break;
-    case FRAME_TYPE_ETC:
-        // printf("etc\n");
-        break;
-    default:
-        break;
-    }
+    buf_h264.p_vir = (void *)buf;
+    buf_h264.n_size = len;
+    user_input(pipe, 1, &buf_h264);
 }
 
 // 允许外部调用
@@ -401,17 +386,14 @@ int main(int argc, char *argv[])
     }
 
     {
-        std::vector<RTSPClient *> rtsp_clients;
+        std::vector<VideoDemux *> video_demuxes;
         for (size_t i = 0; i < rtsp_urls.size(); i++)
         {
             auto &pipelines = vpipelines[i];
-            RTSPClient *rtspClient = new RTSPClient();
-            if (rtspClient->openURL(rtsp_urls[i].c_str(), 1, 2) == 0)
+            VideoDemux *demux = new VideoDemux();
+            if (demux->Open(rtsp_urls[i].c_str(), true, frameHandlerFunc, pipelines.data()))
             {
-                if (rtspClient->playURL(frameHandlerFunc, pipelines.data(), NULL, NULL) == 0)
-                {
-                    rtsp_clients.push_back(rtspClient);
-                }
+                video_demuxes.push_back(demux);
             }
         }
 
@@ -419,11 +401,11 @@ int main(int argc, char *argv[])
         {
             usleep(1000 * 1000);
         }
-        for (size_t i = 0; i < rtsp_urls.size(); i++)
+        for (size_t i = 0; i < video_demuxes.size(); i++)
         {
-            RTSPClient *rtspClient = rtsp_clients[i];
-            rtspClient->closeURL();
-            delete rtspClient;
+            VideoDemux *demux = video_demuxes[i];
+            demux->Stop();
+            delete demux;
         }
 
         gLoopExit = 1;
