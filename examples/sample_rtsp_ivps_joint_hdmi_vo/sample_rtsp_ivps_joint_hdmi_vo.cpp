@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
         }
     }
 
-        {
+    {
         std::vector<RTSPClient *> rtsp_clients;
         for (size_t i = 0; i < config_files.size(); i++)
         {
