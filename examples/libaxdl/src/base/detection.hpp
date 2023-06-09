@@ -1240,7 +1240,7 @@ namespace detection
                             float ly = (landmark_ptr[3 * l + 1] * 2.0f - 0.5f + h) * stride;
                             float score = sigmoid(landmark_ptr[3 * l + 2]);
                             obj.landmark[l] = cv::Point2f(lx, ly);
-                            obj.mask_feat.push_back(score);
+                            obj.kps_feat.push_back(score);
                         }
 
                         objects.push_back(obj);
