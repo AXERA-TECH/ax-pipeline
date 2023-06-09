@@ -39,6 +39,7 @@
 #include "map"
 
 #define pipe_count 2
+#define model_max_count 9
 
 AX_S32 s_sample_framerate = 25;
 
@@ -47,24 +48,41 @@ volatile AX_S32 gLoopExit = 0;
 int SAMPLE_MAJOR_STREAM_WIDTH = 1920;
 int SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-int SAMPLE_IVPS_ALGO_WIDTH = 960;
-int SAMPLE_IVPS_ALGO_HEIGHT = 540;
+int SAMPLE_IVPS_ALGO_WIDTH[model_max_count] = {960};
+int SAMPLE_IVPS_ALGO_HEIGHT[model_max_count] = {540};
 
 static struct _g_sample_
 {
-    int bRunJoint;
-    void *gModels;
-    ax_osd_helper osd_helper;
-    std::vector<pipeline_t *> pipes_need_osd;
+    struct _model
+    {
+        int bRunJoint;
+        void *gModel;
+        ax_osd_helper osd_helper;
+        std::vector<pipeline_t *> pipes_need_osd;
+    } gModels[model_max_count];
+
+    std::map<int, _model *> osd_target_map;
     void Init()
     {
-        bRunJoint = 0;
-        gModels = nullptr;
+        for (size_t i = 0; i < model_max_count; i++)
+        {
+            gModels[i].pipes_need_osd.clear();
+            gModels[i].gModel = nullptr;
+            gModels[i].bRunJoint = 0;
+        }
+        osd_target_map.clear();
+
         ALOGN("g_sample Init\n");
     }
     void Deinit()
     {
-        pipes_need_osd.clear();
+
+        for (size_t i = 0; i < model_max_count; i++)
+        {
+            gModels[i].pipes_need_osd.clear();
+            gModels[i].gModel = nullptr;
+            gModels[i].bRunJoint = 0;
+        }
 
         ALOGN("g_sample Deinit\n");
     }
@@ -72,9 +90,10 @@ static struct _g_sample_
 
 void ai_inference_func(pipeline_buffer_t *buff)
 {
-    if (g_sample.bRunJoint)
+    pipeline_t *pipe = (pipeline_t *)buff->p_pipe;
+    if (g_sample.osd_target_map[pipe->pipeid]->bRunJoint)
     {
-        static axdl_results_t mResults;
+        static std::map<int, axdl_results_t> mResults;
         axdl_image_t tSrcFrame = {0};
         switch (buff->d_type)
         {
@@ -97,9 +116,9 @@ void ai_inference_func(pipeline_buffer_t *buff)
         tSrcFrame.tStride_W = buff->n_stride;
         tSrcFrame.nSize = buff->n_size;
 
-        axdl_inference(g_sample.gModels, &tSrcFrame, &mResults);
-
-        g_sample.osd_helper.Update(&mResults);
+        axdl_inference(g_sample.osd_target_map[pipe->pipeid]->gModel, &tSrcFrame, &mResults[pipe->pipeid]);
+        // ALOGI("pipe=%d detect%d", pipe->pipeid, mResults[pipe->pipeid].nObjSize);
+        g_sample.osd_target_map[pipe->pipeid]->osd_helper.Update(&mResults[pipe->pipeid]);
     }
 }
 
@@ -162,6 +181,8 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
     char config_file[256];
+    std::vector<std::string> config_files;
+    std::vector<std::vector<pipeline_t>> vpipelines;
 
     ALOGN("sample begin\n\n");
 
@@ -176,6 +197,15 @@ int main(int argc, char *argv[])
         case 'p':
         {
             strcpy(config_file, optarg);
+            std::string tmp(config_file);
+            if (config_files.size() >= model_max_count)
+            {
+                ALOGE("support only max %d models infer", model_max_count);
+            }
+            else
+            {
+                config_files.push_back(tmp);
+            }
             break;
         }
         case 'r':
@@ -206,7 +236,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 20},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, config_files.size() * 15},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -230,136 +260,184 @@ int main(int argc, char *argv[])
         goto EXIT_2;
     }
 #endif
+    if (config_files.size() == 0)
+    {
+        config_files.push_back("config/yolov7.json");
+    }
 
-    s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels);
+    vpipelines.resize(config_files.size());
+
+    pipeline_t pipe_init_hdmi{0};
+    pipe_init_hdmi.enable = 1;
+    pipe_init_hdmi.m_output_type = po_vo_hdmi;
+    pipe_init_hdmi.m_vo_attr.hdmi.e_hdmi_type = phv_1920x1080p60;
+    pipe_init_hdmi.m_vo_attr.hdmi.n_vo_count = config_files.size();
+    pipe_init_hdmi.m_vo_attr.hdmi.n_frame_rate = s_sample_framerate;
+    pipe_init_hdmi.m_vo_attr.hdmi.portid = 0;
+
+    s32Ret = create_pipeline(&pipe_init_hdmi);
     if (s32Ret != 0)
     {
-        ALOGE("sample_parse_param_det failed,run joint skip");
-        g_sample.bRunJoint = 0;
-    }
-    else
-    {
-        s32Ret = axdl_get_ivps_width_height(g_sample.gModels, config_file, &SAMPLE_IVPS_ALGO_WIDTH, &SAMPLE_IVPS_ALGO_HEIGHT);
-        ALOGI("IVPS AI channel width=%d height=%d", SAMPLE_IVPS_ALGO_WIDTH, SAMPLE_IVPS_ALGO_HEIGHT);
-        g_sample.bRunJoint = 1;
+        return -1;
     }
 
-    pipeline_t pipelines[pipe_count];
-    memset(&pipelines[0], 0, sizeof(pipelines));
-    // 创建pipeline
+    for (size_t i = 0; i < config_files.size(); i++)
     {
 
-        pipeline_t &pipe0 = pipelines[0];
+        s32Ret = axdl_parse_param_init((char *)config_files[i].c_str(), &g_sample.gModels[i].gModel);
+        if (s32Ret != 0)
         {
-            pipeline_ivps_config_t &config0 = pipe0.m_ivps_attr;
-            config0.n_ivps_grp = 0;  // 重复的会创建失败
-            config0.n_ivps_fps = s_sample_framerate; // 屏幕只能是60gps
-            // config0.n_ivps_rotate = 1; // 旋转
-            config0.n_ivps_width = 1920;
-            config0.n_ivps_height = 1080;
-            config0.n_fifo_count = 1;
-            config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
-        }
-        {
-            pipeline_vo_config_t &config = pipe0.m_vo_attr;
-            config.hdmi.portid = 0;
-            config.hdmi.e_hdmi_type = phv_1920x1080p60;
-            config.hdmi.n_chn = 0;
-            config.hdmi.n_vo_count = 1;
-            config.hdmi.n_frame_rate = s_sample_framerate;
-        }
-        pipe0.enable = 1;
-        pipe0.pipeid = 0x90015;
-        pipe0.m_input_type = pi_vdec_h264;
-        pipe0.m_output_type = po_vo_hdmi;
-        pipe0.n_loog_exit = 0;            // 可以用来控制线程退出（如果有的话）
-        pipe0.m_vdec_attr.n_vdec_grp = 0; // 可以重复
-
-        pipeline_t &pipe1 = pipelines[1];
-        {
-            pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
-            config1.n_ivps_grp = 1; // 重复的会创建失败
-            config1.n_ivps_fps = 60;
-            config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
-            config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
-            if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels) != MT_SEG_DINOV2)
-            {
-                config1.b_letterbox = 1;
-            }
-            config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
-        }
-        pipe1.enable = g_sample.bRunJoint;
-        pipe1.pipeid = 0x90016;
-        pipe1.m_input_type = pi_vdec_h264;
-        if (g_sample.gModels && g_sample.bRunJoint)
-        {
-            switch (axdl_get_color_space(g_sample.gModels))
-            {
-            case axdl_color_space_rgb:
-                pipe1.m_output_type = po_buff_rgb;
-                break;
-            case axdl_color_space_bgr:
-                pipe1.m_output_type = po_buff_bgr;
-                break;
-            case axdl_color_space_nv12:
-            default:
-                pipe1.m_output_type = po_buff_nv12;
-                break;
-            }
+            ALOGE("sample_parse_param_det failed,run joint skip");
+            g_sample.gModels[i].bRunJoint = 0;
         }
         else
         {
-            pipe1.enable = 0;
+            s32Ret = axdl_get_ivps_width_height(g_sample.gModels[i].gModel, (char *)config_files[i].c_str(), &SAMPLE_IVPS_ALGO_WIDTH[i], &SAMPLE_IVPS_ALGO_HEIGHT[i]);
+            ALOGI("IVPS AI channel width=%d height=%d", SAMPLE_IVPS_ALGO_WIDTH[i], SAMPLE_IVPS_ALGO_HEIGHT[i]);
+            g_sample.gModels[i].bRunJoint = 1;
         }
-        pipe1.n_loog_exit = 0;
-        pipe1.m_vdec_attr.n_vdec_grp = 0;
-        pipe1.output_func = ai_inference_func; // 图像输出的回调函数
+        auto &pipelines = vpipelines[i];
+        pipelines.resize(pipe_count);
+        memset(pipelines.data(), 0, pipe_count * sizeof(pipeline_t));
 
-        for (size_t i = 0; i < pipe_count; i++)
+        // 创建pipeline
         {
-            create_pipeline(&pipelines[i]);
-            if (pipelines[i].m_ivps_attr.n_osd_rgn > 0)
+            pipeline_t &pipe1 = pipelines[1];
             {
-                g_sample.pipes_need_osd.push_back(&pipelines[i]);
+                pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
+                config1.n_ivps_grp = pipe_count * i + 1; // 重复的会创建失败
+                config1.n_ivps_fps = 60;
+                config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH[i];
+                config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT[i];
+                if (axdl_get_model_type(g_sample.gModels[i].gModel) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels[i].gModel) != MT_SEG_DINOV2)
+                {
+                    config1.b_letterbox = 1;
+                }
+                config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
             }
-        }
+            pipe1.enable = g_sample.gModels[i].bRunJoint;
+            pipe1.pipeid = pipe_count * i + 1;
+            pipe1.m_input_type = pi_vdec_h264;
+            if (g_sample.gModels[i].gModel && g_sample.gModels[i].bRunJoint)
+            {
+                switch (axdl_get_color_space(g_sample.gModels[i].gModel))
+                {
+                case axdl_color_space_rgb:
+                    pipe1.m_output_type = po_buff_rgb;
+                    break;
+                case axdl_color_space_bgr:
+                    pipe1.m_output_type = po_buff_bgr;
+                    break;
+                case axdl_color_space_nv12:
+                default:
+                    pipe1.m_output_type = po_buff_nv12;
+                    break;
+                }
+            }
+            else
+            {
+                pipe1.enable = 0;
+            }
+            pipe1.n_loog_exit = 0;
+            pipe1.m_vdec_attr.n_vdec_grp = i;
+            pipe1.output_func = ai_inference_func; // 图像输出的回调函数
 
-        if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
-        {
-            g_sample.osd_helper.Start(g_sample.gModels, g_sample.pipes_need_osd);
+            pipeline_t &pipe0 = pipelines[0];
+            {
+                pipeline_vo_config_t &config_vo = pipe0.m_vo_attr;
+                config_vo.hdmi.n_chn = pipe_init_hdmi.m_vo_attr.hdmi.n_chns[i];
+
+                pipeline_ivps_config_t &config = pipe0.m_ivps_attr;
+                config.n_ivps_grp = pipe_count * i + 2; // 重复的会创建失败
+                config.n_ivps_rotate = 0;               // 旋转90度，现在rtsp流是竖着的画面了
+                config.n_ivps_fps = s_sample_framerate;
+                config.n_ivps_width = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_widths[i];
+                config.n_ivps_height = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_heights[i];
+                config.n_osd_rgn = 4;
+                config.n_fifo_count = 1;
+            }
+            pipe0.enable = 1;
+            pipe0.pipeid = pipe_count * i + 2; // 重复的会创建失败
+            pipe0.m_input_type = pi_vdec_h264;
+            pipe0.m_output_type = po_vo_hdmi;
+            pipe0.n_loog_exit = 0;
+            pipe0.m_vdec_attr.n_vdec_grp = i;
         }
     }
 
+    for (size_t i = 0; i < vpipelines.size(); i++)
     {
-        RTSPClient *rtspClient = new RTSPClient();
-        if (rtspClient->openURL(rtsp_url, 1, 2) == 0)
+        auto &pipelines = vpipelines[i];
+        for (size_t j = 0; j < pipelines.size(); j++)
         {
-            if (rtspClient->playURL(frameHandlerFunc, &pipelines[0], NULL, NULL) == 0)
+            create_pipeline(&pipelines[j]);
+            if (pipelines[j].m_ivps_attr.n_osd_rgn > 0)
             {
-                while (!gLoopExit)
+                g_sample.gModels[i].pipes_need_osd.push_back(&pipelines[j]);
+            }
+        }
+
+        if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
+        {
+            g_sample.gModels[i].osd_helper.Start(g_sample.gModels[i].gModel, g_sample.gModels[i].pipes_need_osd);
+            g_sample.osd_target_map[pipelines[1].pipeid] = &g_sample.gModels[i];
+        }
+    }
+
+        {
+        std::vector<RTSPClient *> rtsp_clients;
+        for (size_t i = 0; i < config_files.size(); i++)
+        {
+            auto &pipelines = vpipelines[i];
+            RTSPClient *rtspClient = new RTSPClient();
+            if (rtspClient->openURL(rtsp_url, 1, 2) == 0)
+            {
+                if (rtspClient->playURL(frameHandlerFunc, pipelines.data(), NULL, NULL) == 0)
                 {
-                    usleep(1000 * 1000);
+                    rtsp_clients.push_back(rtspClient);
                 }
             }
         }
-        rtspClient->closeURL();
-        delete rtspClient;
+
+        while (!gLoopExit)
+        {
+            usleep(1000 * 1000);
+        }
+        for (size_t i = 0; i < config_files.size(); i++)
+        {
+            RTSPClient *rtspClient = rtsp_clients[i];
+            rtspClient->closeURL();
+            delete rtspClient;
+        }
+
         gLoopExit = 1;
         sleep(1);
         pipeline_buffer_t end_buf = {0};
-        user_input(&pipelines[0], 1, &end_buf);
+        for (size_t i = 0; i < config_files.size(); i++)
+        {
+            auto &pipelines = vpipelines[i];
+            user_input(pipelines.data(), 1, &end_buf);
+        }
     }
 
     // 销毁pipeline
     {
-        if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
+        gLoopExit = 1;
+        for (size_t i = 0; i < config_files.size(); i++)
         {
-            g_sample.osd_helper.Stop();
+            if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
+            {
+                g_sample.gModels[i].osd_helper.Stop();
+            }
         }
 
-        for (size_t i = 0; i < pipe_count; i++)
+        for (size_t i = 0; i < vpipelines.size(); i++)
         {
-            destory_pipeline(&pipelines[i]);
+            auto &pipelines = vpipelines[i];
+            for (size_t j = 0; j < pipelines.size(); j++)
+            {
+                destory_pipeline(&pipelines[j]);
+            }
         }
     }
 
@@ -370,7 +448,10 @@ EXIT_5:
 EXIT_4:
 
 EXIT_3:
-    axdl_deinit(&g_sample.gModels);
+    for (size_t i = 0; i < config_files.size(); i++)
+    {
+        axdl_deinit(&g_sample.gModels[i].gModel);
+    }
 
 EXIT_2:
 
