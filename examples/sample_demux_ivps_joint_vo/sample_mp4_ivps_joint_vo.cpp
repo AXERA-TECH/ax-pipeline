@@ -25,7 +25,7 @@
 
 #include "../utilities/sample_log.h"
 
-#include "../../third-party/mp4demux/Mp4Demuxer.h"
+#include "../common/video_demux.hpp"
 
 #include "ax_ivps_api.h"
 
@@ -103,7 +103,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-int _mp4_frame_callback(const void *buff, int len, frame_type_e type, void *reserve)
+int _mp4_frame_callback(const void *buff, int len, void *reserve)
 {
     if (len == 0)
     {
@@ -316,13 +316,13 @@ int main(int argc, char *argv[])
     }
 
     {
-
-        mp4_handle_t handle = mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
+        VideoDemux demux;
+        demux.Open(h26xfile, loopPlay, _mp4_frame_callback, &pipelines[0]);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);
         }
-        mp4_close(&handle);
+        demux.Stop();
     }
 
     // 销毁pipeline
