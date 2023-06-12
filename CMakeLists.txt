@@ -57,6 +57,7 @@ endif()
 add_subdirectory(third-party/RTSP)
 add_subdirectory(third-party/RtspServer)    
 add_subdirectory(third-party/ByteTrack)
+add_subdirectory(third-party/mp4demux)
 
 
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")

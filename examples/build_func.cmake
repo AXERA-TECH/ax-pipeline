@@ -11,6 +11,7 @@ function(ax_include_link name input_type)
     target_link_libraries(${name} PRIVATE pthread dl) # ax620a use this
 
     target_link_libraries(${name} PRIVATE axdl common_pipeline)
+
     # drm
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
     target_link_libraries(${name} PRIVATE drm)
@@ -44,9 +45,9 @@ function(ax_include_link name input_type)
     # target_include_directories(${name} PRIVATE ../rtsp/inc)
     target_link_libraries(${name} PRIVATE RtspServer ByteTrack)
 
-    target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/RTSP/include)
-    target_link_libraries(${name} PRIVATE rtspclisvr)
-    if(input_type MATCHES "rtsp")
+    if(input_type MATCHES "demux")
+        target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/RTSP/include)
+        target_link_libraries(${name} PRIVATE rtspclisvr Mp4Demuxer)
     elseif(input_type MATCHES "v4l2")
         target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/libv4l2cpp/inc)
 
