@@ -1,8 +1,8 @@
 ## 简介
-  通过 RTSP 流媒体输入，实现算力盒子。
+  通过 RTSP/MP4 输入，实现算力盒子。
 
 ## 流程图
-![](../../docs/sample_rtsp_ivps_joint_vo.png)
+![](../../docs/sample_demux_ivps_joint_rtsp_vo.png)
 
 ## 快速体验
 1、准备想要进行推流的 h264 格式的二进制文件，或 h264 格式的 mp4 文件，下文用 test.h264
@@ -18,5 +18,5 @@ ffmpeg -re -stream_loop -1 -i test.h264 -rtsp_transport tcp -c copy -f rtsp rtsp
 
 5、运行以下命令，进行 rtsp 的取流、解码、推理的 pipeline
 ```
-./sample_rtsp_ivps_joint_vo_new -f rtsp://192.168.31.1:8554/test -p config/yolov5s.json
+./sample_demux_ivps_joint_rtsp_hdmi_vo -f rtsp://192.168.31.1:8554/test -p config/yolov5s.json
 ```
