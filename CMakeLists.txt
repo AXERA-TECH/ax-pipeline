@@ -72,7 +72,7 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
-    # add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
+    add_subdirectory(examples/sample_demux_ivps_joint_rtsp)
     # add_subdirectory(examples/sample_mp4_ivps_joint_rtsp)
     add_subdirectory(examples/sample_multi_demux_ivps_joint_hdmi_vo)
     add_subdirectory(examples/sample_multi_demux_ivps_joint_multi_rtsp)

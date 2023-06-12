@@ -30,8 +30,8 @@ class VideoDemux
 {
 private:
     std::string url = "";
-    VideoDemuxCallback cb = nullptr;
-    void *reserve = nullptr;
+    std::vector<std::pair<VideoDemuxCallback, void *>> cbs;
+    // std::vector<void *> reserves;
     bool loopPlay = true;
     volatile int gLoopExit = 0;
 
@@ -247,7 +247,10 @@ private:
             if (fInput == NULL)
             {
                 ALOGE("Unable to open input file\n");
-                demux->cb(nullptr, 0, demux->reserve);
+                for (size_t i = 0; i < demux->cbs.size(); i++)
+                {
+                    demux->cbs[i].first(nullptr, 0, demux->cbs[i].second);
+                }
                 return;
             }
             fseek(fInput, 0L, SEEK_END);
@@ -262,12 +265,19 @@ private:
                 sReadLen = StreamParserReadFrameH264(&tStreamInfo, cbuffer.data(), &sSize);
                 if (sReadLen == 0)
                 {
-                    demux->cb(nullptr, 0, demux->reserve);
+                    for (size_t i = 0; i < demux->cbs.size(); i++)
+                    {
+                        demux->cbs[i].first(nullptr, 0, demux->cbs[i].second);
+                    }
                     break;
                 }
                 else
                 {
-                    demux->cb(cbuffer.data(), sReadLen, demux->reserve);
+                    for (size_t i = 0; i < demux->cbs.size(); i++)
+                    {
+                        demux->cbs[i].first(cbuffer.data(), sReadLen, demux->cbs[i].second);
+                    }
+                    // demux->cb(cbuffer.data(), sReadLen, demux->reserve);
                 }
                 usleep(0);
             }
@@ -279,7 +289,11 @@ private:
     static int _mp4_frame_callback(const void *buff, int len, frame_type_e type, void *reserve)
     {
         VideoDemux *demux = (VideoDemux *)reserve;
-        demux->cb(buff, len, demux->reserve);
+        // demux->cb(buff, len, demux->reserve);
+        for (size_t i = 0; i < demux->cbs.size(); i++)
+        {
+            demux->cbs[i].first(buff, len, demux->cbs[i].second);
+        }
         return 0;
     }
 
@@ -289,7 +303,11 @@ private:
         switch (frame_type)
         {
         case FRAME_TYPE_VIDEO:
-            demux->cb(buf, len, demux->reserve);
+            for (size_t i = 0; i < demux->cbs.size(); i++)
+            {
+                demux->cbs[i].first(buf, len, demux->cbs[i].second);
+            }
+            // demux->cb(buf, len, demux->reserve);
             break;
         case FRAME_TYPE_AUDIO:
             // printf("audio\n");
@@ -325,6 +343,7 @@ public:
             th_h264_demux->join();
             th_h264_demux = nullptr;
         }
+        cbs.clear();
     }
 
     bool Open(std::string _url, bool _loopPlay, VideoDemuxCallback _cb, void *_reserve)
@@ -333,8 +352,12 @@ public:
         gLoopExit = 0;
         url = _url;
         loopPlay = _loopPlay;
-        cb = _cb;
-        reserve = _reserve;
+        // cb = _cb;
+        // reserve = _reserve;
+        if (_cb)
+        {
+            cbs.push_back({_cb, _reserve});
+        }
 
         if (startswith(url, "rtsp://"))
         {
@@ -367,5 +390,13 @@ public:
             return false;
         }
         return true;
+    }
+
+    void AddCbs(VideoDemuxCallback _cb, void *_reserve)
+    {
+        if (_cb)
+        {
+            cbs.push_back({_cb, _reserve});
+        }
     }
 };

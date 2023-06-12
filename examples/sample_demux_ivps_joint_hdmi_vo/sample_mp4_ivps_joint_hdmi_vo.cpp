@@ -378,28 +378,23 @@ int main(int argc, char *argv[])
 
     {
 
-        std::vector<VideoDemux *> video_handles;
+        VideoDemux *video_demux = new VideoDemux;
+        video_demux->Open(video_url, loopPlay, nullptr, nullptr);
         for (size_t i = 0; i < config_files.size(); i++)
         {
             auto &pipelines = vpipelines[i];
 
-            VideoDemux *handle = new VideoDemux; // mp4_open(h26xfile, _mp4_frame_callback, loopPlay, &pipelines[0]);
-            handle->Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0]);
-            video_handles.push_back(handle);
+            video_demux->AddCbs(_demux_frame_callback, &pipelines[0]);
+            // video_handles.push_back(handle);
         }
 
         while (!gLoopExit)
         {
             usleep(1000 * 1000);
         }
-        for (size_t i = 0; i < config_files.size(); i++)
-        {
-            auto handle = video_handles[i];
-            handle->Stop();
-            delete handle;
-            // mp4_close(&handle);
-        }
-        video_handles.clear();
+
+        video_demux->Stop();
+        delete video_demux;
 
         gLoopExit = 1;
         sleep(1);
