@@ -125,7 +125,7 @@ void *_ivps_get_frame_thread(void *arg)
 
         ret = AX_IVPS_ReleaseChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame);
     }
-    ALOGN("SAMPLE_RUN_JOINT ---");
+    // ALOGN("SAMPLE_RUN_JOINT ---");
     return (AX_VOID *)0;
 }
 

@@ -137,13 +137,20 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-static int frameHandlerFunc(const void *buf, int len, void *arg)
+void _demux_frame_callback(const void *buff, int len, void *reserve)
 {
-    pipeline_t *pipe = (pipeline_t *)arg;
-    pipeline_buffer_t buf_h264;
-    buf_h264.p_vir = (void *)buf;
-    buf_h264.n_size = len;
-    user_input(pipe, 1, &buf_h264);
+    if (len == 0)
+    {
+        pipeline_buffer_t end_buf = {0};
+        user_input((pipeline_t *)reserve, 1, &end_buf);
+        ALOGN("mp4 file decode finish,quit the loop");
+        gLoopExit = 1;
+    }
+    pipeline_buffer_t buf_h26x = {0};
+    buf_h26x.p_vir = (void *)buff;
+    buf_h26x.n_size = len;
+    user_input((pipeline_t *)reserve, 1, &buf_h26x);
+    usleep(5 * 1000);
 }
 
 // 允许外部调用
@@ -228,6 +235,13 @@ int main(int argc, char *argv[])
 
     if (isExit)
     {
+        PrintHelp(argv[0]);
+        exit(0);
+    }
+
+    if (rtsp_urls.size() == 0)
+    {
+        ALOGE("video urls is empty");
         PrintHelp(argv[0]);
         exit(0);
     }
@@ -410,7 +424,7 @@ int main(int argc, char *argv[])
         {
             auto &pipelines = vpipelines[i];
             VideoDemux *demux = new VideoDemux();
-            if (demux->Open(rtsp_urls[i].c_str(), true, frameHandlerFunc, pipelines.data()))
+            if (demux->Open(rtsp_urls[i].c_str(), true, _demux_frame_callback, pipelines.data()))
             {
                 video_demuxes.push_back(demux);
             }

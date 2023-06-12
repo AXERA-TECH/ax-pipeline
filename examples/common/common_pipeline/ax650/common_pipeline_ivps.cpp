@@ -63,8 +63,6 @@ void *_ivps_get_frame_thread(void *arg)
         if (pipe->m_output_type == po_vo_hdmi)
         {
             ret = _sent_frame_vo(pipe, &tVideoFrame);
-            // ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
-            //  ret = _sent_frame_vo(pipe->m_vo_attr.hdmi.n_chn, &tVideoFrame);
             if (ret != 0)
             {
                 ALOGE("send 0x%x", ret);
@@ -72,35 +70,8 @@ void *_ivps_get_frame_thread(void *arg)
             //
         }
 
-        // ax_runner_image_t tSrcFrame = {0};
-        // tSrcFrame.nWidth = tVideoFrame.u32Width;
-        // tSrcFrame.nHeight = tVideoFrame.u32Height;
-        // switch (tVideoFrame.enImgFormat)
-        // {
-        // case AX_YUV420_SEMIPLANAR:
-        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_NV12;
-        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3 / 2;
-        //     break;
-        // case AX_FORMAT_RGB888:
-        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_RGB;
-        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
-        //     break;
-        // case AX_FORMAT_BGR888:
-        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_BGR;
-        //     tVideoFrame.u32FrameSize = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
-        //     break;
-        // default:
-        //     tSrcFrame.eDtype = AX_NPU_CV_FDT_UNKNOWN;
-        //     break;
-        // }
-        // tSrcFrame.tStride.nW = (0 == tVideoFrame.u32PicStride[0]) ? tSrcFrame.nWidth : tVideoFrame.u32PicStride[0];
-        // tSrcFrame.nSize = tVideoFrame.u32FrameSize; // t.tStride.nW * t.nHeight * 3 / 2;
-        // tSrcFrame.pPhy = tVideoFrame.u64PhyAddr[0];
-        // tSrcFrame.pVir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
-
         if (pipe->output_func)
         {
-            // printf("%d %d\n", tVideoFrame.u32Width, tVideoFrame.u32Height);
             pipeline_buffer_t buf;
             buf.pipeid = pipe->pipeid;
             buf.m_output_type = pipe->m_output_type;
@@ -134,7 +105,7 @@ void *_ivps_get_frame_thread(void *arg)
 
         ret = AX_IVPS_ReleaseChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame);
     }
-    ALOGN("SAMPLE_RUN_JOINT ---");
+    // ALOGN("SAMPLE_RUN_JOINT ---");
     return (AX_VOID *)0;
 }
 

@@ -102,13 +102,20 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-static int frameHandlerFunc(const void *buf, int len, void *arg)
+void _demux_frame_callback(const void *buff, int len, void *reserve)
 {
-    pipeline_t *pipe = (pipeline_t *)arg;
-    pipeline_buffer_t buf_h264;
-    buf_h264.p_vir = (void *)buf;
-    buf_h264.n_size = len;
-    user_input(pipe, 1, &buf_h264);
+    if (len == 0)
+    {
+        pipeline_buffer_t end_buf = {0};
+        user_input((pipeline_t *)reserve, 1, &end_buf);
+        ALOGN("mp4 file decode finish,quit the loop");
+        gLoopExit = 1;
+    }
+    pipeline_buffer_t buf_h26x = {0};
+    buf_h26x.p_vir = (void *)buff;
+    buf_h26x.n_size = len;
+    user_input((pipeline_t *)reserve, 1, &buf_h26x);
+    usleep(5 * 1000);
 }
 
 // 允许外部调用
@@ -333,7 +340,7 @@ int main(int argc, char *argv[])
 
     {
         VideoDemux demux;
-        demux.Open(video_url, true, frameHandlerFunc, &pipelines[0]);
+        demux.Open(video_url, true, _demux_frame_callback, &pipelines[0]);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);

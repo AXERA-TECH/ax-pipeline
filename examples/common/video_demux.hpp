@@ -24,7 +24,7 @@
             start = 0;                  \
     }
 
-typedef int (*VideoDemuxCallback)(const void *buff, int len, void *reserve);
+typedef void (*VideoDemuxCallback)(const void *buff, int len, void *reserve);
 
 class VideoDemux
 {

@@ -103,7 +103,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-int _mp4_frame_callback(const void *buff, int len, void *reserve)
+void _demux_frame_callback(const void *buff, int len, void *reserve)
 {
     if (len == 0)
     {
@@ -116,8 +116,7 @@ int _mp4_frame_callback(const void *buff, int len, void *reserve)
     buf_h26x.p_vir = (void *)buff;
     buf_h26x.n_size = len;
     user_input((pipeline_t *)reserve, 1, &buf_h26x);
-    usleep(10 * 1000);
-    return 0;
+    usleep(5 * 1000);
 }
 
 // 允许外部调用
@@ -319,7 +318,7 @@ int main(int argc, char *argv[])
 
     {
         VideoDemux demux;
-        demux.Open(video_url, loopPlay, _mp4_frame_callback, &pipelines[0]);
+        demux.Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0]);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);
