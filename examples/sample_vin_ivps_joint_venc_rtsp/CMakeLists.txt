@@ -1,7 +1,5 @@
 set(SampleName sample_vin_ivps_joint_venc_rtsp)
 
-include(../build_func.cmake)
-
 file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c")
 file(GLOB SRC_LIST_COMMON "../common/common_func.c" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 # file(GLOB SRC_LIST_RTSP "../rtsp/src/*.c")

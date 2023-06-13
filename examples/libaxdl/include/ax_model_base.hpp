@@ -124,9 +124,9 @@ public:
     int get_track_enable()  { return b_track ; }
     int get_face_feat_len()       { return FACE_FEAT_LEN      ; }
 
-    int set_sub_infer_count(int val)     { MAX_SUB_INFER_COUNT = val; }
-    int set_track_enable(bool val)  { b_track  = val; }
-    int set_face_feat_len(int val)       { FACE_FEAT_LEN       = val; }
+    void set_sub_infer_count(int val)     { MAX_SUB_INFER_COUNT = val; }
+    void set_track_enable(bool val)  { b_track  = val; }
+    void set_face_feat_len(int val)       { FACE_FEAT_LEN       = val; }
 
     // 当前处理的的对象在 results->mObjects 的索引（多级模型用）
     void set_current_index(int idx) { cur_idx = idx; }

@@ -1,7 +1,5 @@
 set(SampleName sample_v4l2_ivps_joint_vo)
 
-include(../build_func.cmake)
-
 file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c")
 file(GLOB SRC_LIST_COMMON   "${BSP_MSP_DIR}/../sample/common/common_sys.c"
                             "${BSP_MSP_DIR}/../sample/common/vo/*.c")

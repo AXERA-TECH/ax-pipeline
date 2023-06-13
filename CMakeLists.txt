@@ -53,12 +53,15 @@ if(SIPY_BUILD)
     set(SIPY_VERSION ${SIPY_SOVERSION}.1.2)
 endif()
 
-
 add_subdirectory(third-party/RTSP)
 add_subdirectory(third-party/RtspServer)    
 add_subdirectory(third-party/ByteTrack)
 add_subdirectory(third-party/mp4demux)
 
+# 添加 FLAGS 检查代码是否有明显 bug
+include(cmake/overlook.cmake)
+# 编译的函数
+include(cmake/build_func.cmake)
 
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_compile_options(-DAXERA_TARGET_CHIP_AX650)

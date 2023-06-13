@@ -359,13 +359,12 @@ int ax_imgproc_crop_resize_warp(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_
     dst_pts[2] = cv::Point2f(dst->nWidth, dst->nHeight);
     dst_pts[3] = cv::Point2f(0, dst->nHeight);
 
-    axdl_bbox_t bbox;
     if (box)
     {
-        src_pts[0] = cv::Point2f(bbox.x, bbox.y);
-        src_pts[1] = cv::Point2f(bbox.x + bbox.w, bbox.y);
-        src_pts[2] = cv::Point2f(bbox.x + bbox.w, bbox.y + bbox.h);
-        src_pts[3] = cv::Point2f(bbox.x, bbox.y + bbox.h);
+        src_pts[0] = cv::Point2f(box->x, box->y);
+        src_pts[1] = cv::Point2f(box->x + box->w, box->y);
+        src_pts[2] = cv::Point2f(box->x + box->w, box->y + box->h);
+        src_pts[3] = cv::Point2f(box->x, box->y + box->h);
     }
     else
     {
