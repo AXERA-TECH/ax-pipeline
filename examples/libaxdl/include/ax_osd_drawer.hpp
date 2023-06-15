@@ -177,7 +177,7 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nColor = color.iargb;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nLineWidth = linewidth;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nPointNum = std::min(num, MAX_NUM_PTS);
-        for (size_t i = 0; i < vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum; i++)
+        for (size_t i = 0; i < vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.nPointNum; i++)
         {
             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tPTs[i].nX = pts[i].x * nWidth;
             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tPTs[i].nY = pts[i].y * nHeight;
