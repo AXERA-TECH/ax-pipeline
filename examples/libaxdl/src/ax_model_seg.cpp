@@ -140,6 +140,6 @@ void ax_model_dinov2::draw_custom(int chn, axdl_results_t *results, float fontsc
     {
         return;
     }
-    axdl_bbox_t box{0, 0, 0.25, 0.25};
+    axdl_bbox_t box{0, 0, 0.35, 0.35};
     m_drawers[chn].add_mask(&box, &results->mPPHumSeg);
 }
