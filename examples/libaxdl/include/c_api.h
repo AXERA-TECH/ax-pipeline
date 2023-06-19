@@ -31,9 +31,12 @@ extern "C"
         MT_DET_YOLO_FASTBODY,
         MT_DET_SCRFD,
         MT_DET_YOLOV8,
+        MT_DET_YOLOV8_650,
         MT_DET_YOLOV8_SEG,
         MT_DET_YOLOV8_POSE,
         MT_DET_YOLOV8_POSE_650,
+        MT_DET_YOLO_NAS,
+        MT_DET_PPYOLOE,
         MT_DET_CROWD_COUNT,
 
         // segmentation

@@ -1111,6 +1111,103 @@ int ax_model_yolov8::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     return 0;
 }
 
+int ax_model_yolov8_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (grids.size() == 0)
+    {
+        for (size_t i = 0; i < 3; i++)
+        {
+            int32_t stride = (1 << i) * 8;
+            int feat_w = get_algo_width() / stride;
+            int feat_h = get_algo_height() / stride;
+            num_grid += feat_w * feat_h;
+            for (int h = 0; h <= feat_h - 1; h++)
+            {
+                for (int w = 0; w <= feat_w - 1; w++)
+                {
+                    float pb_cx = (w + 0.5f);
+                    float pb_cy = (h + 0.5f);
+                    grids.push_back({pb_cx, pb_cy, float(stride)});
+                    // printf("%f %f\n", pb_cx, pb_cy);
+                }
+            }
+        }
+    }
+
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+    // int nOutputSize = m_runner->get_num_outputs();
+    float *output_prob = (float *)m_runner->get_output(0).pVirAddr;
+    float *output_bbox = (float *)m_runner->get_output(1).pVirAddr;
+
+    for (size_t i = 0; i < num_grid; i++)
+    {
+        int maxid = -1;
+        float maxval = -FLT_MAX;
+        for (size_t j = 0; j < CLASS_NUM; j++)
+        {
+            if (output_prob[j] > maxval)
+            {
+                maxval = output_prob[j];
+                maxid = j;
+            }
+        }
+
+        if (maxval > PROB_THRESHOLD)
+        {
+            auto grid = grids[i];
+            detection::Object obj;
+            obj.label = maxid;
+            obj.prob = maxval;
+            float x0 = grid[0] - output_bbox[0];
+            float y0 = grid[1] - output_bbox[1];
+            float x1 = grid[0] + output_bbox[2];
+            float y1 = grid[1] + output_bbox[3];
+            float cx = ((x0 + x1) / 2) * grid[2];
+            float cy = ((y0 + y1) / 2) * grid[2];
+            float width = (x1 - x0) * grid[2];
+            float height = (y1 - y0) * grid[2];
+
+            obj.rect.x = cx - width / 2;
+            obj.rect.y = cy - height / 2;
+            obj.rect.width = width;
+            obj.rect.height = height;
+            proposals.push_back(obj);
+        }
+
+        output_prob += CLASS_NUM;
+        output_bbox += 4;
+    }
+
+    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+        if (obj.label < (int)CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+    return 0;
+}
+
 int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
@@ -1416,6 +1513,84 @@ int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *
             results->mObjects[i].landmark[j].score = obj.kps_feat[3 * j + 2];
         }
 
+        if (obj.label < (int)CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+
+    return 0;
+}
+
+int ax_model_yolonas::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+    int num_grid = m_runner->get_output(0).vShape[1];
+    const float *cls_ptr = (float *)m_runner->get_output(0).pVirAddr;
+    const float *reg_ptr = (float *)m_runner->get_output(1).pVirAddr;
+
+    detection::generate_proposals_yolonas(proposals, cls_ptr, reg_ptr, PROB_THRESHOLD, num_grid, CLASS_NUM);
+    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
+        if (obj.label < (int)CLASS_NAMES.size())
+        {
+            strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());
+        }
+        else
+        {
+            strcpy(results->mObjects[i].objname, "unknown");
+        }
+    }
+
+    return 0;
+}
+
+int ax_model_ppyoloe::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    std::vector<detection::Object> proposals;
+    std::vector<detection::Object> objects;
+    int num_grid = m_runner->get_output(0).vShape[1];
+    const float *cls_ptr = (float *)m_runner->get_output(0).pVirAddr;
+    const float *reg_ptr = (float *)m_runner->get_output(1).pVirAddr;
+
+    detection::generate_proposals_ppyoloe(proposals, cls_ptr, reg_ptr, PROB_THRESHOLD, num_grid, CLASS_NUM);
+    detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
+    std::sort(objects.begin(), objects.end(),
+              [&](detection::Object &a, detection::Object &b)
+              {
+                  return a.rect.area() > b.rect.area();
+              });
+
+    results->nObjSize = MIN(objects.size(), SAMPLE_MAX_BBOX_COUNT);
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        const detection::Object &obj = objects[i];
+        results->mObjects[i].bbox.x = obj.rect.x;
+        results->mObjects[i].bbox.y = obj.rect.y;
+        results->mObjects[i].bbox.w = obj.rect.width;
+        results->mObjects[i].bbox.h = obj.rect.height;
+        results->mObjects[i].label = obj.label;
+        results->mObjects[i].prob = obj.prob;
         if (obj.label < (int)CLASS_NAMES.size())
         {
             strcpy(results->mObjects[i].objname, CLASS_NAMES[obj.label].c_str());

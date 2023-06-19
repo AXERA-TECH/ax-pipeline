@@ -816,6 +816,180 @@ namespace detection
         }
     }
 
+    static void generate_proposals_ppyoloe_v2(std::vector<detection::Object> &objects, const float *cls_ptr, const float *reg_ptr, float prob_threshold, int num_grid = 8400, int cls_num = 80)
+    {
+        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        {
+            float maxProb = 0.0f;
+            int maxIndex = -1;
+            for (uint c = 0; c < cls_num; ++c)
+            {
+                float prob = cls_ptr[anchor_idx * cls_num + c];
+                if (prob > maxProb)
+                {
+                    maxProb = prob;
+                    maxIndex = c;
+                }
+            }
+
+            if (maxProb < prob_threshold)
+                continue;
+
+            detection::Object obj;
+            obj.label = maxIndex;
+            obj.prob = maxProb;
+            obj.rect.x = reg_ptr[anchor_idx * 4 + 0];
+            obj.rect.y = reg_ptr[anchor_idx * 4 + 1];
+            obj.rect.width = reg_ptr[anchor_idx * 4 + 2] - reg_ptr[anchor_idx * 4 + 0];
+            obj.rect.height = reg_ptr[anchor_idx * 4 + 3] - reg_ptr[anchor_idx * 4 + 1];
+            objects.push_back(obj);
+        }
+    }
+
+    static void generate_proposals_ppyoloe(std::vector<detection::Object> &objects, const float *cls_ptr, const float *reg_ptr, float prob_threshold, int num_grid = 8400, int cls_num = 80)
+    {
+        int stride32_grid = sqrt(num_grid / 21);
+        int stride16_grid = stride32_grid * 2;
+        int stride8_grid = stride32_grid * 4;
+
+        // stride==32的格子结束的位置
+        int stride32_end = stride32_grid * stride32_grid;
+        // stride==16的格子结束的位置
+        int stride16_end = stride32_grid * stride32_grid * 5;
+
+        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        {
+            float stride = 32.0f;
+            int row_i = 0;
+            int col_i = 0;
+            if (anchor_idx < stride32_end)
+            {
+                stride = 32.0f;
+                row_i = anchor_idx / stride32_grid;
+                col_i = anchor_idx % stride32_grid;
+            }
+            else if (anchor_idx < stride16_end)
+            {
+                stride = 16.0f;
+                row_i = (anchor_idx - stride32_end) / stride16_grid;
+                col_i = (anchor_idx - stride32_end) % stride16_grid;
+            }
+            else
+            { // stride == 8
+                stride = 8.0f;
+                row_i = (anchor_idx - stride16_end) / stride8_grid;
+                col_i = (anchor_idx - stride16_end) % stride8_grid;
+            }
+
+            float maxProb = 0.0f;
+            int maxIndex = -1;
+            for (uint c = 0; c < cls_num; ++c)
+            {
+                float prob = cls_ptr[anchor_idx * cls_num + c];
+                if (prob > maxProb)
+                {
+                    maxProb = prob;
+                    maxIndex = c;
+                }
+            }
+
+            if (maxProb < prob_threshold)
+                continue;
+
+            detection::Object obj;
+            obj.label = maxIndex;
+            obj.prob = maxProb;
+            float x_center = 0.5f + (float)col_i;
+            float y_center = 0.5f + (float)row_i;
+            float x0 = x_center - reg_ptr[anchor_idx * 4 + 0];
+            float y0 = y_center - reg_ptr[anchor_idx * 4 + 1];
+            float x1 = x_center + reg_ptr[anchor_idx * 4 + 2];
+            float y1 = y_center + reg_ptr[anchor_idx * 4 + 3];
+            x0 = x0 * stride;
+            y0 = y0 * stride;
+            x1 = x1 * stride;
+            y1 = y1 * stride;
+
+            obj.rect.x = x0;
+            obj.rect.y = y0;
+            obj.rect.width = x1 - x0;
+            obj.rect.height = y1 - y0;
+            objects.push_back(obj);
+        }
+    }
+
+    static void generate_proposals_yolonas(std::vector<detection::Object> &objects, const float *cls_ptr, const float *reg_ptr, float prob_threshold, int num_grid = 8400, int cls_num = 80)
+    {
+        int stride32_grid = sqrt(num_grid / 21);
+        int stride16_grid = stride32_grid * 2;
+        int stride8_grid = stride32_grid * 4;
+
+        // stride==32的格子结束的位置
+        int stride8_end = stride8_grid * stride8_grid;
+        // stride==16的格子结束的位置
+        int stride16_end = stride8_end + stride16_grid * stride16_grid;
+
+        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        {
+            float stride = 32.0f;
+            int row_i = 0;
+            int col_i = 0;
+            if (anchor_idx < stride8_end)
+            {
+                stride = 8.0f;
+                row_i = anchor_idx / stride8_grid;
+                col_i = anchor_idx % stride8_grid;
+            }
+            else if (anchor_idx < stride16_end)
+            {
+                stride = 16.0f;
+                row_i = (anchor_idx - stride8_end) / stride16_grid;
+                col_i = (anchor_idx - stride8_end) % stride16_grid;
+            }
+            else
+            {
+                stride = 32.0f;
+                row_i = (anchor_idx - stride16_end) / stride32_grid;
+                col_i = (anchor_idx - stride16_end) % stride32_grid;
+            }
+
+            float maxProb = 0.0f;
+            int maxIndex = -1;
+            for (uint c = 0; c < cls_num; ++c)
+            {
+                float prob = cls_ptr[anchor_idx * cls_num + c];
+                if (prob > maxProb)
+                {
+                    maxProb = prob;
+                    maxIndex = c;
+                }
+            }
+
+            if (maxProb < prob_threshold)
+                continue;
+
+            detection::Object obj;
+            obj.label = maxIndex;
+            obj.prob = maxProb;
+            float x_center = 0.5f + (float)col_i;
+            float y_center = 0.5f + (float)row_i;
+            float x0 = x_center - reg_ptr[anchor_idx * 4 + 0];
+            float y0 = y_center - reg_ptr[anchor_idx * 4 + 1];
+            float x1 = x_center + reg_ptr[anchor_idx * 4 + 2];
+            float y1 = y_center + reg_ptr[anchor_idx * 4 + 3];
+            x0 = x0 * stride;
+            y0 = y0 * stride;
+            x1 = x1 * stride;
+            y1 = y1 * stride;
+
+            obj.rect.x = x0;
+            obj.rect.y = y0;
+            obj.rect.width = x1 - x0;
+            obj.rect.height = y1 - y0;
+            objects.push_back(obj);
+        }
+    }
+
     static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, float *feat_ptr, float prob_threshold, std::vector<Object> &objects, int wxc, int num_class)
     {
         // const int num_grid = 3549;
