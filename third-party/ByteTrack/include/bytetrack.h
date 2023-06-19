@@ -12,10 +12,8 @@ extern "C"
     } track_rect_t;
     typedef struct
     {
-        int label;
         float prob;
         track_rect_t rect;
-        long obj_id;   // user set (optional)
         long track_id; // automatically generated
         void *user_data;
     } track_object_t;

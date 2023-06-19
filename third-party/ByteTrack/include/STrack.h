@@ -14,7 +14,7 @@ enum TrackState
 class STrack
 {
 public:
-	STrack(std::vector<float> tlwh_, float score, int label, long obj_id, void *user_data);
+	STrack(std::vector<float> tlwh_, float score, void *user_data);
 	~STrack();
 
 	std::vector<float> static tlbr_to_tlwh(std::vector<float> &tlbr);
@@ -47,8 +47,6 @@ public:
 	KAL_MEAN mean;
 	KAL_COVA covariance;
 	float score;
-	int label;
-	long obj_id;
 	void *user_data = nullptr;
 
 private:

@@ -354,7 +354,6 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             tracker_objs.objects[i].rect.y = results->mObjects[i].bbox.y;
             tracker_objs.objects[i].rect.width = results->mObjects[i].bbox.w;
             tracker_objs.objects[i].rect.height = results->mObjects[i].bbox.h;
-            tracker_objs.objects[i].label = results->mObjects[i].label;
             tracker_objs.objects[i].prob = results->mObjects[i].prob;
             tracker_objs.objects[i].user_data = &results->mObjects[i];
         }
@@ -364,14 +363,15 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
         results->nObjSize = tracker_objs.n_track_objects > SAMPLE_MAX_BBOX_COUNT ? SAMPLE_MAX_BBOX_COUNT : tracker_objs.n_track_objects;
         for (int i = 0; i < results->nObjSize; i++)
         {
+            axdl_object_t *obj = (axdl_object_t *)tracker_objs.objects[i].user_data;
             results->mObjects[i].bbox.x = tracker_objs.track_objects[i].rect.x;
             results->mObjects[i].bbox.y = tracker_objs.track_objects[i].rect.y;
             results->mObjects[i].bbox.w = tracker_objs.track_objects[i].rect.width;
             results->mObjects[i].bbox.h = tracker_objs.track_objects[i].rect.height;
-            results->mObjects[i].label = tracker_objs.track_objects[i].label;
+            results->mObjects[i].label = obj->label;
             results->mObjects[i].prob = tracker_objs.track_objects[i].prob;
             results->mObjects[i].track_id = tracker_objs.track_objects[i].track_id;
-            axdl_object_t *obj = (axdl_object_t *)tracker_objs.objects[i].user_data;
+            
             memcpy(results->mObjects[i].objname, obj->objname, sizeof(results->mObjects[i].objname));
             if (obj->bHasBoxVertices)
             {

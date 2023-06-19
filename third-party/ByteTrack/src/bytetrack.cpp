@@ -27,11 +27,8 @@ void bytetracker_track(bytetracker_t _tracker, bytetrack_object_t *objs)
         objs->track_objects[i].rect.y = track_results[i].tlwh[1];
         objs->track_objects[i].rect.width = track_results[i].tlwh[2];
         objs->track_objects[i].rect.height = track_results[i].tlwh[3];
-
-        objs->track_objects[i].label = track_results[i].label;
         objs->track_objects[i].prob = track_results[i].score;
         objs->track_objects[i].track_id = track_results[i].track_id;
-        objs->track_objects[i].obj_id = track_results[i].obj_id;
         objs->track_objects[i].user_data = track_results[i].user_data;
     }
 }
