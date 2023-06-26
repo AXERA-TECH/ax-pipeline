@@ -73,6 +73,8 @@ endif()
 message(STATUS "CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
 
 project(ax_pipeline)
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC -Wno-unused-function -Wno-unused-label")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -Wno-unused-function -Wno-unused-label")
 
 add_subdirectory(third-party/RTSP)
 add_subdirectory(third-party/RtspServer)    
@@ -87,8 +89,6 @@ include(cmake/build_func.cmake)
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_compile_options(-DAXERA_TARGET_CHIP_AX650)
     add_compile_options(-UAXERA_TARGET_CHIP_AX620)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC")
 
     # opencv
     if(NOT OpenCV_DIR)
@@ -120,8 +120,8 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     )
     add_compile_options(-DAXERA_TARGET_CHIP_AX620)
     add_compile_options(-UAXERA_TARGET_CHIP_AX650)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O1 -Wall -s -fPIC -march=armv7-a -mfloat-abi=hard -mfpu=neon")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")
 
     # opencv
     if(NOT OpenCV_DIR)

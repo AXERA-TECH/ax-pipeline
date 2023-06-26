@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, rtsp_urls.size() * 20},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, uint32_t(rtsp_urls.size() * 20)},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
             pipe2.m_output_type = po_rtsp_h264;
             pipe2.n_loog_exit = 0;
 
-            sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", i); // 重复的会创建失败
+            sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", (int)i); // 重复的会创建失败
             pipe2.m_venc_attr.n_venc_chn = i;                            // 重复的会创建失败
             pipe2.m_vdec_attr.n_vdec_grp = i;
 

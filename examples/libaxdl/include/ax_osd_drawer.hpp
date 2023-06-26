@@ -36,7 +36,7 @@ private:
         index++;
         if (index >= limit)
         {
-            printf("limit %d,%d,%d\n", index, vRgns.size(), limit);
+            printf("limit %d,%d,%d\n", index, (int)vRgns.size(), limit);
             return false;
         }
         return true;
@@ -130,7 +130,7 @@ public:
     std::vector<AX_IVPS_RGN_DISP_GROUP_T> &get()
 #endif
     {
-        for (size_t i = 0; i < vRgns.size(); i++)
+        for (int i = 0; i < int(vRgns.size()); i++)
         {
             vRgns[i].tChnAttr.nAlpha = 255;
             vRgns[i].tChnAttr.eFormat = AX_FORMAT_RGBA8888;

@@ -89,7 +89,6 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 
     for (uint32_t i = 0; i < STRIDES.size(); ++i)
     {
-        auto &output = pOutputsInfo[i];
         generate_proposals_yolov5_seg(STRIDES[i], output_ptr[i], PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), ANCHORS.data(), prob_threshold_unsigmoid);
     }
     static const int DEFAULT_MASK_PROTO_DIM = 32;
@@ -678,7 +677,7 @@ int ax_model_yoloxppl::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_re
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     // float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (int i = 0; i < nOutputSize; ++i)
     {
         auto &output = pOutputsInfo[i];
         auto ptr = (float *)output.pVirAddr;
@@ -733,7 +732,7 @@ int ax_model_yolopv2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_res
     std::vector<detection::Object> objects;
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < STRIDES.size(); ++i)
+    for (int i = 0; i < int(STRIDES.size()); ++i)
     {
         auto &output = pOutputsInfo[i + 2];
         auto ptr = (float *)output.pVirAddr;
@@ -850,7 +849,7 @@ int ax_model_yolo_fast_body::post_process(axdl_image_t *pstFrame, axdl_bbox_t *c
         output_buf.resize(1000 * 6, 0);
     }
 
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (int i = 0; i < nOutputSize; ++i)
     {
         auto &output = pOutputsInfo[i];
 
@@ -1004,7 +1003,7 @@ int ax_model_scrfd::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resiz
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     std::map<std::string, float *> output_map;
-    for (uint32_t i = 0; i < nOutputSize; i++)
+    for (int i = 0; i < nOutputSize; i++)
     {
         output_map[pOutputsInfo[i].sName] = (float *)pOutputsInfo[i].pVirAddr;
     }
@@ -1015,7 +1014,7 @@ int ax_model_scrfd::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resiz
     static const char *kps_pred_name[] = {
         "kps_8", "kps_16", "kps_32"};
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (int stride_index = 0; stride_index < STRIDES.size(); stride_index++)
+    for (int stride_index = 0; stride_index < int(STRIDES.size()); stride_index++)
     {
         float *score_pred = output_map[score_pred_name[stride_index]];
         float *bbox_pred = output_map[bbox_pred_name[stride_index]];
@@ -1071,7 +1070,7 @@ int ax_model_yolov8::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < STRIDES.size(); ++i)
+    for (int i = 0; i < int(STRIDES.size()); ++i)
     {
         auto &dfl_info = pOutputsInfo[i];
         auto dfl_ptr = (float *)dfl_info.pVirAddr;
@@ -1140,11 +1139,11 @@ int ax_model_yolov8_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     float *output_prob = (float *)m_runner->get_output(0).pVirAddr;
     float *output_bbox = (float *)m_runner->get_output(1).pVirAddr;
 
-    for (size_t i = 0; i < num_grid; i++)
+    for (int i = 0; i < num_grid; i++)
     {
         int maxid = -1;
         float maxval = -FLT_MAX;
-        for (size_t j = 0; j < CLASS_NUM; j++)
+        for (int j = 0; j < CLASS_NUM; j++)
         {
             if (output_prob[j] > maxval)
             {
@@ -1221,7 +1220,7 @@ int ax_model_yolov8_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
     float prob_threshold_unsigmoid = -1.0f * (float)std::log((1.0f / PROB_THRESHOLD) - 1.0f);
-    for (uint32_t i = 0; i < STRIDES.size(); ++i)
+    for (int i = 0; i < int(STRIDES.size()); ++i)
     {
         auto &dfl_info = pOutputsInfo[i];
         auto dfl_ptr = (float *)dfl_info.pVirAddr;
@@ -1321,7 +1320,7 @@ void ax_model_yolov8_pose::draw_custom(int chn, axdl_results_t *results, float f
     static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
     static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
     std::vector<axdl_point_t> pts(leg.size());
-    for (size_t d = 0; d < results->nObjSize; d++)
+    for (int d = 0; d < results->nObjSize; d++)
     {
         if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
         {
@@ -1360,7 +1359,7 @@ int ax_model_yolov8_pose::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop
     int nOutputSize = m_runner->get_num_outputs();
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    for (uint32_t i = 0; i < nOutputSize; ++i)
+    for (int i = 0; i < nOutputSize; ++i)
     {
         auto feat_ptr = (float *)pOutputsInfo[i].pVirAddr;
         detection::generate_proposals_yolov8_pose(STRIDES[i], feat_ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), SAMPLE_BODY_LMK_SIZE);
@@ -1434,11 +1433,11 @@ int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *
     float *output_pose_prob = (float *)m_runner->get_output(2).pVirAddr;
     float *output_pose = (float *)m_runner->get_output(1).pVirAddr;
 
-    for (size_t i = 0; i < grids.size(); i++)
+    for (int i = 0; i < int(grids.size()); i++)
     {
         int maxid = -1;
         float maxval = -FLT_MAX;
-        for (size_t j = 0; j < CLASS_NUM; j++)
+        for (int j = 0; j < CLASS_NUM; j++)
         {
             if (output_prob[j] > maxval)
             {
@@ -1467,7 +1466,7 @@ int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *
             obj.rect.width = width;
             obj.rect.height = height;
 
-            for (size_t k = 0; k < SAMPLE_BODY_LMK_SIZE; k++)
+            for (int k = 0; k < SAMPLE_BODY_LMK_SIZE; k++)
             {
                 float xp = output_pose[2 * k] * 2;
                 float yp = output_pose[2 * k + 1] * 2;

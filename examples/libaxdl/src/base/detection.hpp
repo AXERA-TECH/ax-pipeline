@@ -818,11 +818,11 @@ namespace detection
 
     static void generate_proposals_ppyoloe_v2(std::vector<detection::Object> &objects, const float *cls_ptr, const float *reg_ptr, float prob_threshold, int num_grid = 8400, int cls_num = 80)
     {
-        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        for (int anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
         {
             float maxProb = 0.0f;
             int maxIndex = -1;
-            for (uint c = 0; c < cls_num; ++c)
+            for (int c = 0; c < cls_num; ++c)
             {
                 float prob = cls_ptr[anchor_idx * cls_num + c];
                 if (prob > maxProb)
@@ -857,7 +857,7 @@ namespace detection
         // stride==16的格子结束的位置
         int stride16_end = stride32_grid * stride32_grid * 5;
 
-        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        for (int anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
         {
             float stride = 32.0f;
             int row_i = 0;
@@ -883,7 +883,7 @@ namespace detection
 
             float maxProb = 0.0f;
             int maxIndex = -1;
-            for (uint c = 0; c < cls_num; ++c)
+            for (int c = 0; c < cls_num; ++c)
             {
                 float prob = cls_ptr[anchor_idx * cls_num + c];
                 if (prob > maxProb)
@@ -929,7 +929,7 @@ namespace detection
         // stride==16的格子结束的位置
         int stride16_end = stride8_end + stride16_grid * stride16_grid;
 
-        for (uint anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
+        for (int anchor_idx = 0; anchor_idx < num_grid; ++anchor_idx)
         {
             float stride = 32.0f;
             int row_i = 0;
@@ -955,7 +955,7 @@ namespace detection
 
             float maxProb = 0.0f;
             int maxIndex = -1;
-            for (uint c = 0; c < cls_num; ++c)
+            for (int c = 0; c < cls_num; ++c)
             {
                 float prob = cls_ptr[anchor_idx * cls_num + c];
                 if (prob > maxProb)
@@ -1170,7 +1170,7 @@ namespace detection
             objects[i].rect.width = x1 - x0;
             objects[i].rect.height = y1 - y0;
 
-            for (int j = 0; j < objects[i].kps_feat.size() / 3; j++)
+            for (int j = 0; j < int(objects[i].kps_feat.size() / 3); j++)
             {
                 objects[i].kps_feat[j * 3] = std::max(
                     std::min((objects[i].kps_feat[j * 3] - tmp_w) * ratio_x, (float)(src_cols - 1)), 0.f);

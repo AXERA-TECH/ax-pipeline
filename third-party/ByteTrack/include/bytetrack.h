@@ -12,6 +12,7 @@ extern "C"
     } track_rect_t;
     typedef struct
     {
+        int label;
         float prob;
         track_rect_t rect;
         long track_id; // automatically generated

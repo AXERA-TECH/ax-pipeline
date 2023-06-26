@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
     if (s32Ret != 0)
     {
         ALOGE("sample_parse_param_det failed");
-        g_sample.bRunJoint;
+        g_sample.bRunJoint = 0;
     }
     else
     {

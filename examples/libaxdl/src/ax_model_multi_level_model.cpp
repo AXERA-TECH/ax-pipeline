@@ -95,7 +95,7 @@ void ax_model_human_pose_axppl::draw_custom(int chn, axdl_results_t *results, fl
     static std::vector<int> hand_arm{10, 8, 6, 5, 7, 9};
     static std::vector<int> leg{16, 14, 12, 6, 12, 11, 5, 11, 13, 15};
     std::vector<axdl_point_t> pts(leg.size());
-    for (size_t d = 0; d < results->nObjSize; d++)
+    for (int d = 0; d < results->nObjSize; d++)
     {
         if (results->mObjects[d].nLandmark == SAMPLE_BODY_LMK_SIZE)
         {
@@ -193,7 +193,7 @@ void ax_model_animal_pose_hrnet::draw_custom(int chn, axdl_results_t *results, f
                                                    {16, 12, 8, 7, 5, 4, 0, 1, 0, 2}};
     static std::vector<ax_osd_drawer::ax_abgr_t> colors{{255, 255, 255, 255}, {255, 255, 0, 0}, {255, 0, 255, 0}, {255, 0, 0, 255}, {255, 0, 0, 0}};
     std::vector<axdl_point_t> pts;
-    for (size_t d = 0; d < results->nObjSize; d++)
+    for (int d = 0; d < results->nObjSize; d++)
     {
         if (results->mObjects[d].nLandmark == SAMPLE_ANIMAL_LMK_SIZE)
         {
@@ -248,7 +248,7 @@ void ax_model_hand_pose::draw_custom(int chn, axdl_results_t *results, float fon
     static std::vector<std::vector<int>> skeletons{{0, 1, 2, 3, 4}, {0, 5, 6, 7, 8}, {0, 9, 10, 11, 12}, {0, 13, 14, 15, 16}, {0, 17, 18, 19, 20}};
     static std::vector<ax_osd_drawer::ax_abgr_t> colors{{255, 255, 255, 255}, {255, 255, 0, 0}, {255, 0, 255, 0}, {255, 0, 0, 255}, {255, 0, 0, 0}};
     std::vector<axdl_point_t> pts(5);
-    for (size_t d = 0; d < results->nObjSize; d++)
+    for (int d = 0; d < results->nObjSize; d++)
     {
         if (results->mObjects[d].nLandmark == SAMPLE_HAND_LMK_SIZE)
         {
@@ -291,7 +291,7 @@ int ax_model_hand_pose::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
 
     int count = MIN(results->nObjSize, MAX_SUB_INFER_COUNT);
     results->nObjSize = count;
-    for (size_t i = 0; i < results->nObjSize; i++)
+    for (int i = 0; i < results->nObjSize; i++)
     {
         model_1->set_current_index(i);
         ret = model_1->inference(pstFrame, crop_resize_box, results);
@@ -370,7 +370,7 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
         float max_score = 0;
         for (size_t j = 0; j < face_register_ids.size(); j++)
         {
-            if (face_register_ids[j].feat.size() != FACE_FEAT_LEN)
+            if (int(face_register_ids[j].feat.size()) != FACE_FEAT_LEN)
             {
                 continue;
             }

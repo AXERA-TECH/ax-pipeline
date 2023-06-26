@@ -19,7 +19,7 @@ typedef enum
 
 typedef std::pair<AX_ENGINE_ALLOC_BUFFER_STRATEGY_T, AX_ENGINE_ALLOC_BUFFER_STRATEGY_T> INPUT_OUTPUT_ALLOC_STRATEGY;
 
-void free_io_index(AX_ENGINE_IO_BUFFER_T *io_buf, size_t index)
+void free_io_index(AX_ENGINE_IO_BUFFER_T *io_buf, int index)
 {
     for (int i = 0; i < index; ++i)
     {
@@ -51,7 +51,7 @@ static inline int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data,
     io_data->nInputSize = info->nInputSize;
 
     auto ret = 0;
-    for (int i = 0; i < info->nInputSize; ++i)
+    for (uint i = 0; i < info->nInputSize; ++i)
     {
         auto meta = info->pInputs[i];
         auto buffer = &io_data->pInputs[i];
@@ -75,7 +75,7 @@ static inline int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data,
 
     io_data->pOutputs = new AX_ENGINE_IO_BUFFER_T[info->nOutputSize];
     io_data->nOutputSize = info->nOutputSize;
-    for (int i = 0; i < info->nOutputSize; ++i)
+    for (uint i = 0; i < info->nOutputSize; ++i)
     {
         auto meta = info->pOutputs[i];
         auto buffer = &io_data->pOutputs[i];

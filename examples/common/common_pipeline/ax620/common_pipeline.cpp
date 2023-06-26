@@ -104,18 +104,18 @@ bool erase(std::map<KT, VT> &v, KT &t)
 static void PrintRtsp(std::string rtsp_path)
 {
     char ipaddr[64];
-    int ret = get_ip("eth0", ipaddr);
+    int ret = get_ip((char*)"eth0", ipaddr);
     printf("\n");
     if (ret == 0)
     {
         ALOGI("                                    [eth0]  rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path.c_str());
     }
-    ret = get_ip("wlan0", ipaddr);
+    ret = get_ip((char*)"wlan0", ipaddr);
     if (ret == 0)
     {
         ALOGI("                                    [wlan0] rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path.c_str());
     }
-    ret = get_ip("usb0", ipaddr);
+    ret = get_ip((char*)"usb0", ipaddr);
     if (ret == 0)
     {
         ALOGI("                                    [usb0]  rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path.c_str());
@@ -398,7 +398,7 @@ int create_pipeline(pipeline_t *pipe)
             dstMod.s32ChnId = 0;
             AX_SYS_Link(&srcMod, &dstMod);
 
-            int s32Ret = _create_vo("dsi0@480x854@60", pipe);
+            int s32Ret = _create_vo((char*)"dsi0@480x854@60", pipe);
             if (AX_SUCCESS != s32Ret)
             {
                 ALOGE("VoInit failed,s32Ret:0x%x\n", s32Ret);

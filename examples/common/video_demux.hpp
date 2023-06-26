@@ -19,7 +19,6 @@
     if (start < 0)                      \
     {                                   \
         start += len;                   \
-        \ 
         if (start < 0)                  \
             start = 0;                  \
     }

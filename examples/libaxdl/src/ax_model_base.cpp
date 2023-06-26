@@ -215,7 +215,7 @@ void ax_model_base::draw_fps(cv::Mat &image, axdl_results_t *results, float font
 
 void ax_model_base::draw_bbox(int chn, axdl_results_t *results, float fontscale, int thickness)
 {
-    for (size_t d = 0; d < results->nObjSize; d++)
+    for (int d = 0; d < results->nObjSize; d++)
     {
         if (results->mObjects[d].bHasBoxVertices)
         {
@@ -287,6 +287,7 @@ int ax_model_single_base_t::init(void *json_obj)
 
     // update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
     update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
+    update_val(jsondata, "DINOV2_PCA_INTERVAL", &dinov2_pca_interval);
 
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
@@ -355,6 +356,7 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             tracker_objs.objects[i].rect.width = results->mObjects[i].bbox.w;
             tracker_objs.objects[i].rect.height = results->mObjects[i].bbox.h;
             tracker_objs.objects[i].prob = results->mObjects[i].prob;
+            tracker_objs.objects[i].label = results->mObjects[i].label;
             tracker_objs.objects[i].user_data = &results->mObjects[i];
         }
 
@@ -368,11 +370,19 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             results->mObjects[i].bbox.y = tracker_objs.track_objects[i].rect.y;
             results->mObjects[i].bbox.w = tracker_objs.track_objects[i].rect.width;
             results->mObjects[i].bbox.h = tracker_objs.track_objects[i].rect.height;
-            results->mObjects[i].label = obj->label;
+            results->mObjects[i].label = tracker_objs.track_objects[i].label;
             results->mObjects[i].prob = tracker_objs.track_objects[i].prob;
             results->mObjects[i].track_id = tracker_objs.track_objects[i].track_id;
-            
-            memcpy(results->mObjects[i].objname, obj->objname, sizeof(results->mObjects[i].objname));
+
+            // memcpy(results->mObjects[i].objname, obj->objname, sizeof(results->mObjects[i].objname));
+            if (results->mObjects[i].label < (int)CLASS_NAMES.size())
+            {
+                strcpy(results->mObjects[i].objname, CLASS_NAMES[results->mObjects[i].label].c_str());
+            }
+            else
+            {
+                strcpy(results->mObjects[i].objname, "unknown");
+            }
             if (obj->bHasBoxVertices)
             {
                 results->mObjects[i].bHasBoxVertices = obj->bHasBoxVertices;

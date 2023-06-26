@@ -79,10 +79,23 @@ int ax_model_dinov2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
 
     cv::Mat feature(m_runner->get_output(0).vShape[1], m_runner->get_output(0).vShape[2], CV_32FC1, ptr);
     cv::resize(feature, feature, cv::Size(feature.cols / 4, feature.rows), 0, 0, cv::InterpolationFlags::INTER_NEAREST);
-    if (cnt++ % 100 == 0)
+    if (dinov2_pca_interval > 0)
     {
-        // bPCA_learn = true;
-        pca(feature, cv::noArray(), cv::PCA::Flags::DATA_AS_ROW, 3);
+        if (cnt++ % dinov2_pca_interval == 0)
+        {
+            // bPCA_learn = true;
+            pca(feature, cv::noArray(), cv::PCA::Flags::DATA_AS_ROW, 3);
+        }
+    }
+    else
+    {
+        // if dinov2_pca_interval<=0 , pca only update in the zero frame and the 30th frame 
+        int _cnt = cnt;
+        cnt++;
+        if (_cnt++ == 0 || _cnt == 30)
+        {
+            pca(feature, cv::noArray(), cv::PCA::Flags::DATA_AS_ROW, 3);
+        }
     }
 
     cv::Mat pca_features = pca.project(feature);
@@ -101,7 +114,7 @@ int ax_model_dinov2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
 
     float *pca_features_data = (float *)pca_features.data;
     uchar *out_data = seg_mat_ptr.get();
-    for (size_t i = 0; i < pca_features.cols * pca_features.rows / 3; i++)
+    for (int i = 0; i < int(pca_features.cols * pca_features.rows / 3); i++)
     {
         out_data[4 * i + 0] = 255;
         out_data[4 * i + 1] = pca_features_data[3 * i + 0];

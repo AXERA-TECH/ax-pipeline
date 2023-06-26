@@ -267,7 +267,7 @@ int _ax_imgproc_crop_resize(axdl_image_t *src, axdl_image_t *dst, axdl_bbox_t *b
     cvt(src, &ive_src);
     cvt(dst, &ive_dst);
 
-    AX_IVPS_RECT_T Box = {0, 0, ive_src.u32Width, ive_src.u32Height};
+    AX_IVPS_RECT_T Box = {0, 0, (AX_U16)ive_src.u32Width, (AX_U16)ive_src.u32Height};
     AX_IVPS_RECT_T pbox[1] = {0};
     if (box)
     {

@@ -114,7 +114,7 @@ install/
 git clone https://github.com/AXERA-TECH/ax-pipeline.git
 cd ax-pipeline
 ```
-2、下载子模块（[axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 不适用于AX650，后续可能会开源适用于 AX650 的 BSP，目前 BSP 仅可通过 FAE 获取）
+2、子模块（[axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 不适用于AX650，后续可能会开源适用于 AX650 的 BSP，目前 BSP 仅可通过 FAE 获取）
 ```shell
 git submodule update --init
 ```

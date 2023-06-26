@@ -44,7 +44,7 @@ void *_venc_get_frame_thread(void *arg)
     int s32Ret = AX_VENC_StartRecvFrame(pipe->m_venc_attr.n_venc_chn, &stRecvParam);
     if (AX_SUCCESS != s32Ret)
     {
-        ALOGE("AX_VENC_StartRecvFrame failed, s32Ret:0x%x %s\n", s32Ret);
+        ALOGE("AX_VENC_StartRecvFrame failed, s32Ret:0x%x\n", s32Ret);
         return NULL;
     }
 

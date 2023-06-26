@@ -100,13 +100,13 @@ private:
                         AX_IVPS_RGN_DISP_GROUP_S *rgn_disp_grp = (AX_IVPS_RGN_DISP_GROUP_S *)axdl_native_osd_get_handle(gModels, osd_pipe->pipeid);
                         if (rgn_disp_grp)
                         {
-                            for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
+                            for (int d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
                             {
                                 if (rgn_disp_grp[d].nNum > 0 && rgn_disp_grp[d].nNum <= AX_IVPS_REGION_MAX_DISP_NUM)
                                 {
                                     if (osd_pipe->m_output_type == po_vo_sipeed_maix3_screen)
                                     {
-                                        for (size_t k = 0; k < rgn_disp_grp[d].nNum; k++)
+                                        for (uint k = 0; k < rgn_disp_grp[d].nNum; k++)
                                         {
                                             if (rgn_disp_grp[d].arrDisp[k].bShow)
                                             {
@@ -200,7 +200,7 @@ private:
                         AX_IVPS_RGN_DISP_GROUP_T *rgn_disp_grp = (AX_IVPS_RGN_DISP_GROUP_T *)axdl_native_osd_get_handle(gModels, osd_pipe->pipeid);
                         if (rgn_disp_grp)
                         {
-                            for (size_t d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
+                            for (int d = 0; d < osd_pipe->m_ivps_attr.n_osd_rgn; d++)
                             {
                                 if (rgn_disp_grp[d].nNum > 0 && rgn_disp_grp[d].nNum <= AX_IVPS_REGION_MAX_DISP_NUM)
                                 {

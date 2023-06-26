@@ -184,11 +184,11 @@ int _create_vo(char *pStr, pipeline_t *pipe)
 
     stVoConf.stVoLayer[1].enVoMode = VO_MODE_1MUX;
 
-    AX_S32 i, s32Ret;
+    AX_S32 s32Ret;
     AX_U64 u64BlkSize = 0;
     SAMPLE_VO_LAYER_CONFIG_S *pstVoLayer;
     VO_VIDEO_LAYER_ATTR_S *pstVoLayerAttr;
-    SAMPLE_VO_CHN_THREAD_PARAM_S *pstChnThreadParam = &g_stChnThreadParam;
+    // SAMPLE_VO_CHN_THREAD_PARAM_S *pstChnThreadParam = &g_stChnThreadParam;
 
     s32Ret = ParseVoPubAttr(pStr, &stVoConf);
     SAMPLE_VO_CONFIG_S *pstVoConf = &stVoConf;
@@ -209,7 +209,7 @@ int _create_vo(char *pStr, pipeline_t *pipe)
 
     SAMPLE_PRT("u32LayerNr = %d\n", pstVoConf->u32LayerNr);
 
-    for (i = 0; i < pstVoConf->u32LayerNr; i++)
+    for (unsigned i = 0; i < pstVoConf->u32LayerNr; i++)
     {
         pstVoLayer = &pstVoConf->stVoLayer[i];
         pstVoLayerAttr = &pstVoLayer->stVoLayerAttr;
@@ -287,7 +287,7 @@ int _create_vo(char *pStr, pipeline_t *pipe)
     return 0;
 
 exit1:
-    for (i = 0; i < pstVoConf->u32LayerNr; i++)
+    for (unsigned i = 0; i < pstVoConf->u32LayerNr; i++)
     {
         pstVoLayer = &pstVoConf->stVoLayer[i];
         pstVoLayerAttr = &pstVoLayer->stVoLayerAttr;
@@ -307,7 +307,7 @@ exit0:
 
 void _destory_vo()
 {
-    AX_S32 i;
+    AX_U32 i;
     SAMPLE_VO_LAYER_CONFIG_S *pstVoLayer;
     VO_VIDEO_LAYER_ATTR_S *pstVoLayerAttr;
     SAMPLE_VO_CHN_THREAD_PARAM_S *pstChnThreadParam = &g_stChnThreadParam;

@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
     };
 #elif defined(AXERA_TARGET_CHIP_AX650)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, rtsp_urls.size() * 15},
+        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, uint32_t(rtsp_urls.size() * 15)},
     };
 #endif
     tCommonArgs.nPoolCfgCnt = 1;

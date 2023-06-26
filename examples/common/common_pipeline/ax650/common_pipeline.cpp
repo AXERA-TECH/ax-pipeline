@@ -105,18 +105,18 @@ bool erase(std::map<KT, VT> &v, KT &t)
 static void PrintRtsp(std::string rtsp_path)
 {
     char ipaddr[64];
-    int ret = get_ip("eth0", ipaddr);
+    int ret = get_ip((char *)"eth0", ipaddr);
     printf("\n");
     if (ret == 0)
     {
         ALOGI("                                    [eth0]  rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path.c_str());
     }
-    ret = get_ip("wlan0", ipaddr);
+    ret = get_ip((char *)"wlan0", ipaddr);
     if (ret == 0)
     {
         ALOGI("                                    [wlan0] rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<", ipaddr, RTSP_PORT, rtsp_path.c_str());
     }
-    ret = get_ip("usb0", ipaddr);
+    ret = get_ip((char *)"usb0", ipaddr);
     if (ret == 0)
     {
         ALOGI("                                    [usb0]  rtsp url >>>>>> rtsp://%s:%d/%s <<<<<<\n", ipaddr, RTSP_PORT, rtsp_path.c_str());
@@ -126,7 +126,7 @@ static void PrintRtsp(std::string rtsp_path)
 int _create_vo(char *pStr, pipeline_t *pipe);
 void _destory_vo();
 int _create_vo_hdmi(pipeline_t *pipe);
-int _destory_vo_hdmi(pipeline_t*pipe);
+int _destory_vo_hdmi(pipeline_t *pipe);
 int _create_ivps_grp(pipeline_t *pipe);
 int _destore_ivps_grp(pipeline_t *pipe);
 int _create_venc_chn(pipeline_t *pipe);
@@ -407,7 +407,7 @@ int create_pipeline(pipeline_t *pipe)
             dstMod.s32ChnId = 0;
             AX_SYS_Link(&srcMod, &dstMod);
 
-            int s32Ret = _create_vo("dsi0@480x854@60", pipe);
+            int s32Ret = _create_vo((char*)"dsi0@480x854@60", pipe);
             if (AX_SUCCESS != s32Ret)
             {
                 ALOGE("VoInit failed,s32Ret:0x%x\n", s32Ret);
@@ -735,8 +735,6 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
     {
         AX_VDEC_STREAM_T stream = {0};
         memset(&stream, 0, sizeof(AX_VDEC_STREAM_T));
-        static int unsigned long long pts = 0;
-        // stream.u64PTS = pts++;
         stream.u32StreamPackLen = buf->n_size;
         stream.pu8Addr = (unsigned char *)buf->p_vir;
         stream.u64PhyAddr = 0;
@@ -789,7 +787,7 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
                 ret = AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, -1);
                 if (ret != 0)
                 {
-                    ALOGE("AX_VDEC_SendStream 0x%x,data=0x%x len=%d", ret, stream.pu8Addr, stream.u32StreamPackLen);
+                    ALOGE("AX_VDEC_SendStream 0x%x,data=0x%x len=%d", ret, (unsigned long long int)stream.pu8Addr, stream.u32StreamPackLen);
                 }
                 tmp_.push_back(pipe[i].m_vdec_attr.n_vdec_grp);
             }

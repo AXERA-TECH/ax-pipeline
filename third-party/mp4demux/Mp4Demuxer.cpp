@@ -68,7 +68,8 @@ void pth_demux(Mp4DemuxerHandle *handle)
     {
         handle->buf_h264.reset(preload(handle->path.c_str(), &handle->h264_size), std::default_delete<uint8_t[]>());
         int ntrack = 0;
-        int /*ntrack, */ i, spspps_bytes;
+        unsigned /*ntrack, */ i;
+        int spspps_bytes;
         const void *spspps;
         INPUT_BUFFER buf = {handle->buf_h264.get(), handle->h264_size};
         MP4D_demux_t mp4 = {0};
@@ -87,7 +88,7 @@ void pth_demux(Mp4DemuxerHandle *handle)
                 // fwrite(spspps, 1, spspps_bytes, fout);
                 if (handle->cb)
                 {
-                    if (spspps_bytes + 4 - USE_SHORT_SYNC > handle->spspps_buffer.size())
+                    if (spspps_bytes + 4 - USE_SHORT_SYNC > int(handle->spspps_buffer.size()))
                     {
                         handle->spspps_buffer.resize(spspps_bytes + 4 - USE_SHORT_SYNC);
                     }
@@ -106,7 +107,7 @@ void pth_demux(Mp4DemuxerHandle *handle)
                 // fwrite(spspps, 1, spspps_bytes, fout);
                 if (handle->cb)
                 {
-                    if (spspps_bytes + 4 - USE_SHORT_SYNC > handle->spspps_buffer.size())
+                    if (spspps_bytes + 4 - USE_SHORT_SYNC > int(handle->spspps_buffer.size()))
                     {
                         handle->spspps_buffer.resize(spspps_bytes + 4 - USE_SHORT_SYNC);
                     }

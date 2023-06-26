@@ -215,7 +215,7 @@ AX_POOL CreatePool(const AX_POOL_CONFIG_T &stPoolCfg)
     AX_POOL pool = AX_POOL_CreatePool((AX_POOL_CONFIG_T *)&stPoolCfg);
     if (AX_INVALID_POOLID == pool)
     {
-        ALOGE("%s: AX_POOL_CreatePool(blkSize %d, blkCnt %d, metaSize %d) fail", __func__, stPoolCfg.BlkSize, stPoolCfg.BlkCnt,
+        ALOGE("%s: AX_POOL_CreatePool(blkSize %lld, blkCnt %d, metaSize %lld) fail", __func__, stPoolCfg.BlkSize, stPoolCfg.BlkCnt,
               stPoolCfg.MetaSize);
         return AX_FALSE;
     }
@@ -324,7 +324,7 @@ int _create_vo_hdmi(pipeline_t *pipe)
 
     gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voDev = pipe->m_vo_attr.hdmi.portid;
     pipeline_hdmi_vo_e _enIntfSync = pipe->m_vo_attr.hdmi.e_hdmi_type;
-    int nVideoCount = pipe->m_vo_attr.hdmi.n_vo_count;
+    unsigned nVideoCount = (unsigned)pipe->m_vo_attr.hdmi.n_vo_count;
     auto enIntfSync = cvt(_enIntfSync);
     if (!GetDispInfoFromIntfSync(enIntfSync, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].stArea, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nHz))
     {

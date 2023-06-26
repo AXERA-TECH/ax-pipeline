@@ -94,12 +94,14 @@ protected:
 
     // multi level model
     std::vector<int> CLASS_IDS;
+    int cur_idx = 0;
 
     // pipe chn
     bool b_draw_obj_name = true;
     std::map<int, ax_osd_drawer> m_drawers;
 
-    int cur_idx = 0;
+    // PCA interval
+    int dinov2_pca_interval = 100;
 
     char fps_info[128];
     void draw_bbox(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y);

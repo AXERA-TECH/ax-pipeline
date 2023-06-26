@@ -197,7 +197,7 @@ int _destore_jvdec_grp(pipeline_t *pipe)
     // AX_POOL_MarkDestroyPool(pipe->m_vdec_attr.poolid);
 
     ret = AX_VDEC_DestroyGrp(pipe->m_vdec_attr.n_vdec_grp);
-    return 0;
+    return ret;
 }
 
 int _destore_vdec_grp(pipeline_t *pipe)

@@ -152,7 +152,6 @@ int ax_model_pose_hand_sub::preprocess(axdl_image_t *pstFrame, axdl_bbox_t *crop
     dst_pts[3] = cv::Point2f(0, get_algo_height());
 
     affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
-    affine_trans_mat_inv;
     cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
 
     float mat3x3[3][3] = {
@@ -280,7 +279,6 @@ int ax_model_license_plate_recognition_sub::preprocess(axdl_image_t *pstFrame, a
     dst_pts[3] = cv::Point2f(0, get_algo_height());
 
     affine_trans_mat = cv::getAffineTransform(src_pts, dst_pts);
-    affine_trans_mat_inv;
     cv::invertAffineTransform(affine_trans_mat, affine_trans_mat_inv);
 
     float mat3x3[3][3] = {
