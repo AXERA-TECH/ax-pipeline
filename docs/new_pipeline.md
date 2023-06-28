@@ -105,5 +105,4 @@ create_pipeline(&pipe_vo);
 ```
 
 一切都变得清晰简单
-
-## ***pipeline_t*** 的参数解释可以直接看[头文件的解释](../examples/common/common_pipeline.h)
+## ***pipeline_t*** 的参数解释可以直接看[头文件的解释](../examples/common/common_pipeline/common_pipeline.h)
