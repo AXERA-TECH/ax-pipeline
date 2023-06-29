@@ -338,7 +338,7 @@ public:
 
         auto mask_color = cv::Mat(rect.height, rect.width, CV_8UC4, mask_color_ptr.data);
 
-        cv::resize(mask_mat, mask_color, cv::Size(rect.width, rect.height));
+        cv::resize(mask_mat, mask_color, cv::Size(rect.width, rect.height), 0, 0, cv::InterpolationFlags::INTER_NEAREST);
 
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_TRUE;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].eType = AX_IVPS_RGN_TYPE_OSD;

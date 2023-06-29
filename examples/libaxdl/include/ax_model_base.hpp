@@ -97,6 +97,7 @@ protected:
     int cur_idx = 0;
 
     // pipe chn
+    bool b_draw_fps = true;
     bool b_draw_obj_name = true;
     std::map<int, ax_osd_drawer> m_drawers;
 
@@ -194,14 +195,16 @@ public:
     virtual void draw_results(cv::Mat&canvas, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
     {
         draw_custom(canvas, results, fontscale, thickness, offset_x, offset_y);
-        draw_fps(canvas, results, fontscale, thickness, offset_x, offset_y);
+        if(b_draw_fps)
+            draw_fps(canvas, results, fontscale, thickness, offset_x, offset_y);
     }
 
     virtual void draw_results(int chn, axdl_results_t *results, float fontscale, int thickness)
     {
         m_drawers[chn].reset();
         draw_custom(chn, results, fontscale, thickness);
-        draw_fps(chn, results, fontscale, thickness);
+        if(b_draw_fps)
+            draw_fps(chn, results, fontscale, thickness);
     }
 };
 

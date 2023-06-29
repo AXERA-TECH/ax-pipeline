@@ -287,6 +287,7 @@ int ax_model_single_base_t::init(void *json_obj)
 
     // update_val(jsondata, "USE_WARP_PREPROCESS", &use_warp_preprocess);
     update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
+    update_val(jsondata, "OSD_DRAW_FPS", &b_draw_fps);
     update_val(jsondata, "DINOV2_PCA_INTERVAL", &dinov2_pca_interval);
 
     std::string strModelType;
