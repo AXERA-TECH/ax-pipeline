@@ -29,6 +29,8 @@
 #include "../include/ax_common_api.h"
 #include "sample_log.h"
 #include <vector>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #ifndef MIN
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
@@ -145,17 +147,32 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     memset(&handle->joint_attr, 0, sizeof(handle->joint_attr));
 
     // 1.1 read model file to buffer
-    std::vector<char> model_buffer;
-    if (!utilities::read_file(model_file, model_buffer))
+    // std::vector<char> model_buffer;
+    // if (!utilities::read_file(model_file, model_buffer))
+    // {
+    //     fprintf(stderr, "Read Run-Joint model(%s) file failed.\n", model_file);
+    //     return -1;
+    // }
+
+    auto *file_fp = fopen(model_file, "r");
+    if (!file_fp)
     {
-        fprintf(stderr, "Read Run-Joint model(%s) file failed.\n", model_file);
+        ALOGE("Read Run-Joint model(%s) file failed.\n", model_file);
         return -1;
     }
 
-    auto ret = middleware::parse_npu_mode_from_joint(model_buffer.data(), model_buffer.size(), &handle->joint_attr.eNpuMode);
+    fseek(file_fp, 0, SEEK_END);
+    int model_size = ftell(file_fp);
+    fclose(file_fp);
+
+    int fd = open(model_file, O_RDWR, 0644);
+    void *mmap_add = mmap(NULL, model_size, PROT_WRITE, MAP_SHARED, fd, 0);
+
+    auto ret = middleware::parse_npu_mode_from_joint((const char *)mmap_add, model_size, &handle->joint_attr.eNpuMode);
     if (AX_ERR_NPU_JOINT_SUCCESS != ret)
     {
         fprintf(stderr, "Load Run-Joint model(%s) failed.\n", model_file);
+        munmap(mmap_add, model_size);
         return -1;
     }
 
@@ -164,6 +181,7 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     if (AX_ERR_NPU_JOINT_SUCCESS != ret)
     {
         fprintf(stderr, "Init Run-Joint model(%s) failed.\n", model_file);
+        munmap(mmap_add, model_size);
         return -1;
     }
 
@@ -171,12 +189,13 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     {
         AX_JOINT_DestroyHandle(handle->joint_handle);
         AX_JOINT_Adv_Deinit();
+        munmap(mmap_add, model_size);
         return -1;
     };
 
     // 1.4 the real init processing
 
-    ret = AX_JOINT_CreateHandle(&handle->joint_handle, model_buffer.data(), model_buffer.size());
+    ret = AX_JOINT_CreateHandle(&handle->joint_handle, (const char *)mmap_add, model_size);
     if (AX_ERR_NPU_JOINT_SUCCESS != ret)
     {
         fprintf(stderr, "Create Run-Joint handler from file(%s) failed.\n", model_file);
@@ -188,7 +207,8 @@ int sample_run_joint_init(char *model_file, void **yhandle, sample_run_joint_att
     fprintf(stdout, "Tools version: %s\n", version);
 
     // 1.6 drop the model buffer
-    std::vector<char>().swap(model_buffer);
+    munmap(mmap_add, model_size);
+    // std::vector<char>().swap(model_buffer);
 
     // 1.7 create context
     memset(&handle->joint_ctx, 0, sizeof(handle->joint_ctx));
