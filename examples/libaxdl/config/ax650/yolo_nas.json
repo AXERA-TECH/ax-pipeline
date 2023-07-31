@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_YOLO_NAS",
     "MODEL_PATH": "./models/yolo_nas.axmodel",
+    "OSD_DRAW_NAME": false,
     "CLASS_NAMES": [
         "person",
         "bicycle",

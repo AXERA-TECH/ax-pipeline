@@ -163,8 +163,8 @@ int _create_vdec_grp(pipeline_t *pipe)
     {
         gGrpAttr.enCodecType = PT_H264;
         gGrpAttr.enInputMode = AX_VDEC_INPUT_MODE_FRAME;
-        gGrpAttr.u32MaxPicWidth = 1920;
-        gGrpAttr.u32MaxPicHeight = 1080;
+        gGrpAttr.u32MaxPicWidth = 3840;
+        gGrpAttr.u32MaxPicHeight = 2160;
         gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
         // gGrpAttr.u32MaxFrameBufCnt = 10;
         // gGrpAttr.u32InputFifoDepth = 100;
@@ -188,8 +188,8 @@ int _create_vdec_grp(pipeline_t *pipe)
 
             stVdChnAttr.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
             stVdChnAttr.enOutputMode = AX_VDEC_OUTPUT_ORIGINAL;
-            stVdChnAttr.u32PicWidth = 1920;
-            stVdChnAttr.u32PicHeight = 1080;
+            stVdChnAttr.u32PicWidth = 3840;
+            stVdChnAttr.u32PicHeight = 2160;
             stVdChnAttr.u32FrameBufCnt = 5;
             AX_U32 uPixBits = 8;
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
@@ -223,7 +223,7 @@ int _create_vdec_grp(pipeline_t *pipe)
         // AX_FRAME_COMPRESS_INFO_T stCompressInfo = {0};
         if (gGrpAttr.bSdkAutoFramePool != AX_TRUE)
         {
-            FrameSize = AX_VDEC_GetPicBufferSize(1920, 1080, AX_FORMAT_YUV420_SEMIPLANAR, NULL, PT_H264); // 3655712;
+            FrameSize = AX_VDEC_GetPicBufferSize(3840, 2160, AX_FORMAT_YUV420_SEMIPLANAR, NULL, PT_H264); // 3655712;
             printf("Get pool mem size is %d\n", FrameSize);
             ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
             if (ret != AX_SUCCESS)

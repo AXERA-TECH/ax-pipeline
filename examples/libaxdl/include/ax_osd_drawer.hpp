@@ -36,7 +36,7 @@ private:
         index++;
         if (index >= limit)
         {
-            printf("limit %d,%d,%d\n", index, (int)vRgns.size(), limit);
+            ALOGD("limit %d,%d,%d", index, (int)vRgns.size(), limit);
             return false;
         }
         return true;
@@ -132,6 +132,7 @@ public:
     {
         for (int i = 0; i < int(vRgns.size()); i++)
         {
+            vRgns[i].nNum = 0;
             vRgns[i].tChnAttr.nAlpha = 255;
             vRgns[i].tChnAttr.eFormat = AX_FORMAT_RGBA8888;
             vRgns[i].tChnAttr.nZindex = i;

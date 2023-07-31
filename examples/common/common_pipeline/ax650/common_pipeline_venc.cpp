@@ -295,6 +295,9 @@ int _create_venc_chn(pipeline_t *pipe)
     stVencChnAttr.stVencAttr.u8OutFifoDepth = 5;
 
     stVencChnAttr.stVencAttr.enType = config.ePayloadType;
+
+    stVencChnAttr.stRcAttr.uFrameRate.tFrmRateCtrl.nSrcFrameRate = AX_FRAME_RATE(config.nSrcFrameRate);  /* input frame rate */
+    stVencChnAttr.stRcAttr.uFrameRate.tFrmRateCtrl.nDstFrameRate = AX_FRAME_RATE(config.nDstFrameRate); /* target frame rate */
     switch (stVencChnAttr.stVencAttr.enType)
     {
     case PT_H265:
@@ -310,8 +313,8 @@ int _create_venc_chn(pipeline_t *pipe)
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265CBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH265Cbr.u32Gop = config.nGOP;
-            stH265Cbr.u32SrcFrameRate = config.nSrcFrameRate;  /* input frame rate */
-            stH265Cbr.fr32DstFrameRate = config.nDstFrameRate; /* target frame rate */
+            // stH265Cbr.u32SrcFrameRate = config.nSrcFrameRate;  /* input frame rate */
+            // stH265Cbr.fr32DstFrameRate = config.nDstFrameRate; /* target frame rate */
             stH265Cbr.u32BitRate = config.nBitrate;
             stH265Cbr.u32MinQp = config.stRCInfo.nMinQp;
             stH265Cbr.u32MaxQp = config.stRCInfo.nMaxQp;
@@ -327,8 +330,8 @@ int _create_venc_chn(pipeline_t *pipe)
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265VBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH265Vbr.u32Gop = config.nGOP;
-            stH265Vbr.u32SrcFrameRate = config.nSrcFrameRate;
-            stH265Vbr.fr32DstFrameRate = config.nDstFrameRate;
+            // stH265Vbr.u32SrcFrameRate = config.nSrcFrameRate;
+            // stH265Vbr.fr32DstFrameRate = config.nDstFrameRate;
             stH265Vbr.u32MaxBitRate = config.nBitrate;
             stH265Vbr.u32MinQp = config.stRCInfo.nMinQp;
             stH265Vbr.u32MaxQp = config.stRCInfo.nMaxQp;
@@ -343,8 +346,8 @@ int _create_venc_chn(pipeline_t *pipe)
             memset(&stH265FixQp, 0, sizeof(stH265FixQp));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H265FIXQP;
             stH265FixQp.u32Gop = config.nGOP;
-            stH265FixQp.u32SrcFrameRate = config.nSrcFrameRate;
-            stH265FixQp.fr32DstFrameRate = config.nDstFrameRate;
+            // stH265FixQp.u32SrcFrameRate = config.nSrcFrameRate;
+            // stH265FixQp.fr32DstFrameRate = config.nDstFrameRate;
             stH265FixQp.u32IQp = 25;
             stH265FixQp.u32PQp = 30;
             stH265FixQp.u32BQp = 32;
@@ -364,8 +367,8 @@ int _create_venc_chn(pipeline_t *pipe)
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264CBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH264Cbr.u32Gop = config.nGOP;
-            stH264Cbr.u32SrcFrameRate = config.nSrcFrameRate;  /* input frame rate */
-            stH264Cbr.fr32DstFrameRate = config.nDstFrameRate; /* target frame rate */
+            // stH264Cbr.u32SrcFrameRate = config.nSrcFrameRate;  /* input frame rate */
+            // stH264Cbr.fr32DstFrameRate = config.nDstFrameRate; /* target frame rate */
             stH264Cbr.u32BitRate = config.nBitrate;
             stH264Cbr.u32MinQp = config.stRCInfo.nMinQp;
             stH264Cbr.u32MaxQp = config.stRCInfo.nMaxQp;
@@ -381,8 +384,8 @@ int _create_venc_chn(pipeline_t *pipe)
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264VBR;
             stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stH264Vbr.u32Gop = config.nGOP;
-            stH264Vbr.u32SrcFrameRate = config.nSrcFrameRate;
-            stH264Vbr.fr32DstFrameRate = config.nDstFrameRate;
+            // stH264Vbr.u32SrcFrameRate = config.nSrcFrameRate;
+            // stH264Vbr.fr32DstFrameRate = config.nDstFrameRate;
             stH264Vbr.u32MaxBitRate = config.nBitrate;
             stH264Vbr.u32MinQp = config.stRCInfo.nMinQp;
             stH264Vbr.u32MaxQp = config.stRCInfo.nMaxQp;
@@ -397,8 +400,8 @@ int _create_venc_chn(pipeline_t *pipe)
             memset(&stH264FixQp, 0, sizeof(stH264FixQp));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_H264FIXQP;
             stH264FixQp.u32Gop = config.nGOP;
-            stH264FixQp.u32SrcFrameRate = config.nSrcFrameRate;
-            stH264FixQp.fr32DstFrameRate = config.nDstFrameRate;
+            // stH264FixQp.u32SrcFrameRate = config.nSrcFrameRate;
+            // stH264FixQp.fr32DstFrameRate = config.nDstFrameRate;
             stH264FixQp.u32IQp = 25;
             stH264FixQp.u32PQp = 30;
             stH264FixQp.u32BQp = 32;
@@ -416,8 +419,8 @@ int _create_venc_chn(pipeline_t *pipe)
             // stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
 
             stMjpegCbrAttr.u32StatTime = 1;
-            stMjpegCbrAttr.u32SrcFrameRate = config.nSrcFrameRate;
-            stMjpegCbrAttr.fr32DstFrameRate = config.nDstFrameRate;
+            // stMjpegCbrAttr.u32SrcFrameRate = config.nSrcFrameRate;
+            // stMjpegCbrAttr.fr32DstFrameRate = config.nDstFrameRate;
             stMjpegCbrAttr.u32BitRate = 4000;
             stMjpegCbrAttr.u32MinQp = 20;
             stMjpegCbrAttr.u32MaxQp = 30;
@@ -430,8 +433,8 @@ int _create_venc_chn(pipeline_t *pipe)
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_MJPEGVBR;
             // stVencChnAttr.stRcAttr.s32FirstFrameStartQp = -1;
             stMjpegVbrAttr.u32StatTime = 1;
-            stMjpegVbrAttr.u32SrcFrameRate = config.nSrcFrameRate;
-            stMjpegVbrAttr.fr32DstFrameRate = config.nDstFrameRate;
+            // stMjpegVbrAttr.u32SrcFrameRate = config.nSrcFrameRate;
+            // stMjpegVbrAttr.fr32DstFrameRate = config.nDstFrameRate;
             stMjpegVbrAttr.u32MaxBitRate = 4000;
             stMjpegVbrAttr.u32MinQp = 20;
             stMjpegVbrAttr.u32MaxQp = 30;
@@ -443,8 +446,8 @@ int _create_venc_chn(pipeline_t *pipe)
             memset(&stMjpegFixQpAttr, 0, sizeof(stMjpegFixQpAttr));
             stVencChnAttr.stRcAttr.enRcMode = AX_VENC_RC_MODE_MJPEGFIXQP;
 
-            stMjpegFixQpAttr.u32SrcFrameRate = config.nSrcFrameRate;
-            stMjpegFixQpAttr.fr32DstFrameRate = config.nDstFrameRate;
+            // stMjpegFixQpAttr.u32SrcFrameRate = config.nSrcFrameRate;
+            // stMjpegFixQpAttr.fr32DstFrameRate = config.nDstFrameRate;
             stMjpegFixQpAttr.s32FixedQp = 22;
             memcpy(&stVencChnAttr.stRcAttr.stMjpegFixQp, &stMjpegFixQpAttr, sizeof(AX_VENC_MJPEG_FIXQP_T));
         }

@@ -1,6 +1,7 @@
 {
     "MODEL_TYPE": "MT_DET_PPYOLOE",
     "MODEL_PATH": "./models/ppyoloe_l.axmodel",
+    "OSD_DRAW_NAME": false,
     "CLASS_NAMES": [
         "person",
         "bicycle",

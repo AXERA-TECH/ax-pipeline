@@ -111,9 +111,9 @@ void *_ivps_get_frame_thread(void *arg)
 
 int _create_ivps_grp(pipeline_t *pipe)
 {
-    if (pipe->m_ivps_attr.n_ivps_grp > MAX_IVPS_GRP_COUNT)
+    if (pipe->m_ivps_attr.n_ivps_grp > AX_IVPS_MAX_GRP_NUM)
     {
-        ALOGE("ivps_grp must lower than %d, got %d\n", MAX_IVPS_GRP_COUNT, pipe->m_ivps_attr.n_ivps_grp);
+        ALOGE("ivps_grp must lower than %d, got %d\n", AX_IVPS_MAX_GRP_NUM, pipe->m_ivps_attr.n_ivps_grp);
         return -1;
     }
     AX_S32 s32Ret = 0;
@@ -138,8 +138,8 @@ int _create_ivps_grp(pipeline_t *pipe)
     memset(&stPipelineAttr.tFilter, 0x00, sizeof(stPipelineAttr.tFilter));
 
     stPipelineAttr.tFilter[nChn][0].bEngage = AX_TRUE;
-    stPipelineAttr.tFilter[nChn][0].tFRC.nSrcFrameRate = pipe->m_ivps_attr.n_ivps_fps;
-    stPipelineAttr.tFilter[nChn][0].tFRC.nDstFrameRate = pipe->m_ivps_attr.n_ivps_fps;
+    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nSrcFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
+    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nDstFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
     // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetX0 = 0;
     // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetY0 = 0;
     stPipelineAttr.tFilter[nChn][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_width;
@@ -149,6 +149,8 @@ int _create_ivps_grp(pipeline_t *pipe)
     // stPipelineAttr.tFilter[nChn+1][0].nDstFrameHeight = pipe->m_ivps_attr.n_ivps_height;
     stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
     stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_TDP;
+    stPipelineAttr.tFilter[nChn][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+    stPipelineAttr.tFilter[nChn][0].tCompressInfo.u32CompressLevel = 4;
 
     if (pipe->m_ivps_attr.b_letterbox)
     {
