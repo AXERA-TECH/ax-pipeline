@@ -1,4 +1,4 @@
-set(SampleName sample_multi_demux_ivps_joint_hdmi_vo)
+set(SampleName sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo)
 
 file(GLOB SRC_BASE_LIST "*.cpp" "../utilities/*.c")
 file(GLOB SRC_LIST_COMMON   "${BSP_MSP_DIR}/../sample/common/common_sys.c" 
