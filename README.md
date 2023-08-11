@@ -10,6 +10,7 @@
 ## 已支持开发板
 
 - [AXera-Pi](https://wiki.sipeed.com/m3axpi)(AX620A)
+- AXera-Pi Pro(AX650N)
 
 ## 快速上手
 
