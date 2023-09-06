@@ -288,9 +288,13 @@ AX_BOOL SetChnFrameRate(VO_CHN voChn, VO_LAYER voLayer,
     ALOGI("set layer %d voChn %d fps to %d", voLayer, voChn, nFps);
 #ifdef __DUMMY_VO__
 #else
+#if 0 // V1.27
     AX_FRAME_RATE_CTRL_U tmp{0};
     tmp.nFrmRateCtrl = nFps;
     AX_S32 ret = AX_VO_SetChnFrameRate(voLayer, voChn, tmp);
+#else // V1.40
+    AX_S32 ret = AX_VO_SetChnFrameRate(voLayer, voChn, nFps);
+#endif
     if (0 != ret)
     {
         ALOGE("AX_VO_SetChnFrameRate(layer %d chn %d fps %d) fail, ret = 0x%x", voLayer, voChn, nFps, ret);

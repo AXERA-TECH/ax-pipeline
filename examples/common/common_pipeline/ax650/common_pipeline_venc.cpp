@@ -296,8 +296,14 @@ int _create_venc_chn(pipeline_t *pipe)
 
     stVencChnAttr.stVencAttr.enType = config.ePayloadType;
 
+#if 0                                                                          // V1.27
     stVencChnAttr.stRcAttr.uFrameRate.tFrmRateCtrl.nSrcFrameRate = AX_FRAME_RATE(config.nSrcFrameRate);  /* input frame rate */
     stVencChnAttr.stRcAttr.uFrameRate.tFrmRateCtrl.nDstFrameRate = AX_FRAME_RATE(config.nDstFrameRate); /* target frame rate */
+#else                                                                          // V1.40
+    stVencChnAttr.stRcAttr.stFrameRate.fSrcFrameRate = (config.nSrcFrameRate); /* input frame rate */
+    stVencChnAttr.stRcAttr.stFrameRate.fDstFrameRate = (config.nDstFrameRate); /* target frame rate */
+#endif
+
     switch (stVencChnAttr.stVencAttr.enType)
     {
     case PT_H265:
