@@ -89,7 +89,7 @@ int ax_model_dinov2::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     }
     else
     {
-        // if dinov2_pca_interval<=0 , pca only update in the zero frame and the 30th frame 
+        // if dinov2_pca_interval<=0 , pca only update in the zero frame and the 30th frame
         int _cnt = cnt;
         cnt++;
         if (_cnt++ == 0 || _cnt == 30)
@@ -148,6 +148,76 @@ void ax_model_dinov2::draw_custom(cv::Mat &image, axdl_results_t *results, float
 }
 
 void ax_model_dinov2::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
+{
+    if (!results->bPPHumSeg || !results->mPPHumSeg.data)
+    {
+        return;
+    }
+    axdl_bbox_t box{0, 0, 0.35, 0.35};
+    m_drawers[chn].add_mask(&box, &results->mPPHumSeg);
+}
+
+int ax_model_dinov2_depth::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (mSimpleRingBuffer.size() == 0)
+    {
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
+    }
+    results->bPPHumSeg = 1;
+    auto ptr = (float *)m_runner->get_output(0).pVirAddr;
+
+    cv::Mat feature(m_runner->get_output(0).vShape[2], m_runner->get_output(0).vShape[3], CV_32FC1, ptr);
+
+    double minVal, maxVal;
+    cv::minMaxLoc(feature, &minVal, &maxVal);
+    feature -= minVal;
+    feature /= (maxVal - minVal);
+    feature *= 255;
+    feature = 255 - feature;
+
+    int scale_height = feature.cols / 1.77777;
+    int up_pad = (feature.rows - scale_height) / 2;
+    int offset = up_pad * feature.cols;
+    // feature.convertTo(feature, CV_8UC1);
+
+    auto &seg_mat_ptr = mSimpleRingBuffer.next();
+    if (!seg_mat_ptr.get())
+    {
+        seg_mat_ptr.reset(new unsigned char[feature.cols * scale_height * 4], std::default_delete<unsigned char[]>());
+    }
+
+    // cv::applyColorMap(feature, seg_mat_ptr, (int)cv::ColormapTypes::COLORMAP_MAGMA);
+
+    float *features_data = (float *)feature.data + offset;
+    uchar *out_data = seg_mat_ptr.get();
+    for (int i = 0; i < feature.cols * scale_height; i++)
+    {
+        out_data[4 * i + 0] = 200;
+        out_data[4 * i + 1] = 0;
+        out_data[4 * i + 2] = features_data[i];
+        out_data[4 * i + 3] = 0;
+    }
+
+    results->mPPHumSeg.h = scale_height;
+    results->mPPHumSeg.w = feature.cols;
+    results->mPPHumSeg.c = 4;
+    results->mPPHumSeg.s = feature.cols * results->mPPHumSeg.c;
+    results->mPPHumSeg.data = seg_mat_ptr.get();
+
+    return 0;
+}
+
+void ax_model_dinov2_depth::draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y)
+{
+    if (!results->bPPHumSeg || !results->mPPHumSeg.data)
+    {
+        return;
+    }
+    cv::Mat mask(results->mPPHumSeg.h, results->mPPHumSeg.w, CV_8UC4, results->mPPHumSeg.data);
+    cv::resize(mask, image, cv::Size(image.cols, image.rows));
+}
+
+void ax_model_dinov2_depth::draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness)
 {
     if (!results->bPPHumSeg || !results->mPPHumSeg.data)
     {

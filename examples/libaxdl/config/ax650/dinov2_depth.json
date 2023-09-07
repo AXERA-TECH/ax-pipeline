@@ -1,0 +1,5 @@
+{
+    "MODEL_TYPE": "MT_SEG_DINOV2_DEPTH",
+    "MODEL_PATH": "./models/dinov2_vits14_ld.axmodel",
+    "OSD_DRAW_FPS": false
+}
