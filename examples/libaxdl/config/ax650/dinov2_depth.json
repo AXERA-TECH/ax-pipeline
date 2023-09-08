@@ -1,5 +1,9 @@
 {
     "MODEL_TYPE": "MT_SEG_DINOV2_DEPTH",
     "MODEL_PATH": "./models/dinov2_vits14_ld.axmodel",
-    "OSD_DRAW_FPS": false
+    "OSD_DRAW_FPS": false,
+    "SOURCE_CODE": {
+        "description": "branch for onnx model export code",
+        "url": "https://github.com/ZHEQIUSHUI/dinov2/tree/hubconf-depth-linear"
+    }
 }
