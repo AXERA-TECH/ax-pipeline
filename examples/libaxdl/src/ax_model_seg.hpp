@@ -29,6 +29,7 @@ REGISTER(MT_SEG_DINOV2, ax_model_dinov2)
 class ax_model_dinov2_depth : public ax_model_pphumseg
 {
 protected:
+    double history_maxVal = -FLT_MAX, history_minVal = FLT_MAX;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     void draw_custom(cv::Mat &image, axdl_results_t *results, float fontscale, int thickness, int offset_x, int offset_y) override;
     void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
