@@ -44,6 +44,8 @@ extern "C"
         MT_SEG_PPHUMSEG,
         MT_SEG_DINOV2,
         MT_SEG_DINOV2_DEPTH,
+        MT_SEG_GLPDEPTH,
+
 
         // instance segmentation
         MT_INSEG = 0x30000,

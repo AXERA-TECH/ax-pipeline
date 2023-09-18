@@ -35,3 +35,10 @@ protected:
     void draw_custom(int chn, axdl_results_t *results, float fontscale, int thickness) override;
 };
 REGISTER(MT_SEG_DINOV2_DEPTH, ax_model_dinov2_depth)
+
+class ax_model_glpdepth : public ax_model_dinov2_depth
+{
+protected:
+    int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
+};
+REGISTER(MT_SEG_GLPDEPTH, ax_model_glpdepth)
