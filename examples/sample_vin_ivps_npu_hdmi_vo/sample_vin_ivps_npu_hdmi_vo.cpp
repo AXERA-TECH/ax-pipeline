@@ -24,9 +24,10 @@
 #include "common_pipeline.h"
 
 #include "../utilities/sample_log.h"
-
-#include "../common/video_demux.hpp"
-
+extern "C"
+{
+#include "../../sample/vin_ivps_venc_rtsp/sample_vin_hal.h"
+}
 #include "ax_ivps_api.h"
 
 #include "fstream"
@@ -38,15 +39,8 @@
 #include "vector"
 #include "map"
 
-#include "opencv2/opencv.hpp"
-
 #define pipe_count 2
-
-#ifdef AXERA_TARGET_CHIP_AX620
-#define rtsp_max_count 2
-#elif defined(AXERA_TARGET_CHIP_AX650)
-#define rtsp_max_count 4
-#endif
+#define model_max_count 9
 
 AX_S32 s_sample_framerate = 25;
 
@@ -55,8 +49,8 @@ volatile AX_S32 gLoopExit = 0;
 int SAMPLE_MAJOR_STREAM_WIDTH = 1920;
 int SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-int SAMPLE_IVPS_ALGO_WIDTH[rtsp_max_count] = {960};
-int SAMPLE_IVPS_ALGO_HEIGHT[rtsp_max_count] = {540};
+int SAMPLE_IVPS_ALGO_WIDTH[model_max_count] = {960};
+int SAMPLE_IVPS_ALGO_HEIGHT[model_max_count] = {540};
 
 static struct _g_sample_
 {
@@ -66,37 +60,29 @@ static struct _g_sample_
         void *gModel;
         ax_osd_helper osd_helper;
         std::vector<pipeline_t *> pipes_need_osd;
-    } gModels[rtsp_max_count];
+    } gModels[model_max_count];
 
-    // int bRunJoint[4];
-    // void *gModels[rtsp_max_count];
-    // std::map<int, ax_osd_helper> osd_helpers;
-    // std::vector<pipeline_t *> pipes_need_osd[rtsp_max_count];
     std::map<int, _model *> osd_target_map;
-    // std::map<int, int> osd_target;
     void Init()
     {
-        for (size_t i = 0; i < rtsp_max_count; i++)
+        for (size_t i = 0; i < model_max_count; i++)
         {
             gModels[i].pipes_need_osd.clear();
             gModels[i].gModel = nullptr;
             gModels[i].bRunJoint = 0;
-            // pthread_mutex_init(&g_result_mutexs[i], NULL);
         }
         osd_target_map.clear();
-        // memset(&g_result_disps[0], 0, sizeof(g_result_disps));
 
         ALOGN("g_sample Init\n");
     }
     void Deinit()
     {
 
-        for (size_t i = 0; i < rtsp_max_count; i++)
+        for (size_t i = 0; i < model_max_count; i++)
         {
             gModels[i].pipes_need_osd.clear();
             gModels[i].gModel = nullptr;
             gModels[i].bRunJoint = 0;
-            // pthread_mutex_init(&g_result_mutexs[i], NULL);
         }
 
         ALOGN("g_sample Deinit\n");
@@ -137,22 +123,6 @@ void ai_inference_func(pipeline_buffer_t *buff)
     }
 }
 
-void _demux_frame_callback(const void *buff, int len, void *reserve)
-{
-    if (len == 0)
-    {
-        pipeline_buffer_t end_buf = {0};
-        user_input((pipeline_t *)reserve, 1, &end_buf);
-        ALOGN("mp4 file decode finish,quit the loop");
-        gLoopExit = 1;
-    }
-    pipeline_buffer_t buf_h26x = {0};
-    buf_h26x.p_vir = (void *)buff;
-    buf_h26x.n_size = len;
-    user_input((pipeline_t *)reserve, 1, &buf_h26x);
-    usleep(5 * 1000);
-}
-
 // 允许外部调用
 extern "C" AX_VOID __sigExit(int iSigNo)
 {
@@ -166,8 +136,6 @@ static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: model config file path\n");
-
-    printf("\t-f: mp4 file/rtsp url(just only support h264 format)\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -183,13 +151,13 @@ int main(int argc, char *argv[])
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
-    char rtsp_url[512];
-    std::vector<std::string> rtsp_urls;
-    std::vector<std::vector<pipeline_t>> vpipelines;
+    COMMON_SYS_ARGS_T tPrivArgs = {0};
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
     char config_file[256];
+    std::vector<std::string> config_files;
+    std::vector<std::vector<pipeline_t>> vpipelines;
 
     ALOGN("sample begin\n\n");
 
@@ -197,24 +165,18 @@ int main(int argc, char *argv[])
     {
         switch (ch)
         {
-        case 'f':
-        {
-            strcpy(rtsp_url, optarg);
-            ALOGI("rtsp url : %s", rtsp_url);
-            std::string tmp(rtsp_url);
-            if (rtsp_urls.size() >= rtsp_max_count)
-            {
-                ALOGE("support only %d rtsp inputs", rtsp_max_count);
-            }
-            else
-            {
-                rtsp_urls.push_back(tmp);
-            }
-        }
-        break;
         case 'p':
         {
             strcpy(config_file, optarg);
+            std::string tmp(config_file);
+            if (config_files.size() >= model_max_count)
+            {
+                ALOGE("support only max %d models infer", model_max_count);
+            }
+            else
+            {
+                config_files.push_back(tmp);
+            }
             break;
         }
         case 'r':
@@ -238,25 +200,23 @@ int main(int argc, char *argv[])
         PrintHelp(argv[0]);
         exit(0);
     }
-
-    if (rtsp_urls.size() == 0)
+    if (config_files.size() == 0)
     {
-        ALOGE("video urls is empty");
-        PrintHelp(argv[0]);
-        exit(0);
+        config_files.push_back("config/yolov7.json");
     }
 
-#ifdef AXERA_TARGET_CHIP_AX620
-    COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 20},
+    /* comm pool */
+    COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20[] = {
+        {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 20}, /* vin nv21/nv21 use */
     };
-#elif defined(AXERA_TARGET_CHIP_AX650)
-    COMMON_SYS_POOL_CFG_T poolcfg[] = {
-        {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, uint32_t(rtsp_urls.size() * 15)},
+
+    /* priv pool */
+    COMMON_SYS_POOL_CFG_T gtPrivPoolSingleOs08a20[] = {
+        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 25 * 2}, /* vin raw16 use */
     };
-#endif
-    tCommonArgs.nPoolCfgCnt = 1;
-    tCommonArgs.pPoolCfg = poolcfg;
+
+    tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs08a20) / sizeof(gtSysCommPoolSingleOs08a20[0]);
+    tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs08a20;
     /*step 1:sys init*/
     s32Ret = COMMON_SYS_Init(&tCommonArgs);
     if (s32Ret)
@@ -265,7 +225,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /*step 3:npu init*/
 #ifdef AXERA_TARGET_CHIP_AX620
     AX_NPU_SDK_EX_ATTR_T sNpuAttr;
     sNpuAttr.eHardMode = AX_NPU_VIRTUAL_1_1;
@@ -278,7 +237,7 @@ int main(int argc, char *argv[])
 #else
     AX_ENGINE_NPU_ATTR_T npu_attr;
     memset(&npu_attr, 0, sizeof(npu_attr));
-    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
     if (0 != s32Ret)
     {
@@ -287,12 +246,43 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    vpipelines.resize(rtsp_urls.size());
+    /* step 2. VIN Init & Open */
+    tPrivArgs.nPoolCfgCnt = sizeof(gtPrivPoolSingleOs08a20) / sizeof(gtPrivPoolSingleOs08a20[0]);
+    tPrivArgs.pPoolCfg = gtPrivPoolSingleOs08a20;
+    s32Ret = SAMPLE_VIN_Init(SAMPLE_VIN_HAL_CASE_SINGLE_OS08A20, COMMON_VIN_SENSOR, AX_SNS_LINEAR_MODE, AX_TRUE, &tPrivArgs);
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+    s32Ret = SAMPLE_VIN_Open();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Open failed, ret:0x%x", s32Ret);
+        return -1;
+    }
 
-    for (size_t i = 0; i < rtsp_urls.size(); i++)
+    vpipelines.resize(config_files.size());
+
+    pipeline_t pipe_init_hdmi{0};
+    pipe_init_hdmi.enable = 1;
+    pipe_init_hdmi.pipeid = 999;
+    pipe_init_hdmi.m_output_type = po_vo_hdmi;
+    pipe_init_hdmi.m_vo_attr.hdmi.e_hdmi_type = phv_1920x1080p60;
+    pipe_init_hdmi.m_vo_attr.hdmi.n_vo_count = config_files.size();
+    pipe_init_hdmi.m_vo_attr.hdmi.n_frame_rate = s_sample_framerate;
+    pipe_init_hdmi.m_vo_attr.hdmi.portid = 0;
+
+    s32Ret = create_pipeline(&pipe_init_hdmi);
+    if (s32Ret != 0)
+    {
+        return -1;
+    }
+
+    for (size_t i = 0; i < config_files.size(); i++)
     {
 
-        s32Ret = axdl_parse_param_init(config_file, &g_sample.gModels[i].gModel);
+        s32Ret = axdl_parse_param_init((char *)config_files[i].c_str(), &g_sample.gModels[i].gModel);
         if (s32Ret != 0)
         {
             ALOGE("sample_parse_param_det failed,run joint skip");
@@ -300,7 +290,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            s32Ret = axdl_get_ivps_width_height(g_sample.gModels[i].gModel, config_file, &SAMPLE_IVPS_ALGO_WIDTH[i], &SAMPLE_IVPS_ALGO_HEIGHT[i]);
+            s32Ret = axdl_get_ivps_width_height(g_sample.gModels[i].gModel, (char *)config_files[i].c_str(), &SAMPLE_IVPS_ALGO_WIDTH[i], &SAMPLE_IVPS_ALGO_HEIGHT[i]);
             ALOGI("IVPS AI channel width=%d height=%d", SAMPLE_IVPS_ALGO_WIDTH[i], SAMPLE_IVPS_ALGO_HEIGHT[i]);
             g_sample.gModels[i].bRunJoint = 1;
         }
@@ -325,7 +315,10 @@ int main(int argc, char *argv[])
             }
             pipe1.enable = g_sample.gModels[i].bRunJoint;
             pipe1.pipeid = pipe_count * i + 1;
-            pipe1.m_input_type = pi_vdec_h264;
+            pipe1.m_input_type = pi_vin;
+            pipe1.n_vin_pipe = 0;
+            pipe1.n_vin_chn = 0;
+
             if (g_sample.gModels[i].gModel && g_sample.gModels[i].bRunJoint)
             {
                 switch (axdl_get_color_space(g_sample.gModels[i].gModel))
@@ -350,25 +343,29 @@ int main(int argc, char *argv[])
             pipe1.m_vdec_attr.n_vdec_grp = i;
             pipe1.output_func = ai_inference_func; // 图像输出的回调函数
 
-            pipeline_t &pipe2 = pipelines[0];
+            pipeline_t &pipe0 = pipelines[0];
             {
-                pipeline_ivps_config_t &config2 = pipe2.m_ivps_attr;
-                config2.n_ivps_grp = pipe_count * i + 2; // 重复的会创建失败
-                config2.n_ivps_rotate = 0;               // 旋转90度，现在rtsp流是竖着的画面了
-                config2.n_ivps_fps = s_sample_framerate;
-                config2.n_ivps_width = 1920;
-                config2.n_ivps_height = 1080;
-                config2.n_osd_rgn = 4;
-            }
-            pipe2.enable = 1;
-            pipe2.pipeid = pipe_count * i + 2; // 重复的会创建失败
-            pipe2.m_input_type = pi_vdec_h264;
-            pipe2.m_output_type = po_rtsp_h264;
-            pipe2.n_loog_exit = 0;
+                pipeline_vo_config_t &config_vo = pipe0.m_vo_attr;
+                config_vo.hdmi.n_chn = pipe_init_hdmi.m_vo_attr.hdmi.n_chns[i];
 
-            sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", (int)i); // 重复的会创建失败
-            pipe2.m_venc_attr.n_venc_chn = i;                            // 重复的会创建失败
-            pipe2.m_vdec_attr.n_vdec_grp = i;
+                pipeline_ivps_config_t &config = pipe0.m_ivps_attr;
+                config.n_ivps_grp = pipe_count * i + 2; // 重复的会创建失败
+                config.n_ivps_rotate = 0;               // 旋转90度，现在rtsp流是竖着的画面了
+                config.n_ivps_fps = s_sample_framerate;
+                config.n_ivps_width = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_widths[i];
+                config.n_ivps_height = pipe_init_hdmi.m_vo_attr.hdmi.n_chn_heights[i];
+                config.n_osd_rgn = 4;
+                config.n_fifo_count = 1;
+            }
+            pipe0.enable = 1;
+            pipe0.pipeid = pipe_count * i + 2; // 重复的会创建失败
+            pipe0.m_input_type = pi_vin;
+            pipe0.n_vin_pipe = 0;
+            pipe0.n_vin_chn = 0;
+
+            pipe0.m_output_type = po_vo_hdmi;
+            pipe0.n_loog_exit = 0;
+            pipe0.m_vdec_attr.n_vdec_grp = i;
         }
     }
 
@@ -387,59 +384,24 @@ int main(int argc, char *argv[])
         if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
         {
             g_sample.gModels[i].osd_helper.Start(g_sample.gModels[i].gModel, g_sample.gModels[i].pipes_need_osd);
-            // pthread_create(&g_sample.osd_tid[i], NULL, osd_funcs[i], NULL);
-            // g_sample.osd_target_map[pipelines[1].pipeid] = g_sample.gModels[i].pipes_need_osd[0]->pipeid;
             g_sample.osd_target_map[pipelines[1].pipeid] = &g_sample.gModels[i];
         }
     }
 
+    SAMPLE_VIN_Start();
+    while (!gLoopExit)
     {
-        std::vector<VideoDemux *> video_demuxes;
-        for (size_t i = 0; i < rtsp_urls.size(); i++)
-        {
-            auto &pipelines = vpipelines[i];
-            VideoDemux *demux = new VideoDemux();
-            if (demux->Open(rtsp_urls[i].c_str(), true, _demux_frame_callback, pipelines.data()))
-            {
-                video_demuxes.push_back(demux);
-            }
-        }
-
-        while (!gLoopExit)
-        {
-            usleep(1000 * 1000);
-        }
-        for (size_t i = 0; i < video_demuxes.size(); i++)
-        {
-            VideoDemux *demux = video_demuxes[i];
-            demux->Stop();
-            delete demux;
-        }
-
-        gLoopExit = 1;
-        sleep(1);
-        pipeline_buffer_t end_buf = {0};
-        for (size_t i = 0; i < rtsp_urls.size(); i++)
-        {
-            auto &pipelines = vpipelines[i];
-            user_input(pipelines.data(), 1, &end_buf);
-        }
+        usleep(1000 * 1000);
     }
 
     // 销毁pipeline
     {
         gLoopExit = 1;
-        for (size_t i = 0; i < rtsp_urls.size(); i++)
+        for (size_t i = 0; i < config_files.size(); i++)
         {
             if (g_sample.gModels[i].pipes_need_osd.size() && g_sample.gModels[i].bRunJoint)
             {
                 g_sample.gModels[i].osd_helper.Stop();
-                //            pthread_cancel(g_sample.osd_tid);
-                // s32Ret = pthread_join(g_sample.osd_tid[i], NULL);
-                // if (s32Ret < 0)
-                // {
-                //     ALOGE(" osd_tid exit failed,s32Ret:0x%x\n", s32Ret);
-                // }
             }
         }
 
@@ -453,14 +415,7 @@ int main(int argc, char *argv[])
         }
     }
 
-EXIT_6:
-
-EXIT_5:
-
-EXIT_4:
-
-EXIT_3:
-    for (size_t i = 0; i < rtsp_urls.size(); i++)
+    for (size_t i = 0; i < config_files.size(); i++)
     {
         axdl_deinit(&g_sample.gModels[i].gModel);
     }
@@ -468,6 +423,9 @@ EXIT_3:
 EXIT_2:
 
 EXIT_1:
+    SAMPLE_VIN_Stop();
+    SAMPLE_VIN_Close();
+    SAMPLE_VIN_DeInit();
     COMMON_SYS_DeInit();
     g_sample.Deinit();
 

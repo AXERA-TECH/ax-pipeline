@@ -122,20 +122,13 @@ int ax_runner_ax650::init(const char *model_file)
     m_handle = new ax_joint_runner_ax650_handle_t;
 
     // 1. init engine
-    AX_ENGINE_NPU_ATTR_T npu_attr;
-    memset(&npu_attr, 0, sizeof(npu_attr));
-    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-    auto ret = AX_ENGINE_Init(&npu_attr);
-    if (0 != ret)
-    {
-        return ret;
-    }
+    int ret = 0;
 
     // 2. load model
     auto *file_fp = fopen(model_file, "r");
     if (!file_fp)
     {
-        ALOGE("Read Run-Joint model(%s) file failed.\n", model_file);
+        ALOGE("Read model(%s) file failed.\n", model_file);
         return -1;
     }
     fseek(file_fp, 0, SEEK_END);
@@ -149,6 +142,7 @@ int ax_runner_ax650::init(const char *model_file)
     ret = AX_ENGINE_CreateHandle(&m_handle->handle, mmap_add, model_size);
     if (0 != ret)
     {
+        ALOGE("AX_ENGINE_CreateHandle 0x%x", ret);
         return ret;
     }
     fprintf(stdout, "Engine creating handle is done.\n");
@@ -158,6 +152,7 @@ int ax_runner_ax650::init(const char *model_file)
     ret = AX_ENGINE_CreateContext(m_handle->handle);
     if (0 != ret)
     {
+        ALOGE("AX_ENGINE_CreateContext 0x%x", ret);
         return ret;
     }
     fprintf(stdout, "Engine creating context is done.\n");

@@ -273,7 +273,17 @@ int main(int argc, char *argv[])
     if (0 != s32Ret)
     {
         ALOGE("AX_NPU_SDK_EX_Init_with_attr failed,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_2;
+        return -1;
+    }
+#else
+    AX_ENGINE_NPU_ATTR_T npu_attr;
+    memset(&npu_attr, 0, sizeof(npu_attr));
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+    s32Ret = AX_ENGINE_Init(&npu_attr);
+    if (0 != s32Ret)
+    {
+        ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
+        return -1;
     }
 #endif
 

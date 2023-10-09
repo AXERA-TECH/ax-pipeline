@@ -107,6 +107,8 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo)
     add_subdirectory(examples/sample_demux_ivps_npu_rtsp_hdmi_vo)
     add_subdirectory(examples/sample_demux_ivps_npu_hdmi_vo)
+    add_subdirectory(examples/sample_vin_ivps_npu_hdmi_vo)
+    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
     file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
     install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"

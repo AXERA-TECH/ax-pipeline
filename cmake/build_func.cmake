@@ -18,6 +18,9 @@ function(ax_include_link name input_type)
 
     if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
         target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
+        if(input_type MATCHES "vin")
+            target_link_libraries(${name} PRIVATE ax_proton ax_3a ax_mipi ax_nt_stream ax_nt_ctrl)
+        endif()
     elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
         OR AXERA_TARGET_CHIP MATCHES "ax620"
         OR AXERA_TARGET_CHIP MATCHES "AX620"

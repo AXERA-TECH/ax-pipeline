@@ -20,9 +20,17 @@
 
 #include "../libaxdl/include/c_api.h"
 #include "../libaxdl/include/ax_osd_helper.hpp"
-#include "../common/common_func.h"
-#include "common_pipeline.h"
 
+#ifdef AXERA_TARGET_CHIP_AX620
+#include "../common/common_func.h"
+#elif defined(AXERA_TARGET_CHIP_AX650)
+extern "C"
+{
+#include "../../sample/vin_ivps_venc_rtsp/sample_vin_hal.h"
+}
+#endif
+
+#include "common_pipeline.h"
 #include "../utilities/sample_log.h"
 
 #include "ax_ivps_api.h"
@@ -49,13 +57,17 @@ static struct _g_sample_
 {
     int bRunJoint;
     void *gModels;
+#ifdef AXERA_TARGET_CHIP_AX620
     CAMERA_T gCams[MAX_CAMERAS];
+#endif
     AX_S32 g_isp_force_loop_exit;
     ax_osd_helper osd_helper;
     std::vector<pipeline_t *> pipes_need_osd;
     void Init()
     {
+#ifdef AXERA_TARGET_CHIP_AX620
         memset(gCams, 0, sizeof(gCams));
+#endif
         g_isp_force_loop_exit = 0;
         bRunJoint = 0;
         gModels = nullptr;
@@ -100,7 +112,7 @@ void ai_inference_func(pipeline_buffer_t *buff)
         g_sample.osd_helper.Update(&mResults);
     }
 }
-
+#ifdef AXERA_TARGET_CHIP_AX620
 static void *IspRun(void *args)
 {
     AX_U32 i = (AX_U32)args;
@@ -152,7 +164,7 @@ static AX_S32 SysRun()
     }
     return 0;
 }
-
+#endif
 // 允许外部调用
 extern "C" AX_VOID __sigExit(int iSigNo)
 {
@@ -165,14 +177,14 @@ static AX_VOID PrintHelp(char *testApp)
 {
     printf("Usage:%s -h for help\n\n", testApp);
     printf("\t-p: model config file path\n");
-
+#ifdef AXERA_TARGET_CHIP_AX620
     printf("\t-c: ISP Test Case:\n");
     printf("\t\t0: Single OS04A10\n");
     printf("\t\t1: Single IMX334\n");
     printf("\t\t2: Single GC4653\n");
     printf("\t\t3: Single OS08A20\n");
     printf("\t\t4: Single OS04A10 Online\n");
-
+#endif
     printf("\t-e: SDR/HDR Mode:\n");
     printf("\t\t1: SDR\n");
     printf("\t\t2: HDR 2DOL\n");
@@ -190,10 +202,14 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, i, ch;
     AX_S32 s32Ret = 0;
-    COMMON_SYS_CASE_E eSysCase = SYS_CASE_SINGLE_GC4653;
+
     COMMON_SYS_ARGS_T tCommonArgs = {0};
+    COMMON_SYS_ARGS_T tPrivArgs = {0};
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
+#ifdef AXERA_TARGET_CHIP_AX620
+    COMMON_SYS_CASE_E eSysCase = SYS_CASE_SINGLE_GC4653;
     SAMPLE_SNS_TYPE_E eSnsType = GALAXYCORE_GC4653;
+#endif
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
     char config_file[256];
@@ -209,9 +225,11 @@ int main(int argc, char *argv[])
             strcpy(config_file, optarg);
             break;
         }
+#ifdef AXERA_TARGET_CHIP_AX620
         case 'c':
             eSysCase = (COMMON_SYS_CASE_E)atoi(optarg);
             break;
+#endif
         case 'e':
             eHdrMode = (AX_SNS_HDR_MODE_E)atoi(optarg);
             break;
@@ -236,7 +254,7 @@ int main(int argc, char *argv[])
         PrintHelp(argv[0]);
         exit(0);
     }
-
+#ifdef AXERA_TARGET_CHIP_AX620
     ALOGN("eSysCase=%d,eHdrMode=%d\n", eSysCase, eHdrMode);
 
     s32Ret = COMMON_SET_CAM(g_sample.gCams, eSysCase, eHdrMode, &eSnsType, &tCommonArgs, s_sample_framerate);
@@ -248,7 +266,22 @@ int main(int argc, char *argv[])
 
     SAMPLE_MAJOR_STREAM_WIDTH = g_sample.gCams[0].stChnAttr.tChnAttr[AX_YUV_SOURCE_ID_MAIN].nWidth;
     SAMPLE_MAJOR_STREAM_HEIGHT = g_sample.gCams[0].stChnAttr.tChnAttr[AX_YUV_SOURCE_ID_MAIN].nHeight;
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    SAMPLE_MAJOR_STREAM_WIDTH = 1920;
+    SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
+    /* comm pool */
+    COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20[] = {
+        {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 20}, /* vin nv21/nv21 use */
+    };
+
+    /* priv pool */
+    COMMON_SYS_POOL_CFG_T gtPrivPoolSingleOs08a20[] = {
+        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 25 * 2}, /* vin raw16 use */
+    };
+
+    tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs08a20) / sizeof(gtSysCommPoolSingleOs08a20[0]);
+    tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs08a20;
     /*step 1:sys init*/
     s32Ret = COMMON_SYS_Init(&tCommonArgs);
     if (s32Ret)
@@ -256,6 +289,23 @@ int main(int argc, char *argv[])
         ALOGE("COMMON_SYS_Init failed,s32Ret:0x%x\n", s32Ret);
         return -1;
     }
+
+    /* step 2. VIN Init & Open */
+    tPrivArgs.nPoolCfgCnt = sizeof(gtPrivPoolSingleOs08a20) / sizeof(gtPrivPoolSingleOs08a20[0]);
+    tPrivArgs.pPoolCfg = gtPrivPoolSingleOs08a20;
+    s32Ret = SAMPLE_VIN_Init(SAMPLE_VIN_HAL_CASE_SINGLE_OS08A20, COMMON_VIN_SENSOR, AX_SNS_LINEAR_MODE, AX_TRUE, &tPrivArgs);
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+    s32Ret = SAMPLE_VIN_Open();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Open failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+#endif
 
     /*step 2:npu init*/
 #ifdef AXERA_TARGET_CHIP_AX620
@@ -265,7 +315,17 @@ int main(int argc, char *argv[])
     if (0 != s32Ret)
     {
         ALOGE("AX_NPU_SDK_EX_Init_with_attr failed,s32Ret:0x%x\n", s32Ret);
-        goto EXIT_2;
+        return -1;
+    }
+#else
+    AX_ENGINE_NPU_ATTR_T npu_attr;
+    memset(&npu_attr, 0, sizeof(npu_attr));
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
+    s32Ret = AX_ENGINE_Init(&npu_attr);
+    if (0 != s32Ret)
+    {
+        ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
+        return -1;
     }
 #endif
 
@@ -282,6 +342,7 @@ int main(int argc, char *argv[])
         g_sample.bRunJoint = 1;
     }
 
+#ifdef AXERA_TARGET_CHIP_AX620
     /*step 3:camera init*/
     s32Ret = COMMON_CAM_Init();
     if (0 != s32Ret)
@@ -301,6 +362,7 @@ int main(int argc, char *argv[])
         g_sample.gCams[i].bOpen = AX_TRUE;
         ALOGN("camera %d is open\n", i);
     }
+#endif
 
     pipeline_t pipelines[pipe_count];
     memset(&pipelines[0], 0, sizeof(pipelines));
@@ -317,7 +379,7 @@ int main(int argc, char *argv[])
             config0.n_osd_rgn = 4; // osd rgn 的个数（最多五个），一个rgn可以osd 32个目标，现在用的是自定义的rgba画布，所以指挥占用一个rgn里的一个目标，所以这里只创建一个
         }
         pipe0.enable = 1;
-        pipe0.pipeid = 0x90015;
+        pipe0.pipeid = 0;
         pipe0.m_input_type = pi_vin;
         pipe0.m_output_type = po_rtsp_h264; // 可以创建265，降低带宽压力
         pipe0.n_loog_exit = 0;              // 可以用来控制线程退出（如果有的话）
@@ -340,7 +402,7 @@ int main(int argc, char *argv[])
             config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
         }
         pipe1.enable = 1;
-        pipe1.pipeid = 0x90016;
+        pipe1.pipeid = 1;
         pipe1.m_input_type = pi_vin;
         if (g_sample.gModels && g_sample.bRunJoint)
         {
@@ -378,7 +440,7 @@ int main(int argc, char *argv[])
             config2.n_osd_rgn = 4;
         }
         pipe2.enable = 1;
-        pipe2.pipeid = 0x90017; // 重复的会创建失败
+        pipe2.pipeid = 2; // 重复的会创建失败
         pipe2.m_input_type = pi_vin;
         pipe2.m_output_type = po_rtsp_h264;
         pipe2.n_loog_exit = 0;
@@ -401,13 +463,20 @@ int main(int argc, char *argv[])
             g_sample.osd_helper.Start(g_sample.gModels, g_sample.pipes_need_osd);
         }
     }
-
+#ifdef AXERA_TARGET_CHIP_AX620
     s32Ret = SysRun();
     if (0 != s32Ret)
     {
         ALOGE("SysRun error,s32Ret:0x%x\n", s32Ret);
         goto EXIT_6;
     }
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    SAMPLE_VIN_Start();
+    while (!gLoopExit)
+    {
+        usleep(1000 * 1000);
+    }
+#endif
 
     // 销毁pipeline
     {
@@ -424,19 +493,22 @@ int main(int argc, char *argv[])
     }
 
 EXIT_6:
-
+#ifdef AXERA_TARGET_CHIP_AX620
     for (i = 0; i < tCommonArgs.nCamCnt; i++)
     {
         if (!g_sample.gCams[i].bOpen)
             continue;
         COMMON_CAM_Close(&g_sample.gCams[i]);
     }
-
+    COMMON_CAM_Deinit();
+#elif defined(AXERA_TARGET_CHIP_AX650)
+    SAMPLE_VIN_Stop();
+    SAMPLE_VIN_Close();
+    SAMPLE_VIN_DeInit();
+#endif
 EXIT_3:
 
     axdl_deinit(&g_sample.gModels);
-
-    COMMON_CAM_Deinit();
 
 EXIT_2:
 
