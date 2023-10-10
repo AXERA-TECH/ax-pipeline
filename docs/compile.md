@@ -30,6 +30,7 @@ cd ax-pipeline
 2、下载子模块（主要是 [axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 部分，如果已经单独下载，可直接放到本目录下，并跳过本步骤）
 ```shell
 git submodule update --init
+./download_ax_bsp.sh ax620
 ```
 3、创建 3rdparty，下载opencv
 ```shell
@@ -117,10 +118,15 @@ cd ax-pipeline
 2、子模块（[axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 不适用于AX650，后续可能会开源适用于 AX650 的 BSP，目前 BSP 仅可通过 FAE 获取）
 ```shell
 git submodule update --init
+./download_ax_bsp.sh ax650
 ```
-3、创建 3rdparty，下载opencv(暂时需要用户自己编译对应平台的opencv)
+3、创建 3rdparty，下载opencv
 ```shell
-
+mkdir 3rdparty
+cd 3rdparty
+wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libopencv-4.5.5-aarch64.zip
+unzip libopencv-4.5.5-aarch64.zip
+cd ..
 ```
 4、下载并配置交叉编译工具链（如果已经配置并确定可用，这一部分可以跳过）
 ```shell
@@ -133,7 +139,7 @@ export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
 cd ..
 mkdir build
 cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4 -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
 make $(expr `nproc` - 1)
 make install
 ```
