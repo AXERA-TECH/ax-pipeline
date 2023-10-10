@@ -27,7 +27,7 @@ ax-pipeline 的源码编译目前有两种实现路径：
 git clone https://github.com/AXERA-TECH/ax-pipeline.git
 cd ax-pipeline
 ```
-2、下载子模块（主要是 [axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 部分，如果已经单独下载，可直接放到本目录下，并跳过本步骤）
+2、下载子模块
 ```shell
 git submodule update --init
 ./download_ax_bsp.sh ax620
@@ -115,7 +115,7 @@ install/
 git clone https://github.com/AXERA-TECH/ax-pipeline.git
 cd ax-pipeline
 ```
-2、子模块（[axpi_bsp_sdk](https://github.com/sipeed/axpi_bsp_sdk) 不适用于AX650，后续可能会开源适用于 AX650 的 BSP，目前 BSP 仅可通过 FAE 获取）
+2、子模块
 ```shell
 git submodule update --init
 ./download_ax_bsp.sh ax650
