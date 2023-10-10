@@ -96,6 +96,7 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     if(NOT OpenCV_DIR)
         set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
     endif()
+    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
     find_package(OpenCV REQUIRED)
     
     add_subdirectory(examples/common/common_pipeline)
@@ -131,6 +132,7 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     if(NOT OpenCV_DIR)
         set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
     endif()
+    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
     find_package(OpenCV REQUIRED)
 
     add_subdirectory(examples/common/common_pipeline)

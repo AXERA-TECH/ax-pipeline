@@ -1,6 +1,3 @@
-[submodule "axpi_bsp_sdk"]
-	path = axpi_bsp_sdk
-	url = https://github.com/sipeed/axpi_bsp_sdk.git
 [submodule "third-party/libv4l2cpp"]
 	path = third-party/libv4l2cpp
 	url = https://github.com/mpromonet/libv4l2cpp.git

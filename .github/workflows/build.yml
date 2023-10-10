@@ -28,19 +28,41 @@ jobs:
       - name: prepare 3rdparty
         run: |
           git submodule update --init
-          mkdir -p ./3rdparty
-          wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
-          unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip -d ./3rdparty
 
       # Runs a set of commands using the runners shell
-      - name: build
+      - name: build for ax620
         run: |
           mkdir build
           cd build
+
+          ../download_ax_bsp.sh ax620
+
+          wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+          unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
+
           wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
           tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
           export PATH=$PATH:gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
           arm-linux-gnueabihf-gcc -v
-          cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
+
+          cmake -DAXERA_TARGET_CHIP=AX620 -DBSP_MSP_DIR=$PWD/axpi_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/opencv-arm-linux/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
+          make -j8
+          make install
+      - name: build for ax650
+        run: |
+          mkdir build_650
+          cd build_650
+
+          ../download_ax_bsp.sh ax650
+
+          wget https://github.com/ZHEQIUSHUI/SAM-ONNX-AX650-CPP/releases/download/ax_models/libopencv-4.6-aarch64-none.zip
+          unzip libopencv-4.6-aarch64-none.zip
+
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+          tar -xf gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+          export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
+          aarch64-none-linux-gnu-gcc -v
+
+          cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/libopencv-4.6-aarch64-none/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=OFF ..
           make -j8
           make install
