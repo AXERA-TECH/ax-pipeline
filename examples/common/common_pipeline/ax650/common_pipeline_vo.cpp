@@ -406,9 +406,9 @@ int _create_vo_hdmi(pipeline_t *pipe)
 
         /* if layer bind to dev, enSynMode is ignored */
         stLayerAttr.enSyncMode = AX_VO_LAYER_SYNC_NORMAL;
-        // stLayerAttr.uFrmRate.nFrmRateCtrl = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nHz;
+        // stLayerAttr.f32FrmRate = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nHz;
         stLayerAttr.u32FifoDepth = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].nPoolCnt;
-        stLayerAttr.u32ChnNr = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size();
+        // stLayerAttr.u32ChnNr = gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size();
         // stLayerAttr.u32BkClr = m_stAttr.nBgClr;
         stLayerAttr.u32PrimaryChnId = 0;
         stLayerAttr.enWBMode = AX_VO_LAYER_WB_POOL;
@@ -427,7 +427,7 @@ int _create_vo_hdmi(pipeline_t *pipe)
         {
             ALOGI("layer %d: [(%d, %d) %dx%d], dispatch mode %d, layer depth %d, ChnNr %d, part mode %d, tolerance %d",
                   gHdmiAttr[pipe->m_vo_attr.hdmi.portid].voLayer, stLayerAttr.stDispRect.u32X, stLayerAttr.stDispRect.u32Y, stLayerAttr.stDispRect.u32Width,
-                  stLayerAttr.stDispRect.u32Height, stLayerAttr.u32DispatchMode, stLayerAttr.u32FifoDepth, stLayerAttr.u32ChnNr,
+                  stLayerAttr.stDispRect.u32Height, stLayerAttr.u32DispatchMode, stLayerAttr.u32FifoDepth, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size(),
                   stLayerAttr.enPartMode, stLayerAttr.u32Toleration);
         }
 
@@ -460,7 +460,7 @@ int _create_vo_hdmi(pipeline_t *pipe)
                 AX_VO_DisableChn(layer, j);
             }
         };
-        for (VO_CHN voChn = 0; voChn < stLayerAttr.u32ChnNr; ++voChn)
+        for (VO_CHN voChn = 0; voChn < gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns.size(); ++voChn)
         {
             ALOGI("enable voChn %d: [(%d, %d) %dx%d], depth %d prior %d", voChn, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32X,
                   gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Y, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Width, gHdmiAttr[pipe->m_vo_attr.hdmi.portid].m_arrChns[voChn].stRect.u32Height,
