@@ -80,7 +80,7 @@ int ax_model_yolov5_seg::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
                             (float *)pOutputsInfo[1].pVirAddr,
                             (float *)pOutputsInfo[2].pVirAddr};
     int seg_idx = 3;
-#elif defined(AXERA_TARGET_CHIP_AX650)
+#elif defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
     float *output_ptr[3] = {(float *)pOutputsInfo[0].pVirAddr,
                             (float *)pOutputsInfo[2].pVirAddr,
                             (float *)pOutputsInfo[3].pVirAddr};

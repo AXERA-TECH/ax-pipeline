@@ -24,6 +24,8 @@ protected:
     RUNNER_TYPE_E m_runner_type = RUNNER_AX620;
 #elif defined(AXERA_TARGET_CHIP_AX650)
     RUNNER_TYPE_E m_runner_type = RUNNER_AX650;
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    RUNNER_TYPE_E m_runner_type = RUNNER_AX620E;
 #endif
     // detection
     float PROB_THRESHOLD = 0.4f;

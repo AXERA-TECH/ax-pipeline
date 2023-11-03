@@ -69,6 +69,7 @@ extern "C"
 
         RUNNER_AX620,
         RUNNER_AX650,
+        RUNNER_AX620E,
 
         RUNNER_END
     } RUNNER_TYPE_E;

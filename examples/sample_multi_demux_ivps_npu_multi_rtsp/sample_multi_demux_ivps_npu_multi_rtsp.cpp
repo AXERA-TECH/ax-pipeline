@@ -46,6 +46,8 @@
 #define rtsp_max_count 2
 #elif defined(AXERA_TARGET_CHIP_AX650)
 #define rtsp_max_count 4
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+#define rtsp_max_count 2
 #endif
 
 AX_S32 s_sample_framerate = 25;
@@ -250,7 +252,7 @@ int main(int argc, char *argv[])
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 20},
     };
-#elif defined(AXERA_TARGET_CHIP_AX650)
+#elif defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, uint32_t(rtsp_urls.size() * 15)},
     };
@@ -276,10 +278,14 @@ int main(int argc, char *argv[])
         return -1;
     }
 #else
+#ifdef AXERA_TARGET_CHIP_AX650
     AX_ENGINE_NPU_ATTR_T npu_attr;
     memset(&npu_attr, 0, sizeof(npu_attr));
     npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    s32Ret = AX_ENGINE_Init();
+#endif
     if (0 != s32Ret)
     {
         ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
@@ -367,7 +373,7 @@ int main(int argc, char *argv[])
             pipe2.n_loog_exit = 0;
 
             sprintf(pipe2.m_venc_attr.end_point, "%s%d", "axstream", (int)i); // 重复的会创建失败
-            pipe2.m_venc_attr.n_venc_chn = i;                            // 重复的会创建失败
+            pipe2.m_venc_attr.n_venc_chn = i;                                 // 重复的会创建失败
             pipe2.m_vdec_attr.n_vdec_grp = i;
         }
     }

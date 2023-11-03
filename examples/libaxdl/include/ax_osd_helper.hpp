@@ -163,7 +163,7 @@ private:
             auto &canvas = pipes_osd_canvas[pipes_need_osd[i]->pipeid];
             free(canvas.data);
         }
-#elif defined(AXERA_TARGET_CHIP_AX650)
+#elif defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
 
         std::map<int, axdl_canvas_t> pipes_osd_canvas;
         std::map<int, AX_IVPS_RGN_DISP_GROUP_T> pipes_osd_struct;

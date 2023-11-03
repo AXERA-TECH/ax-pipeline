@@ -65,7 +65,7 @@ static struct _g_sample_
     void Deinit()
     {
         pipes_need_osd.clear();
-        
+
         ALOGN("g_sample Deinit\n");
     }
 } g_sample;
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_YUV420_SEMIPLANAR, 10},
     };
-#elif defined(AXERA_TARGET_CHIP_AX650)
+#elif defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
     COMMON_SYS_POOL_CFG_T poolcfg[] = {
         {1920, 1088, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 20},
     };
@@ -224,10 +224,14 @@ int main(int argc, char *argv[])
         return -1;
     }
 #else
+#ifdef AXERA_TARGET_CHIP_AX650
     AX_ENGINE_NPU_ATTR_T npu_attr;
     memset(&npu_attr, 0, sizeof(npu_attr));
     npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    s32Ret = AX_ENGINE_Init();
+#endif
     if (0 != s32Ret)
     {
         ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
@@ -322,7 +326,7 @@ int main(int argc, char *argv[])
 
         if (g_sample.pipes_need_osd.size() && g_sample.bRunJoint)
         {
-            g_sample.osd_helper.Start(g_sample.gModels,g_sample.pipes_need_osd);
+            g_sample.osd_helper.Start(g_sample.gModels, g_sample.pipes_need_osd);
         }
     }
 

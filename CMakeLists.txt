@@ -30,7 +30,7 @@ if(NOT BSP_MSP_DIR)
 endif()
 message(STATUS "BSP_MSP_DIR = ${BSP_MSP_DIR}")
 
-option(BUILD_ON_BOARD "build in axpi" OFF)
+# option(BUILD_ON_BOARD "build in axpi" OFF)
 option(SIPY_BUILD "build *.so for sipeed python package" OFF)
 if(SIPY_BUILD)
     set(SIPY_SOVERSION 1)
@@ -38,38 +38,38 @@ if(SIPY_BUILD)
 endif()
 
 # check toolchain about
-if(CMAKE_TOOLCHAIN_FILE)
-    set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
+# if(CMAKE_TOOLCHAIN_FILE)
+#     set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
 
-    # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
-    get_filename_component(CMAKE_TOOLCHAIN_FILE_NAME ${CMAKE_TOOLCHAIN_FILE} NAME)
-    find_file(CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE_NAME} PATHS ${CMAKE_SOURCE_DIR} NO_DEFAULT_PATH)
-else()
-    if(NOT BUILD_ON_BOARD)
-        if(AXERA_TARGET_CHIP MATCHES "ax650" 
-            OR AXERA_TARGET_CHIP MATCHES "AX650"
-            )
-            set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-none-linux-gnu.toolchain.cmake)
-        elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
-            OR AXERA_TARGET_CHIP MATCHES "ax620"
-            OR AXERA_TARGET_CHIP MATCHES "AX620"
-            OR AXERA_TARGET_CHIP MATCHES "AX620A"
-            OR AXERA_TARGET_CHIP MATCHES "AX620a"
-            )
-            set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/arm-linux-gnueabihf.toolchain.cmake)
-        elseif(AXERA_TARGET_CHIP MATCHES "ax630a"
-            OR AXERA_TARGET_CHIP MATCHES "ax630"
-            OR AXERA_TARGET_CHIP MATCHES "AX630"
-            OR AXERA_TARGET_CHIP MATCHES "AX630A"
-            OR AXERA_TARGET_CHIP MATCHES "AX630a"
-            )
-            set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-linux-gnu.toolchain.cmake)
-        endif()
-        message(STATUS "build cross platform")
-    else()
-        message(STATUS "build on board")
-    endif()
-endif()
+#     # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
+#     get_filename_component(CMAKE_TOOLCHAIN_FILE_NAME ${CMAKE_TOOLCHAIN_FILE} NAME)
+#     find_file(CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE_NAME} PATHS ${CMAKE_SOURCE_DIR} NO_DEFAULT_PATH)
+# else()
+#     if(NOT BUILD_ON_BOARD)
+#         if(AXERA_TARGET_CHIP MATCHES "ax650" 
+#             OR AXERA_TARGET_CHIP MATCHES "AX650"
+#             )
+#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-none-linux-gnu.toolchain.cmake)
+#         elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
+#             OR AXERA_TARGET_CHIP MATCHES "ax620"
+#             OR AXERA_TARGET_CHIP MATCHES "AX620"
+#             OR AXERA_TARGET_CHIP MATCHES "AX620A"
+#             OR AXERA_TARGET_CHIP MATCHES "AX620a"
+#             )
+#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/arm-linux-gnueabihf.toolchain.cmake)
+#         elseif(AXERA_TARGET_CHIP MATCHES "ax630a"
+#             OR AXERA_TARGET_CHIP MATCHES "ax630"
+#             OR AXERA_TARGET_CHIP MATCHES "AX630"
+#             OR AXERA_TARGET_CHIP MATCHES "AX630A"
+#             OR AXERA_TARGET_CHIP MATCHES "AX630a"
+#             )
+#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-linux-gnu.toolchain.cmake)
+#         endif()
+#         message(STATUS "build cross platform")
+#     else()
+#         message(STATUS "build on board")
+#     endif()
+# endif()
 message(STATUS "CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
 
 project(ax_pipeline)
@@ -88,6 +88,7 @@ include(cmake/build_func.cmake)
 
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_compile_options(-DAXERA_TARGET_CHIP_AX650)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX620E)
     add_compile_options(-UAXERA_TARGET_CHIP_AX620)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv8.2-a")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv8.2-a")
@@ -102,7 +103,6 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_subdirectory(examples/common/common_pipeline)
     add_subdirectory(examples/libaxdl)
     add_subdirectory(examples/sample_demux_ivps_npu_rtsp)
-    # add_subdirectory(examples/sample_mp4_ivps_joint_rtsp)
     add_subdirectory(examples/sample_multi_demux_ivps_npu_hdmi_vo)
     add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
     add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo)
@@ -112,9 +112,34 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
     file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
     install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
+elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
+    OR AXERA_TARGET_CHIP MATCHES "AX620E"
+    OR AXERA_TARGET_CHIP MATCHES "AX620e"
+    OR AXERA_TARGET_CHIP MATCHES "ax630e"
+    OR AXERA_TARGET_CHIP MATCHES "ax630E"
+    )
+    add_compile_options(-DAXERA_TARGET_CHIP_AX620E)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX650)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX620)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv8.2-a")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv8.2-a")
+
+    # opencv
+    if(NOT OpenCV_DIR)
+        set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
+    endif()
+    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
+    find_package(OpenCV REQUIRED)
+    
+    add_subdirectory(examples/common/common_pipeline)
+    add_subdirectory(examples/libaxdl)
+    add_subdirectory(examples/sample_demux_ivps_npu_rtsp)
+    add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
+    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
+    file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
+    install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
+
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
-    OR AXERA_TARGET_CHIP MATCHES "ax620"
-    OR AXERA_TARGET_CHIP MATCHES "AX620"
     OR AXERA_TARGET_CHIP MATCHES "AX620A"
     OR AXERA_TARGET_CHIP MATCHES "AX620a"
     OR AXERA_TARGET_CHIP MATCHES "ax630a"
@@ -124,6 +149,7 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "AX630a"
     )
     add_compile_options(-DAXERA_TARGET_CHIP_AX620)
+    add_compile_options(-UAXERA_TARGET_CHIP_AX620E)
     add_compile_options(-UAXERA_TARGET_CHIP_AX650)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")

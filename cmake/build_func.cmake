@@ -21,6 +21,16 @@ function(ax_include_link name input_type)
         if(input_type MATCHES "vin")
             target_link_libraries(${name} PRIVATE ax_proton ax_3a ax_mipi ax_nt_stream ax_nt_ctrl)
         endif()
+    elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
+        OR AXERA_TARGET_CHIP MATCHES "AX620E"
+        OR AXERA_TARGET_CHIP MATCHES "AX620e"
+        OR AXERA_TARGET_CHIP MATCHES "ax630e"
+        OR AXERA_TARGET_CHIP MATCHES "ax630E"
+        )
+        target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
+        if(input_type MATCHES "vin")
+            target_link_libraries(${name} PRIVATE ax_proton ax_ae ax_af ax_awb ax_mipi ax_nt_stream ax_nt_ctrl)
+        endif()
     elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
         OR AXERA_TARGET_CHIP MATCHES "ax620"
         OR AXERA_TARGET_CHIP MATCHES "AX620"

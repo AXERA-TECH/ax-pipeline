@@ -21,9 +21,8 @@
 #include "../libaxdl/include/c_api.h"
 #include "../libaxdl/include/ax_osd_helper.hpp"
 
-#ifdef AXERA_TARGET_CHIP_AX620
 #include "../common/common_func.h"
-#elif defined(AXERA_TARGET_CHIP_AX650)
+#ifdef AXERA_TARGET_CHIP_AX650
 extern "C"
 {
 #include "../../sample/vin_ivps_venc_rtsp/sample_vin_hal.h"
@@ -59,7 +58,10 @@ static struct _g_sample_
     void *gModels;
 #ifdef AXERA_TARGET_CHIP_AX620
     CAMERA_T gCams[MAX_CAMERAS];
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+
 #endif
+
     AX_S32 g_isp_force_loop_exit;
     ax_osd_helper osd_helper;
     std::vector<pipeline_t *> pipes_need_osd;
@@ -67,6 +69,8 @@ static struct _g_sample_
     {
 #ifdef AXERA_TARGET_CHIP_AX620
         memset(gCams, 0, sizeof(gCams));
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+
 #endif
         g_isp_force_loop_exit = 0;
         bRunJoint = 0;
@@ -305,6 +309,24 @@ int main(int argc, char *argv[])
         ALOGE("SAMPLE_VIN_Open failed, ret:0x%x", s32Ret);
         return -1;
     }
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    SAMPLE_MAJOR_STREAM_WIDTH = 1920;
+    SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
+
+    s32Ret = SAMPLE_VIN_Init(SAMPLE_VIN_SINGLE_OS04A10);
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+
+    s32Ret = SAMPLE_VIN_Open();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Open failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+
 #endif
 
     /*step 2:npu init*/
@@ -318,10 +340,14 @@ int main(int argc, char *argv[])
         return -1;
     }
 #else
+#ifdef AXERA_TARGET_CHIP_AX650
     AX_ENGINE_NPU_ATTR_T npu_attr;
     memset(&npu_attr, 0, sizeof(npu_attr));
-    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    s32Ret = AX_ENGINE_Init();
+#endif
     if (0 != s32Ret)
     {
         ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
@@ -362,6 +388,8 @@ int main(int argc, char *argv[])
         g_sample.gCams[i].bOpen = AX_TRUE;
         ALOGN("camera %d is open\n", i);
     }
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+
 #endif
 
     pipeline_t pipelines[pipe_count];
@@ -471,7 +499,23 @@ int main(int argc, char *argv[])
         goto EXIT_6;
     }
 #elif defined(AXERA_TARGET_CHIP_AX650)
-    SAMPLE_VIN_Start();
+    s32Ret = SAMPLE_VIN_Start();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Start failed, ret:0x%x", s32Ret);
+        return -1;
+    }
+    while (!gLoopExit)
+    {
+        usleep(1000 * 1000);
+    }
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    s32Ret = SAMPLE_VIN_Start();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Start failed, ret:0x%x", s32Ret);
+        return -1;
+    }
     while (!gLoopExit)
     {
         usleep(1000 * 1000);
@@ -505,6 +549,8 @@ EXIT_6:
     SAMPLE_VIN_Stop();
     SAMPLE_VIN_Close();
     SAMPLE_VIN_DeInit();
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    SAMPLE_VIN_Deinit();
 #endif
 EXIT_3:
 
