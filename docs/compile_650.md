@@ -1,13 +1,13 @@
 # 源码编译（AX650N）
 
-**注意：由于不可抗拒的原因，请务必保证 ax-pipeline、ax650n_bsp_sdk、board_bsp 三者版本一致（例如，当前 爱芯派Pro 的 BSP 版本为 1.40），否则将出现各种意想不到的异常问题:（**
+**注意：由于不可抗拒的原因，请务必保证 ax-pipeline、ax650n_bsp_sdk、board_bsp 三者版本一致（例如，当前 爱芯派Pro 的 BSP 版本为 1.45），否则将出现各种意想不到的异常问题:（**
 
 ax-samples 的源码编译目前有两种实现路径：
 
 - **本地编译**：由于开发板集成了完整的Linux系统，可以预装必要的 gcc、cmake 等开发环境，因此可以在开发板上直接完成源码编译；
 - **交叉编译**：在 x86 PC 的常规开发环境中，通过对应的交叉编译工具链完成对源码的编译。
 
-## 1 本地编译
+## 1 本地编译(WIP)
 
 ### 1.1 已支持硬件板卡
 
@@ -35,11 +35,9 @@ cd ax-pipeline
 
 ```shell
 git submodule update --init
-./download_ax_bsp.sh ax650
-cd ax650n_bsp_sdk
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
-mkdir third-party
-unzip drm.zip -d third-party
+......
+(TODO)
+......
 cd ..
 ```
 
@@ -49,7 +47,7 @@ cd ..
 cd ..
 mkdir build
 cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=/soc/ -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
 make $(expr `nproc` - 1)
 make install
 ```
