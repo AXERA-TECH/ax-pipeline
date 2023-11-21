@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
 #ifdef AXERA_TARGET_CHIP_AX650
     AX_ENGINE_NPU_ATTR_T npu_attr;
     memset(&npu_attr, 0, sizeof(npu_attr));
-    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
 #elif defined(AXERA_TARGET_CHIP_AX620E)
     s32Ret = AX_ENGINE_Init();

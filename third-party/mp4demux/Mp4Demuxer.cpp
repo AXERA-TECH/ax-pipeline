@@ -3,12 +3,13 @@
 #define ENABLE_AUDIO 0
 #include "minimp4/minimp4.h"
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "stdint.h"
-#include "thread"
-#include "vector"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <thread>
+#include <vector>
 #include <string>
+#include <memory>
 
 typedef struct
 {
