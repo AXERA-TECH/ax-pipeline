@@ -24,6 +24,8 @@ std::map<std::string, int> ModelTypeTable = {
 #include "ax_model_multi_level_model.hpp"
 #include "ax_model_ml_sub.hpp"
 
+#include "ax_model_custom.hpp"
+
 #include "ax_model_runner_ax620.hpp"
 #include "ax_model_runner_ax650.hpp"
 #include "ax_model_base.hpp"

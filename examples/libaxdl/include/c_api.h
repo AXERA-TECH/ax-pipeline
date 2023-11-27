@@ -60,6 +60,9 @@ extern "C"
         MT_MLM_FACE_RECOGNITION,
         MT_MLM_VEHICLE_LICENSE_RECOGNITION,
 
+
+        MT_CUSTOM_MODEL = 0x50000,
+
         MT_END,
     } MODEL_TYPE_E;
 
