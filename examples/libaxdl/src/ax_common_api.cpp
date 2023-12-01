@@ -327,6 +327,28 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
     float _m[6], _m_inv[6];
     get_affine_transform(_tmp, target, 5, _m);
     invert_affine_transform(_m, _m_inv);
+
+#if 1
+    dst->eDtype = src->eDtype;
+    if (dst->eDtype == axdl_color_space_rgb || dst->eDtype == axdl_color_space_bgr)
+    {
+        dst->nSize = 112 * 112 * 3;
+
+        warpaffine_bilinear_c3((const unsigned char *)src->pVir, src->nWidth, src->nHeight, (unsigned char *)dst->pVir, dst->nWidth, dst->nHeight, _m_inv, -233, 0);
+    }
+    // else if (dst->eDtype == axdl_color_space_nv12 || dst->eDtype == axdl_color_space_nv21)
+    // {
+    //     dst->nSize = 112 * 112 * 1.5;
+
+    //      warpaffine_bilinear_yuv420sp((const unsigned char *)src->pVir, src->nWidth, src->nHeight, (const unsigned char *)dst->pVir, dst->nWidth, dst->nHeight, _m, 0, 0);
+    // }
+    else
+    {
+        ALOGE("just only support BGR/RGB format");
+    }
+    return 0;
+
+#else
     float mat3x3[9] = {
         _m_inv[0], _m_inv[1], _m_inv[2],
         _m_inv[3], _m_inv[4], _m_inv[5],
@@ -346,6 +368,7 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
         ALOGE("just only support BGR/RGB/NV12 format");
     }
     return ax_imgproc_warp(src, dst, &mat3x3[0], 128);
+#endif
 }
 #elif defined(AXERA_TARGET_CHIP_AX620E)
 void cvt(axdl_image_t *src, AX_VIDEO_FRAME_T *dst)

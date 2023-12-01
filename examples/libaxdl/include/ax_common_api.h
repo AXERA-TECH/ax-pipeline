@@ -95,6 +95,7 @@ private:
             return -1;
             break;
         }
+#ifdef AXERA_TARGET_CHIP_AX620
         if (box)
         {
             if (make_broder)
@@ -117,6 +118,16 @@ private:
                 return ax_imgproc_crop_resize(image, target_image, box);
             }
         }
+#else
+        if (make_broder)
+        {
+            return ax_imgproc_crop_resize_keep_ratio(image, target_image, box);
+        }
+        else
+        {
+            return ax_imgproc_crop_resize(image, target_image, box);
+        }
+#endif
     }
 
     int csc(axdl_color_space_e src_color, axdl_color_space_e dst_color)
@@ -297,6 +308,11 @@ public:
         default:
             return nullptr;
         }
+    }
+
+    axdl_image_t *get()
+    {
+        return get(target_color);
     }
 };
 

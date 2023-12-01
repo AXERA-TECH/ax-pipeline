@@ -1,0 +1,26 @@
+{
+    "MODEL_TYPE": "MT_MLM_FACE_RECOGNITION",
+    "SAMPLE_IVPS_ALGO_WIDTH": 960,
+    "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "MAX_SUB_INFER_COUNT" : 2,
+    "MODEL_MINOR": {
+        "MODEL_PATH": "./models/w600k_mbf.axmodel",
+        "FACE_RECOGNITION_THRESHOLD": 0.4,
+        "FACE_DATABASE": {
+            "liming": "faces/liming.jpg",
+            "songyi": "faces/songyi.jpeg",
+            "ikun": "faces/ikun.jpg"
+        }
+    },
+    "MODEL_MAJOR": {
+        "MODEL_TYPE": "MT_DET_SCRFD",
+        "MODEL_PATH": "./models/scrfd_500m_bnkps_shape640x640.axmodel",
+        "STRIDES": [8, 16, 32],
+        "CLASS_NAMES": [
+            "face"
+        ],
+        "CLASS_NUM": 1,
+        "NMS_THRESHOLD": 0.45,
+        "PROB_THRESHOLD": 0.4
+    }
+}

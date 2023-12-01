@@ -38,38 +38,6 @@ if(SIPY_BUILD)
 endif()
 
 # check toolchain about
-# if(CMAKE_TOOLCHAIN_FILE)
-#     set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
-
-#     # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
-#     get_filename_component(CMAKE_TOOLCHAIN_FILE_NAME ${CMAKE_TOOLCHAIN_FILE} NAME)
-#     find_file(CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE_NAME} PATHS ${CMAKE_SOURCE_DIR} NO_DEFAULT_PATH)
-# else()
-#     if(NOT BUILD_ON_BOARD)
-#         if(AXERA_TARGET_CHIP MATCHES "ax650" 
-#             OR AXERA_TARGET_CHIP MATCHES "AX650"
-#             )
-#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-none-linux-gnu.toolchain.cmake)
-#         elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
-#             OR AXERA_TARGET_CHIP MATCHES "ax620"
-#             OR AXERA_TARGET_CHIP MATCHES "AX620"
-#             OR AXERA_TARGET_CHIP MATCHES "AX620A"
-#             OR AXERA_TARGET_CHIP MATCHES "AX620a"
-#             )
-#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/arm-linux-gnueabihf.toolchain.cmake)
-#         elseif(AXERA_TARGET_CHIP MATCHES "ax630a"
-#             OR AXERA_TARGET_CHIP MATCHES "ax630"
-#             OR AXERA_TARGET_CHIP MATCHES "AX630"
-#             OR AXERA_TARGET_CHIP MATCHES "AX630A"
-#             OR AXERA_TARGET_CHIP MATCHES "AX630a"
-#             )
-#             set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchains/aarch64-linux-gnu.toolchain.cmake)
-#         endif()
-#         message(STATUS "build cross platform")
-#     else()
-#         message(STATUS "build on board")
-#     endif()
-# endif()
 message(STATUS "CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
 
 project(ax_pipeline)
@@ -115,8 +83,8 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
 elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
     OR AXERA_TARGET_CHIP MATCHES "AX620E"
     OR AXERA_TARGET_CHIP MATCHES "AX620e"
-    OR AXERA_TARGET_CHIP MATCHES "ax630e"
-    OR AXERA_TARGET_CHIP MATCHES "ax630E"
+    OR AXERA_TARGET_CHIP MATCHES "ax630c"
+    OR AXERA_TARGET_CHIP MATCHES "ax630C"
     )
     add_compile_options(-DAXERA_TARGET_CHIP_AX620E)
     add_compile_options(-UAXERA_TARGET_CHIP_AX650)

@@ -108,7 +108,7 @@ int ax_model_pose_hrnet_animal_sub::post_process(axdl_image_t *pstFrame, axdl_bb
         results->mObjects[cur_idx].landmark[i].x = ai_point_result.keypoints[i].x / get_algo_width() * (HumObj.bbox.w + 2 * offset_w) + HumObj.bbox.x - offset_w;
         results->mObjects[cur_idx].landmark[i].y = ai_point_result.keypoints[i].y / get_algo_height() * (HumObj.bbox.h + 2 * offset_h) + HumObj.bbox.y - offset_h;
     }
-    
+
     return 0;
 }
 
@@ -219,6 +219,14 @@ int ax_model_face_feat_extactor_sub::preprocess(axdl_image_t *pstFrame, axdl_bbo
     }
     axdl_object_t &obj = results->mObjects[cur_idx];
     ax_imgproc_align_face(&obj, pstFrame, &dstFrame);
+#if 0
+    static int cnt = 0;
+    if (cnt < 10)
+    {
+        cv::Mat face(dstFrame.nHeight, dstFrame.nWidth, CV_8UC3, dstFrame.pVir);
+        cv::imwrite("face_" + std::to_string(cnt++) + ".jpg", face);
+    }
+#endif
     return 0;
 }
 

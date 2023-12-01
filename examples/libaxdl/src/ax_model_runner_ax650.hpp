@@ -1,5 +1,6 @@
 #pragma once
 #include "ax_model_runner.hpp"
+#include "ax_common_api.h"
 #include "utilities/object_register.hpp"
 
 #ifdef AXERA_TARGET_CHIP_AX650
@@ -8,6 +9,7 @@ class ax_runner_ax650 : public ax_runner_base
 protected:
     struct ax_joint_runner_ax650_handle_t *m_handle = nullptr;
     std::vector<ax_runner_tensor_t> minput_tensors;
+    ax_imgproc_t imgproc; 
 
 public:
     int init(const char *model_file) override;

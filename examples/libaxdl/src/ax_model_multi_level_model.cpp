@@ -314,6 +314,7 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
                 ALOGE("image %s cannot open,name %s register failed", faceid.path.c_str(), faceid.name.c_str());
                 continue;
             }
+            cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
             axdl_image_t npu_image = {0};
             npu_image.eDtype = axdl_color_space_rgb;
             npu_image.nHeight = image.rows;
@@ -381,24 +382,23 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
                 max_score = sim;
             }
         }
-        // ALOGI("%f", max_score);
 
         if (maxidx >= 0)
         {
+            ALOGI("%s %f", face_register_ids[maxidx].name.data(), max_score);
             if (max_score >= FACE_RECOGNITION_THRESHOLD)
             {
-                memset(results->mObjects[i].objname, 0, SAMPLE_OBJ_NAME_MAX_LEN);
-                int len = MIN(SAMPLE_OBJ_NAME_MAX_LEN - 1, face_register_ids[maxidx].name.size());
-                memcpy(&results->mObjects[i].objname[0], face_register_ids[maxidx].name.data(), len);
+                sprintf(results->mObjects[i].objname, "%s %0.2f", face_register_ids[maxidx].name.c_str(), max_score);
             }
             else
             {
-                sprintf(results->mObjects[i].objname, "unknown");
+                sprintf(results->mObjects[i].objname, "%d %0.2f", maxidx, max_score);
             }
         }
         else
         {
-            sprintf(results->mObjects[i].objname, "unknown");
+            sprintf(results->mObjects[i].objname, "%d %0.2f", maxidx, max_score);
+            // sprintf(results->mObjects[i].objname, "unknown");
         }
     }
 

@@ -188,16 +188,19 @@ int ax_runner_ax650::init(const char *model_file)
     case AX_ENGINE_CS_NV12:
         m_handle->algo_colorformat = (int)AX_FORMAT_YUV420_SEMIPLANAR;
         m_handle->algo_height = m_handle->io_info->pInputs[0].pShape[1] / 1.5;
+        imgproc.init(m_handle->algo_width, m_handle->algo_height, true, axdl_color_space_nv12);
         ALOGI("NV12 MODEL");
         break;
     case AX_ENGINE_CS_RGB:
         m_handle->algo_colorformat = (int)AX_FORMAT_RGB888;
         m_handle->algo_height = m_handle->io_info->pInputs[0].pShape[1];
+        imgproc.init(m_handle->algo_width, m_handle->algo_height, true, axdl_color_space_rgb);
         ALOGI("RGB MODEL");
         break;
     case AX_ENGINE_CS_BGR:
         m_handle->algo_colorformat = (int)AX_FORMAT_BGR888;
         m_handle->algo_height = m_handle->io_info->pInputs[0].pShape[1];
+        imgproc.init(m_handle->algo_width, m_handle->algo_height, true, axdl_color_space_bgr);
         ALOGI("BGR MODEL");
         break;
     default:
@@ -270,17 +273,19 @@ axdl_color_space_e ax_runner_ax650::get_color_space()
 
 int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
 {
+    if (imgproc.process(pstFrame, (axdl_bbox_t *)crop_resize_box) != 0)
+    {
+        ALOGE("image process failed");
+        return -1;
+    }
     unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
-    unsigned char *src = (unsigned char *)pstFrame->pVir;
+    unsigned char *src = (unsigned char *)imgproc.get()->pVir;
 
     switch (m_handle->algo_colorformat)
     {
     case AX_FORMAT_RGB888:
     case AX_FORMAT_BGR888:
-        for (size_t i = 0; i < pstFrame->nHeight; i++)
-        {
-            memcpy(dst + i * pstFrame->nWidth * 3, src + i * pstFrame->tStride_W * 3, pstFrame->nWidth * 3);
-        }
+        memcpy(dst, src, minput_tensors[0].nSize);
         break;
     case AX_FORMAT_YUV420_SEMIPLANAR:
     case AX_FORMAT_YUV420_SEMIPLANAR_VU:
