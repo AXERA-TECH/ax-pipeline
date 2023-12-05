@@ -1353,85 +1353,93 @@ int ax_model_yolov8_pose_native::post_process(axdl_image_t *pstFrame, axdl_bbox_
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
 
-    if (!grids.size())
+    const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
+    for (int i = 0; i < 3; ++i)
     {
-        for (size_t i = 0; i < 3; i++)
-        {
-            int32_t stride = (1 << i) * 8;
-            int feat_w = get_algo_width() / stride;
-            int feat_h = get_algo_height() / stride;
-            for (int h = 0; h <= feat_h - 1; h++)
-            {
-                for (int w = 0; w <= feat_w - 1; w++)
-                {
-                    float pb_cx = (w + 0.5f);
-                    float pb_cy = (h + 0.5f);
-                    grids.push_back({pb_cx, pb_cy, float(stride), float(w), float(h)});
-                }
-            }
-        }
+        auto feat_ptr = (float *)pOutputsInfo[2 * i + 1].pVirAddr;
+        auto feat_kps_ptr = (float *)pOutputsInfo[2 * i].pVirAddr;
+        detection::generate_proposals_yolov8_pose_native(STRIDES[i], feat_ptr, feat_kps_ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), SAMPLE_BODY_LMK_SIZE);
     }
 
-    float *output_prob = (float *)m_runner->get_output(2).pVirAddr;
-    float *output_bbox = (float *)m_runner->get_output(3).pVirAddr;
-    float *output_pose_prob = (float *)m_runner->get_output(1).pVirAddr;
-    float *output_pose = (float *)m_runner->get_output(0).pVirAddr;
+    // if (!grids.size())
+    // {
+    //     for (size_t i = 0; i < 3; i++)
+    //     {
+    //         int32_t stride = (1 << i) * 8;
+    //         int feat_w = get_algo_width() / stride;
+    //         int feat_h = get_algo_height() / stride;
+    //         for (int h = 0; h <= feat_h - 1; h++)
+    //         {
+    //             for (int w = 0; w <= feat_w - 1; w++)
+    //             {
+    //                 float pb_cx = (w + 0.5f);
+    //                 float pb_cy = (h + 0.5f);
+    //                 grids.push_back({pb_cx, pb_cy, float(stride), float(w), float(h)});
+    //             }
+    //         }
+    //     }
+    // }
 
-    for (int i = 0; i < int(grids.size()); i++)
-    {
-        int maxid = -1;
-        float maxval = -FLT_MAX;
-        for (int j = 0; j < CLASS_NUM; j++)
-        {
-            if (output_prob[j] > maxval)
-            {
-                maxval = output_prob[j];
-                maxid = j;
-            }
-        }
+    // float *output_prob = (float *)m_runner->get_output(2).pVirAddr;
+    // float *output_bbox = (float *)m_runner->get_output(3).pVirAddr;
+    // float *output_pose_prob = (float *)m_runner->get_output(1).pVirAddr;
+    // float *output_pose = (float *)m_runner->get_output(0).pVirAddr;
 
-        if (maxval > PROB_THRESHOLD)
-        {
-            auto grid = grids[i];
-            detection::Object obj;
-            obj.label = maxid;
-            obj.prob = maxval;
-            float x0 = grid[0] - output_bbox[0];
-            float y0 = grid[1] - output_bbox[1];
-            float x1 = grid[0] + output_bbox[2];
-            float y1 = grid[1] + output_bbox[3];
-            float cx = ((x0 + x1) / 2) * grid[2];
-            float cy = ((y0 + y1) / 2) * grid[2];
-            float width = (x1 - x0) * grid[2];
-            float height = (y1 - y0) * grid[2];
+    // for (int i = 0; i < int(grids.size()); i++)
+    // {
+    //     int maxid = -1;
+    //     float maxval = -FLT_MAX;
+    //     for (int j = 0; j < CLASS_NUM; j++)
+    //     {
+    //         if (output_prob[j] > maxval)
+    //         {
+    //             maxval = output_prob[j];
+    //             maxid = j;
+    //         }
+    //     }
 
-            obj.rect.x = cx - width / 2;
-            obj.rect.y = cy - height / 2;
-            obj.rect.width = width;
-            obj.rect.height = height;
+    //     if (maxval > PROB_THRESHOLD)
+    //     {
+    //         auto grid = grids[i];
+    //         detection::Object obj;
+    //         obj.label = maxid;
+    //         obj.prob = maxval;
+    //         float x0 = grid[0] - output_bbox[0];
+    //         float y0 = grid[1] - output_bbox[1];
+    //         float x1 = grid[0] + output_bbox[2];
+    //         float y1 = grid[1] + output_bbox[3];
+    //         float cx = ((x0 + x1) / 2) * grid[2];
+    //         float cy = ((y0 + y1) / 2) * grid[2];
+    //         float width = (x1 - x0) * grid[2];
+    //         float height = (y1 - y0) * grid[2];
 
-            for (int k = 0; k < SAMPLE_BODY_LMK_SIZE; k++)
-            {
-                float xp = output_pose[2 * k] * 2;
-                float yp = output_pose[2 * k + 1] * 2;
-                float prob = output_pose_prob[k];
-                xp += grid[3];
-                yp += grid[4];
-                xp *= grid[2];
-                yp *= grid[2];
-                obj.kps_feat.push_back(xp);
-                obj.kps_feat.push_back(yp);
-                obj.kps_feat.push_back(prob);
-            }
+    //         obj.rect.x = cx - width / 2;
+    //         obj.rect.y = cy - height / 2;
+    //         obj.rect.width = width;
+    //         obj.rect.height = height;
 
-            proposals.push_back(obj);
-        }
+    //         for (int k = 0; k < SAMPLE_BODY_LMK_SIZE; k++)
+    //         {
+    //             float xp = output_pose[2 * k] * 2;
+    //             float yp = output_pose[2 * k + 1] * 2;
+    //             float prob = output_pose_prob[k];
+    //             xp += grid[3];
+    //             yp += grid[4];
+    //             xp *= grid[2];
+    //             yp *= grid[2];
+    //             obj.kps_feat.push_back(xp);
+    //             obj.kps_feat.push_back(yp);
+    //             obj.kps_feat.push_back(prob);
+    //         }
 
-        output_prob += CLASS_NUM;
-        output_bbox += 4;
-        output_pose_prob += SAMPLE_BODY_LMK_SIZE;
-        output_pose += SAMPLE_BODY_LMK_SIZE * 2;
-    }
+    //         proposals.push_back(obj);
+    //     }
+
+    //     output_prob += CLASS_NUM;
+    //     output_bbox += 4;
+    //     output_pose_prob += SAMPLE_BODY_LMK_SIZE;
+    //     output_pose += SAMPLE_BODY_LMK_SIZE * 2;
+    // }
 
     detection::get_out_bbox_kps(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
 
@@ -1439,6 +1447,10 @@ int ax_model_yolov8_pose_native::post_process(axdl_image_t *pstFrame, axdl_bbox_
     for (int i = 0; i < results->nObjSize; i++)
     {
         const detection::Object &obj = objects[i];
+        printf("%0.2f %0.2f %0.2f %0.2f \n", obj.rect.x,
+               obj.rect.y,
+               obj.rect.width,
+               obj.rect.height);
         results->mObjects[i].bbox.x = obj.rect.x;
         results->mObjects[i].bbox.y = obj.rect.y;
         results->mObjects[i].bbox.w = obj.rect.width;
