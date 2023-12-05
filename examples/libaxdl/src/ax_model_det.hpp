@@ -161,7 +161,6 @@ REGISTER(MT_DET_YOLOV8_POSE, ax_model_yolov8_pose)
 class ax_model_yolov8_pose_native : public ax_model_yolov8_pose
 {
 protected:
-    std::vector<std::vector<float>> grids;
     // int NUM_POINT = 17;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
