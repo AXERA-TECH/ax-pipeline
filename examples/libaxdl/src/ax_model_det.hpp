@@ -134,14 +134,12 @@ protected:
 };
 REGISTER(MT_DET_YOLOV8, ax_model_yolov8)
 
-class ax_model_yolov8_650 : public ax_model_yolov5
+class ax_model_yolov8_native : public ax_model_yolov5
 {
 protected:
-    int num_grid = 0;
-    std::vector<std::vector<float>> grids;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
-REGISTER(MT_DET_YOLOV8_650, ax_model_yolov8_650)
+REGISTER(MT_DET_YOLOV8_NATIVE, ax_model_yolov8_native)
 
 class ax_model_yolov8_seg : public ax_model_yolov5_seg
 {
@@ -160,14 +158,14 @@ protected:
 };
 REGISTER(MT_DET_YOLOV8_POSE, ax_model_yolov8_pose)
 
-class ax_model_yolov8_pose_650 : public ax_model_yolov8_pose
+class ax_model_yolov8_pose_native : public ax_model_yolov8_pose
 {
 protected:
     std::vector<std::vector<float>> grids;
     // int NUM_POINT = 17;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
-REGISTER(MT_DET_YOLOV8_POSE_650, ax_model_yolov8_pose_650)
+REGISTER(MT_DET_YOLOV8_POSE_NATIVE, ax_model_yolov8_pose_native)
 
 class ax_model_yolonas : public ax_model_single_base_t
 {

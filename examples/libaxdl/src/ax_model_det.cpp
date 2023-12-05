@@ -1110,72 +1110,16 @@ int ax_model_yolov8::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resi
     return 0;
 }
 
-int ax_model_yolov8_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+int ax_model_yolov8_native::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
-    if (grids.size() == 0)
-    {
-        for (size_t i = 0; i < 3; i++)
-        {
-            int32_t stride = (1 << i) * 8;
-            int feat_w = get_algo_width() / stride;
-            int feat_h = get_algo_height() / stride;
-            num_grid += feat_w * feat_h;
-            for (int h = 0; h <= feat_h - 1; h++)
-            {
-                for (int w = 0; w <= feat_w - 1; w++)
-                {
-                    float pb_cx = (w + 0.5f);
-                    float pb_cy = (h + 0.5f);
-                    grids.push_back({pb_cx, pb_cy, float(stride)});
-                    // printf("%f %f\n", pb_cx, pb_cy);
-                }
-            }
-        }
-    }
-
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
-    // int nOutputSize = m_runner->get_num_outputs();
-    float *output_prob = (float *)m_runner->get_output(0).pVirAddr;
-    float *output_bbox = (float *)m_runner->get_output(1).pVirAddr;
 
-    for (int i = 0; i < num_grid; i++)
+    for (uint32_t i = 0; i < m_runner->get_num_outputs(); ++i)
     {
-        int maxid = -1;
-        float maxval = -FLT_MAX;
-        for (int j = 0; j < CLASS_NUM; j++)
-        {
-            if (output_prob[j] > maxval)
-            {
-                maxval = output_prob[j];
-                maxid = j;
-            }
-        }
-
-        if (maxval > PROB_THRESHOLD)
-        {
-            auto grid = grids[i];
-            detection::Object obj;
-            obj.label = maxid;
-            obj.prob = maxval;
-            float x0 = grid[0] - output_bbox[0];
-            float y0 = grid[1] - output_bbox[1];
-            float x1 = grid[0] + output_bbox[2];
-            float y1 = grid[1] + output_bbox[3];
-            float cx = ((x0 + x1) / 2) * grid[2];
-            float cy = ((y0 + y1) / 2) * grid[2];
-            float width = (x1 - x0) * grid[2];
-            float height = (y1 - y0) * grid[2];
-
-            obj.rect.x = cx - width / 2;
-            obj.rect.y = cy - height / 2;
-            obj.rect.width = width;
-            obj.rect.height = height;
-            proposals.push_back(obj);
-        }
-
-        output_prob += CLASS_NUM;
-        output_bbox += 4;
+        auto ptr = (float *)m_runner->get_output(i).pVirAddr;
+        int32_t stride = (1 << i) * 8;
+        detection::generate_proposals_yolov8_native(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -1399,7 +1343,7 @@ int ax_model_yolov8_pose::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop
     return 0;
 }
 
-int ax_model_yolov8_pose_650::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+int ax_model_yolov8_pose_native::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
     if (mSimpleRingBuffer.size() == 0)
     {

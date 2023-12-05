@@ -1,6 +1,6 @@
 {
-    "MODEL_TYPE": "MT_DET_YOLOV8_650",
-    "MODEL_PATH": "./models/yolov8s.axmodel",
+    "MODEL_TYPE": "MT_DET_YOLOV8_NATIVE",
+    "MODEL_PATH": "./models/yolov8n.axmodel",
     "CLASS_NAMES": [
         "person",
         "bicycle",
