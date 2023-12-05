@@ -1372,10 +1372,10 @@ int ax_model_yolov8_pose_native::post_process(axdl_image_t *pstFrame, axdl_bbox_
         }
     }
 
-    float *output_prob = (float *)m_runner->get_output(0).pVirAddr;
+    float *output_prob = (float *)m_runner->get_output(2).pVirAddr;
     float *output_bbox = (float *)m_runner->get_output(3).pVirAddr;
-    float *output_pose_prob = (float *)m_runner->get_output(2).pVirAddr;
-    float *output_pose = (float *)m_runner->get_output(1).pVirAddr;
+    float *output_pose_prob = (float *)m_runner->get_output(1).pVirAddr;
+    float *output_pose = (float *)m_runner->get_output(0).pVirAddr;
 
     for (int i = 0; i < int(grids.size()); i++)
     {
