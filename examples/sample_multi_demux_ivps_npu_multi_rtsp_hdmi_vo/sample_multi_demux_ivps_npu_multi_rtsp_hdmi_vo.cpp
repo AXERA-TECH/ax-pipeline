@@ -141,10 +141,9 @@ void _demux_frame_callback(const void *buff, int len, void *reserve)
 {
     if (len == 0)
     {
-        pipeline_buffer_t end_buf = {0};
-        user_input((pipeline_t *)reserve, 1, &end_buf);
-        ALOGN("mp4 file decode finish,quit the loop");
+        ALOGN("demux finish,quit the loop");
         gLoopExit = 1;
+        return;
     }
     pipeline_buffer_t buf_h26x = {0};
     buf_h26x.p_vir = (void *)buff;
