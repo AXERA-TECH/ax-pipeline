@@ -24,10 +24,6 @@
 #include "common_pipeline.h"
 
 #include "../utilities/sample_log.h"
-extern "C"
-{
-#include "../../sample/vin_ivps_venc_rtsp/sample_vin_hal.h"
-}
 #include "ax_ivps_api.h"
 
 #include "fstream"
@@ -205,56 +201,16 @@ int main(int argc, char *argv[])
         config_files.push_back("config/yolov7.json");
     }
 
-    /* comm pool */
-    COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs08a20[] = {
-        {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 20}, /* vin nv21/nv21 use */
-    };
+    SAMPLE_MAJOR_STREAM_WIDTH = 1920;
+    SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-    /* priv pool */
-    COMMON_SYS_POOL_CFG_T gtPrivPoolSingleOs08a20[] = {
-        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_16BPP, 25 * 2}, /* vin raw16 use */
-    };
-
-    tCommonArgs.nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs08a20) / sizeof(gtSysCommPoolSingleOs08a20[0]);
-    tCommonArgs.pPoolCfg = gtSysCommPoolSingleOs08a20;
-    /*step 1:sys init*/
-    s32Ret = COMMON_SYS_Init(&tCommonArgs);
-    if (s32Ret)
-    {
-        ALOGE("COMMON_SYS_Init failed,s32Ret:0x%x\n", s32Ret);
-        return -1;
-    }
-
-#ifdef AXERA_TARGET_CHIP_AX620
-    AX_NPU_SDK_EX_ATTR_T sNpuAttr;
-    sNpuAttr.eHardMode = AX_NPU_VIRTUAL_1_1;
-    s32Ret = AX_NPU_SDK_EX_Init_with_attr(&sNpuAttr);
-    if (0 != s32Ret)
-    {
-        ALOGE("AX_NPU_SDK_EX_Init_with_attr failed,s32Ret:0x%x\n", s32Ret);
-        return -1;
-    }
-#else
-    AX_ENGINE_NPU_ATTR_T npu_attr;
-    memset(&npu_attr, 0, sizeof(npu_attr));
-    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
-    s32Ret = AX_ENGINE_Init(&npu_attr);
-    if (0 != s32Ret)
-    {
-        ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
-        return -1;
-    }
-#endif
-
-    /* step 2. VIN Init & Open */
-    tPrivArgs.nPoolCfgCnt = sizeof(gtPrivPoolSingleOs08a20) / sizeof(gtPrivPoolSingleOs08a20[0]);
-    tPrivArgs.pPoolCfg = gtPrivPoolSingleOs08a20;
-    s32Ret = SAMPLE_VIN_Init(SAMPLE_VIN_HAL_CASE_SINGLE_OS08A20, COMMON_VIN_SENSOR, AX_SNS_LINEAR_MODE, AX_TRUE, &tPrivArgs);
+    s32Ret = SAMPLE_VIN_Init();
     if (0 != s32Ret)
     {
         ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
         return -1;
     }
+
     s32Ret = SAMPLE_VIN_Open();
     if (0 != s32Ret)
     {
@@ -388,7 +344,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    SAMPLE_VIN_Start();
+    s32Ret = SAMPLE_VIN_Start();
+    if (0 != s32Ret)
+    {
+        ALOGE("SAMPLE_VIN_Start failed, ret:0x%x", s32Ret);
+        return -1;
+    }
     while (!gLoopExit)
     {
         usleep(1000 * 1000);
@@ -423,9 +384,7 @@ int main(int argc, char *argv[])
 EXIT_2:
 
 EXIT_1:
-    SAMPLE_VIN_Stop();
-    SAMPLE_VIN_Close();
-    SAMPLE_VIN_DeInit();
+    SAMPLE_VIN_Deinit();
     COMMON_SYS_DeInit();
     g_sample.Deinit();
 

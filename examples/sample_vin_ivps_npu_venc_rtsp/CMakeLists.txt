@@ -9,7 +9,7 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
                                 "${BSP_MSP_DIR}/../sample/common/common_isp.c"
                                 "${BSP_MSP_DIR}/../sample/common/common_hw.c"
                                 "${BSP_MSP_DIR}/../sample/common/vo/*.c"
-                                "${BSP_MSP_DIR}/../sample/vin_ivps_venc_rtsp/sample_vin_hal.c")
+                                "../common/common_func.c")
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "ax620"
     OR AXERA_TARGET_CHIP MATCHES "AX620"

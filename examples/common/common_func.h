@@ -33,6 +33,25 @@ extern "C"
 #include "common_vin.h"
 #include "common_cam.h"
 #include "common_sys.h"
+
+typedef enum {
+    SAMPLE_VIN_NONE  = -1,
+    SAMPLE_VIN_SINGLE_DUMMY  = 0,
+    SAMPLE_VIN_SINGLE_OS08A20  = 1,
+    SAMPLE_VIN_DOUBLE_OS08A20  = 2,
+    SAMPLE_VIN_DOUBLE_OS08A20_MULTIPLE_PIPE = 3,
+    SAMPLE_VIN_SINGLE_OS08A20_ITS_CAPTURE = 4,
+    SAMPLE_VIN_FOUR_OS08A20  = 5,
+    SAMPLE_VIN_SINGLE_SC910GS_ITS_CAPTURE = 6,
+    SAMPLE_VIN_SINGLE_YUV422 = 7,
+    SAMPLE_VIN_BUTT
+} SAMPLE_VIN_CASE_E;
+
+AX_S32 SAMPLE_VIN_Init();
+AX_S32 SAMPLE_VIN_Open();
+AX_S32 SAMPLE_VIN_Start();
+AX_S32 SAMPLE_VIN_Deinit();
+
 #elif defined(AXERA_TARGET_CHIP_AX620E)
 #include "common_vin.h"
 #include "common_cam.h"
