@@ -46,33 +46,43 @@ void free_io(AX_ENGINE_IO_T *io)
     delete[] io->pOutputs;
 }
 
-static inline int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy)
+static inline int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data, ax_imgproc_t *pimgproc, INPUT_OUTPUT_ALLOC_STRATEGY strategy)
 {
     memset(io_data, 0, sizeof(*io_data));
     io_data->pInputs = new AX_ENGINE_IO_BUFFER_T[info->nInputSize];
     io_data->nInputSize = info->nInputSize;
 
     auto ret = 0;
-    for (uint i = 0; i < info->nInputSize; ++i)
+    if (info->nInputSize == 1)
     {
-        auto meta = info->pInputs[i];
-        auto buffer = &io_data->pInputs[i];
-        if (strategy.first == AX_ENGINE_ABST_CACHED)
-        {
-            ret = AX_SYS_MemAllocCached((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
-        }
-        else
-        {
-            ret = AX_SYS_MemAlloc((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
-        }
+        auto buffer = &io_data->pInputs[0];
+        buffer->pVirAddr = pimgproc->get()->pVir;
+        buffer->phyAddr = pimgproc->get()->pPhy;
+    }
+    else
+    {
+        ALOGE("Only single input was accepted(got %u).\n", info->nInputSize);
+        // for (uint i = 0; i < info->nInputSize; ++i)
+        // {
+        //     auto meta = info->pInputs[i];
+        //     auto buffer = &io_data->pInputs[i];
+        //     if (strategy.first == AX_ENGINE_ABST_CACHED)
+        //     {
+        //         ret = AX_SYS_MemAllocCached((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
+        //     }
+        //     else
+        //     {
+        //         ret = AX_SYS_MemAlloc((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
+        //     }
 
-        if (ret != 0)
-        {
-            free_io_index(io_data->pInputs, i);
-            fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. fail \n", i, (void *)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
-            return ret;
-        }
-        // fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+        //     if (ret != 0)
+        //     {
+        //         free_io_index(io_data->pInputs, i);
+        //         fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. fail \n", i, (void *)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+        //         return ret;
+        //     }
+        //     // fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+        // }
     }
 
     io_data->pOutputs = new AX_ENGINE_IO_BUFFER_T[info->nOutputSize];
@@ -82,14 +92,9 @@ static inline int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data,
         auto meta = info->pOutputs[i];
         auto buffer = &io_data->pOutputs[i];
         buffer->nSize = meta.nSize;
-        if (strategy.second == AX_ENGINE_ABST_CACHED)
-        {
-            ret = AX_SYS_MemAllocCached((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
-        }
-        else
-        {
-            ret = AX_SYS_MemAlloc((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
-        }
+
+        ret = AX_SYS_MemAllocCached((AX_U64 *)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8 *)(AX_CMM_SESSION_NAME));
+
         if (ret != 0)
         {
             fprintf(stderr, "Allocate output{%d} { phy: %p, vir: %p, size: %lu Bytes }. fail \n", i, (void *)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
@@ -172,15 +177,6 @@ int ax_runner_ax650::init(const char *model_file)
     }
     fprintf(stdout, "Engine get io info is done. \n");
 
-    // 6. alloc io
-
-    ret = prepare_io(m_handle->io_info, &m_handle->io_data, std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
-    if (0 != ret)
-    {
-        return ret;
-    }
-    fprintf(stdout, "Engine alloc io is done. \n");
-
     m_handle->algo_width = m_handle->io_info->pInputs[0].pShape[2];
 
     switch (m_handle->io_info->pInputs[0].pExtraMeta->eColorSpace)
@@ -208,6 +204,14 @@ int ax_runner_ax650::init(const char *model_file)
         // return deinit_joint();
         return -1;
     }
+
+    // 6. alloc io
+    ret = prepare_io(m_handle->io_info, &m_handle->io_data, &imgproc, std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
+    if (0 != ret)
+    {
+        return ret;
+    }
+    fprintf(stdout, "Engine alloc io is done. \n");
 
     for (size_t i = 0; i < m_handle->io_info->nOutputSize; i++)
     {
@@ -278,25 +282,25 @@ int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_r
         ALOGE("image process failed");
         return -1;
     }
-    unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
-    unsigned char *src = (unsigned char *)imgproc.get()->pVir;
+    // unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
+    // unsigned char *src = (unsigned char *)imgproc.get()->pVir;
 
-    switch (m_handle->algo_colorformat)
-    {
-    case AX_FORMAT_RGB888:
-    case AX_FORMAT_BGR888:
-        memcpy(dst, src, minput_tensors[0].nSize);
-        break;
-    case AX_FORMAT_YUV420_SEMIPLANAR:
-    case AX_FORMAT_YUV420_SEMIPLANAR_VU:
-        for (size_t i = 0; i < pstFrame->nHeight * 1.5; i++)
-        {
-            memcpy(dst + i * pstFrame->nWidth, src + i * pstFrame->tStride_W, pstFrame->nWidth);
-        }
-        break;
-    default:
-        break;
-    }
+    // switch (m_handle->algo_colorformat)
+    // {
+    // case AX_FORMAT_RGB888:
+    // case AX_FORMAT_BGR888:
+    //     memcpy(dst, src, minput_tensors[0].nSize);
+    //     break;
+    // case AX_FORMAT_YUV420_SEMIPLANAR:
+    // case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+    //     for (size_t i = 0; i < pstFrame->nHeight * 1.5; i++)
+    //     {
+    //         memcpy(dst + i * pstFrame->nWidth, src + i * pstFrame->tStride_W, pstFrame->nWidth);
+    //     }
+    //     break;
+    // default:
+    //     break;
+    // }
 
     // memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
     return AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data);
