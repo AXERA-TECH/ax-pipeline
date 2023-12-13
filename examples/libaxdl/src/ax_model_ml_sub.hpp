@@ -41,6 +41,7 @@ class ax_model_face_feat_extactor_sub : public ax_model_ml_sub
 {
 protected:
     SimpleRingBuffer<std::vector<float>> mSimpleRingBuffer_FaceFeat;
+    axdl_image_t nv12 = {0};
     void _normalize(float *feature, int feature_len);
     int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;

@@ -211,6 +211,48 @@ void ax_model_face_feat_extactor_sub::_normalize(float *feature, int feature_len
 
 int ax_model_face_feat_extactor_sub::preprocess(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
+#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
+    int size = 128;
+    if (!dstFrame.pVir)
+    {
+        dstFrame.nWidth = dstFrame.nHeight = dstFrame.tStride_W = size;
+        ax_sys_memalloc(&dstFrame.pPhy, (void **)&dstFrame.pVir, size * size * 3, 128, "SAMPLE-CV");
+        bMalloc = true;
+
+        nv12.nWidth = pstFrame->nWidth;
+        nv12.nHeight = pstFrame->nHeight;
+        nv12.tStride_W = pstFrame->tStride_W;
+        nv12.nSize = pstFrame->nWidth * pstFrame->nHeight * 3 / 2;
+        nv12.eDtype = axdl_color_space_nv12;
+        ax_sys_memalloc(&nv12.pPhy, (void **)&nv12.pVir, nv12.nSize, 128, "SAMPLE-CV");
+    }
+    if (pstFrame->nSize != nv12.nSize)
+    {
+        ax_sys_memfree(nv12.pPhy, nv12.pVir);
+        nv12.nWidth = pstFrame->nWidth;
+        nv12.nHeight = pstFrame->nHeight;
+        nv12.tStride_W = pstFrame->tStride_W;
+        nv12.nSize = pstFrame->nWidth * pstFrame->nHeight * 3 / 2;
+        nv12.eDtype = axdl_color_space_nv12;
+        ax_sys_memalloc(&nv12.pPhy, (void **)&nv12.pVir, nv12.nSize, 128, "SAMPLE-CV");
+    }
+
+    ax_imgproc_csc(pstFrame, &nv12);
+    axdl_object_t &obj = results->mObjects[cur_idx];
+    ax_imgproc_align_face(&obj, &nv12, &dstFrame);
+    
+#if 0
+    static int cnt = 0;
+    if (cnt < 10)
+    {
+        cv::Mat face(dstFrame.nHeight * 1.5, dstFrame.nWidth, CV_8UC1, dstFrame.pVir);
+        cv::Mat face_bgr;
+        cv::cvtColor(face, face_bgr, cv::COLOR_YUV2BGR_NV12);
+        cv::imwrite("face_" + std::to_string(cnt++) + ".jpg", face_bgr);
+    }
+#endif
+
+#else // AXERA_TARGET_CHIP_AX620
     if (!dstFrame.pVir)
     {
         dstFrame.nWidth = dstFrame.nHeight = dstFrame.tStride_W = 112;
@@ -227,6 +269,8 @@ int ax_model_face_feat_extactor_sub::preprocess(axdl_image_t *pstFrame, axdl_bbo
         cv::imwrite("face_" + std::to_string(cnt++) + ".jpg", face);
     }
 #endif
+#endif
+
     return 0;
 }
 

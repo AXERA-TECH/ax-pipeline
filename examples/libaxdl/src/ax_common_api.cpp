@@ -250,13 +250,11 @@ int ax_imgproc_warp(axdl_image_t *src, axdl_image_t *dst, const float *pMat33, c
     attr.nDstHeight = ive_dst.u32Height;
     attr.nDstStride = ive_dst.u32PicStride[0];
     attr.bPerspective = AX_TRUE;
-    for (size_t i = 0; i < 6; i++)
+    attr.eImgFormat = ive_src.enImgFormat;
+    for (size_t i = 0; i < 9; i++)
     {
         attr.tPerspectiveAttr.nMatrix[i] = AX_S64(pMat33[i] * 1000000);
     }
-    attr.tPerspectiveAttr.nMatrix[6] = 0;
-    attr.tPerspectiveAttr.nMatrix[7] = 0;
-    attr.tPerspectiveAttr.nMatrix[8] = 1;
 
     return AX_IVPS_Dewarp(&ive_src, &ive_dst, &attr);
 }
@@ -314,11 +312,12 @@ int ax_imgproc_crop_resize_keep_ratio(axdl_image_t *src, axdl_image_t *dst, axdl
 
 int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *dst)
 {
-    static float target[10] = {38.2946, 51.6963,
-                               73.5318, 51.5014,
-                               56.0252, 71.7366,
-                               41.5493, 92.3655,
-                               70.7299, 92.2041};
+    float scale = dst->nWidth / 112;
+    float target[10] = {38.2946 * scale, 51.6963 * scale,
+                        73.5318 * scale, 51.5014 * scale,
+                        56.0252 * scale, 71.7366 * scale,
+                        41.5493 * scale, 92.3655 * scale,
+                        70.7299 * scale, 92.2041 * scale};
     float _tmp[10] = {obj->landmark[0].x, obj->landmark[0].y,
                       obj->landmark[1].x, obj->landmark[1].y,
                       obj->landmark[2].x, obj->landmark[2].y,
@@ -328,7 +327,7 @@ int ax_imgproc_align_face(axdl_object_t *obj, axdl_image_t *src, axdl_image_t *d
     get_affine_transform(_tmp, target, 5, _m);
     invert_affine_transform(_m, _m_inv);
 
-#if 1
+#if 0
     dst->eDtype = src->eDtype;
     if (dst->eDtype == axdl_color_space_rgb || dst->eDtype == axdl_color_space_bgr)
     {

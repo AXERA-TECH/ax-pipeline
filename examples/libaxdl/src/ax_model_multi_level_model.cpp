@@ -314,6 +314,12 @@ int ax_model_face_recognition::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
                 ALOGE("image %s cannot open,name %s register failed", faceid.path.c_str(), faceid.name.c_str());
                 continue;
             }
+#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
+            // width align 128
+            image = image(cv::Rect(0, 0, image.cols - image.cols % 128, image.rows)).clone();
+            ALOGI("image size %d %d", image.cols, image.rows);
+#endif
+
             cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
             axdl_image_t npu_image = {0};
             npu_image.eDtype = axdl_color_space_rgb;
