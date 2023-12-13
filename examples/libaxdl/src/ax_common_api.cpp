@@ -418,17 +418,11 @@ int ax_imgproc_warp(axdl_image_t *src, axdl_image_t *dst, const float *pMat33, c
     cvt(dst, &ive_dst);
     AX_IVPS_DEWARP_ATTR_T attr;
     memset(&attr, 0, sizeof(attr));
-    // attr.nDstWidth = ive_dst.u32Width;
-    // attr.nDstHeight = ive_dst.u32Height;
-    // attr.nDstStride = ive_dst.u32PicStride[0];
-    // attr.bPerspective = AX_TRUE;
-    for (size_t i = 0; i < 6; i++)
+    attr.eDewarpType = AX_IVPS_DEWARP_PERSPECTIVE;
+    for (size_t i = 0; i < 9; i++)
     {
         attr.tPerspectiveAttr.nMatrix[i] = AX_S64(pMat33[i] * 1000000);
     }
-    attr.tPerspectiveAttr.nMatrix[6] = 0;
-    attr.tPerspectiveAttr.nMatrix[7] = 0;
-    attr.tPerspectiveAttr.nMatrix[8] = 1;
 
     return AX_IVPS_Dewarp(&ive_src, &ive_dst, &attr);
 }
