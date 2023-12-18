@@ -1249,8 +1249,7 @@ AX_S32 SAMPLE_VIN_Deinit()
 #elif defined(AXERA_TARGET_CHIP_AX620E)
 #include "string.h"
 
-typedef struct
-{
+typedef struct {
     SAMPLE_VIN_CASE_E eSysCase;
     COMMON_VIN_MODE_E eSysMode;
     AX_SNS_HDR_MODE_E eHdrMode;
@@ -1262,6 +1261,7 @@ typedef struct
     AX_S32 nOutChnNum;
     char *pFrameInfo;
     AX_VIN_IVPS_MODE_E eMode;
+    AX_U32 statDeltaPtsFrmNum;
 } SAMPLE_VIN_PARAM_T;
 
 /* comm pool */
@@ -1284,12 +1284,14 @@ COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleDummySdr[] = {
 };
 
 COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleOs04a10Sdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 10, AX_COMPRESS_MODE_LOSSY, 4}, /* vin raw16 use */
+    {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 12, AX_COMPRESS_MODE_LOSSY, 4}, /* vin raw16 use */
 };
 
 static AX_CAMERA_T gCams[MAX_CAMERAS] = {0};
+// static volatile AX_S32 gLoopExit = 0;
 static COMMON_SYS_ARGS_T tCommonArgs = {0};
 static COMMON_SYS_ARGS_T tPrivArgs = {0};
+extern AX_CHIP_TYPE_E AX_SYS_GetChipType(AX_VOID);
 
 static AX_VOID __cal_dump_pool(COMMON_SYS_POOL_CFG_T pool[], AX_SNS_HDR_MODE_E eHdrMode, AX_S32 nFrameNum)
 {
@@ -1413,6 +1415,8 @@ static AX_U32 __sample_case_single_dummy(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_
         pCam->tSnsClkAttr.nSnsClkIdx = 0;
         pCam->tDevBindPipe.nNum = 1;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+        pCam->ptSnsHdl = COMMON_ISP_GetSnsObj(eSnsType);
+        pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
         pCam->eLoadRawNode = eLoadRawNode;
         __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
         __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
@@ -1426,7 +1430,46 @@ static AX_U32 __sample_case_single_dummy(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_
 
     return 0;
 }
+#if 0
+static AX_U32 __sample_case_single_os08a20(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
+        SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
+{
+    AX_CAMERA_T *pCam = NULL;
+    COMMON_VIN_MODE_E eSysMode = pVinParam->eSysMode;
+    AX_SNS_HDR_MODE_E eHdrMode = pVinParam->eHdrMode;
+    AX_S32 j = 0;
+    pCommonArgs->nCamCnt = 1;
+    pCam = &pCamList[0];
+    COMMON_VIN_GetSnsConfig(eSnsType, &pCam->tMipiAttr, &pCam->tSnsAttr,
+                            &pCam->tSnsClkAttr, &pCam->tDevAttr,
+                            &pCam->tPipeAttr, pCam->tChnAttr);
 
+    pCam->nDevId = 0;
+    pCam->nRxDev = 0;
+    pCam->nPipeId = 0;
+    pCam->tSnsClkAttr.nSnsClkIdx = 0;
+    pCam->tDevBindPipe.nNum =  1;
+    pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+    pCam->ptSnsHdl = COMMON_ISP_GetSnsObj(eSnsType);
+    pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
+    __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
+    __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
+    for (j = 0; j < pCam->tDevBindPipe.nNum; j++) {
+        pCam->tPipeInfo[j].ePipeMode = SAMPLE_PIPE_MODE_VIDEO;
+        pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
+        if (pCam->tPipeInfo[j].bAiispEnable) {
+            if (eHdrMode <= AX_SNS_LINEAR_MODE) {
+                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/os08a20_sdr_dual3dnr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+            } else {
+                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/os08a20_hdr_2x_ainr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+            }
+        } else {
+            strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+        }
+    }
+    return 0;
+}
+#endif
 static AX_U32 __sample_case_single_os04a10(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
                                            SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
 {
@@ -1445,27 +1488,15 @@ static AX_U32 __sample_case_single_os04a10(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYP
     pCam->tSnsClkAttr.nSnsClkIdx = 0;
     pCam->tDevBindPipe.nNum = 1;
     pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+    pCam->ptSnsHdl = COMMON_ISP_GetSnsObj(eSnsType);
+    pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
     __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
     __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
     for (j = 0; j < pCam->tDevBindPipe.nNum; j++)
     {
         pCam->tPipeInfo[j].ePipeMode = SAMPLE_PIPE_MODE_VIDEO;
         pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
-        if (pCam->tPipeInfo[j].bAiispEnable)
-        {
-            if (eHdrMode <= AX_SNS_LINEAR_MODE)
-            {
-                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/os04a10_sdr_dual3dnr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
-            }
-            else
-            {
-                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/os04a10_hdr_2x_ainr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
-            }
-        }
-        else
-        {
-            strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
-        }
+        strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
     }
     return 0;
 }
@@ -1477,8 +1508,8 @@ static AX_U32 __sample_case_config(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARG
     SAMPLE_SNS_TYPE_E eSnsType = OMNIVISION_OS04A10;
 
     ALOGI("eSysCase %d, eSysMode %d, eLoadRawNode %d, eHdrMode %d, bAiispEnable %d", pVinParam->eSysCase,
-          pVinParam->eSysMode,
-          pVinParam->eLoadRawNode, pVinParam->eHdrMode, pVinParam->bAiispEnable);
+           pVinParam->eSysMode,
+           pVinParam->eLoadRawNode, pVinParam->eHdrMode, pVinParam->bAiispEnable);
 
     switch (pVinParam->eSysCase)
     {
@@ -1526,6 +1557,7 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase)
         AX_SNS_LINEAR_MODE,
         LOAD_RAW_NONE,
         0,
+        .statDeltaPtsFrmNum = 0,
     };
 
     /* Step1: cam config & pool Config */
@@ -1575,16 +1607,18 @@ AX_S32 SAMPLE_VIN_Open()
 }
 AX_S32 SAMPLE_VIN_Start()
 {
-    return COMMON_CAM_Run(&gCams[0], tCommonArgs.nCamCnt);
+    // return COMMON_CAM_Run(&gCams[0], tCommonArgs.nCamCnt);
+    return 0;
 }
 AX_S32 SAMPLE_VIN_Deinit()
 {
-    AX_S32 s32Ret = COMMON_CAM_Stop();
-    if (s32Ret)
-    {
-        ALOGE("COMMON_CAM_Stop fail, ret:0x%x", s32Ret);
-        return -1;
-    }
+    AX_S32 s32Ret = 0;
+    // s32Ret = COMMON_CAM_Stop();
+    // if (s32Ret)
+    // {
+    //     ALOGE("COMMON_CAM_Stop fail, ret:0x%x", s32Ret);
+    //     return -1;
+    // }
     s32Ret = COMMON_CAM_Close(&gCams[0], tCommonArgs.nCamCnt);
     if (s32Ret)
     {

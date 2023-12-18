@@ -32,16 +32,14 @@
 #ifndef ALIGN_UP
 #define ALIGN_UP(x, align) ((((x) + ((align)-1)) / (align)) * (align))
 #endif
+#define ALIGN_UP_16(value) ((value + 0xF) & (~0xF))
+#define ALIGN_UP_128(value) ((value + 0x7F) & (~0x7F))
 
 void *_ivps_get_frame_thread(void *arg)
 {
     pipeline_t *pipe = (pipeline_t *)arg;
 
     AX_S32 nMilliSec = 200;
-
-    // prctl(PR_SET_NAME, "SAMPLE_IVPS_GET");
-
-    // ALOGN("SAMPLE_RUN_JOINT +++");
 
     while (!pipe->n_loog_exit)
     {
@@ -58,7 +56,6 @@ void *_ivps_get_frame_thread(void *arg)
 
         tVideoFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(tVideoFrame.u32BlkId[0]);
         tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
-
 
         if (pipe->output_func)
         {
@@ -95,7 +92,6 @@ void *_ivps_get_frame_thread(void *arg)
 
         ret = AX_IVPS_ReleaseChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame);
     }
-    // ALOGN("SAMPLE_RUN_JOINT ---");
     return (AX_VOID *)0;
 }
 

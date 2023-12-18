@@ -35,5 +35,4 @@
 3rdparty
 build*
 .vscode
-axpi_bsp_sdk
-axpi_pro_bsp_sdk
+*bsp*

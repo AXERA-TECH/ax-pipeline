@@ -36,7 +36,7 @@
 #include "vector"
 #include "map"
 
-#define pipe_count 3
+#define pipe_count 2
 
 AX_S32 s_sample_framerate = 25;
 int SAMPLE_MAJOR_STREAM_WIDTH;
@@ -407,6 +407,9 @@ int main(int argc, char *argv[])
         pipe1.m_input_type = pi_vin;
         if (g_sample.gModels && g_sample.bRunJoint)
         {
+#ifdef AXERA_TARGET_CHIP_AX620E
+            pipe1.m_output_type = po_buff_nv12;
+#else
             switch (axdl_get_color_space(g_sample.gModels))
             {
             case axdl_color_space_rgb:
@@ -420,6 +423,7 @@ int main(int argc, char *argv[])
                 pipe1.m_output_type = po_buff_nv12;
                 break;
             }
+#endif
         }
         else
         {
@@ -430,25 +434,25 @@ int main(int argc, char *argv[])
         pipe1.n_vin_chn = 0;
         pipe1.output_func = ai_inference_func; // 图像输出的回调函数
 
-        pipeline_t &pipe2 = pipelines[2];
-        {
-            pipeline_ivps_config_t &config2 = pipe2.m_ivps_attr;
-            config2.n_ivps_grp = 2;    // 重复的会创建失败
-            config2.n_ivps_rotate = 1; // 旋转90度，现在rtsp流是竖着的画面了
-            config2.n_ivps_fps = s_sample_framerate;
-            config2.n_ivps_width = 960;
-            config2.n_ivps_height = 540;
-            config2.n_osd_rgn = 4;
-        }
-        pipe2.enable = 1;
-        pipe2.pipeid = 2; // 重复的会创建失败
-        pipe2.m_input_type = pi_vin;
-        pipe2.m_output_type = po_rtsp_h264;
-        pipe2.n_loog_exit = 0;
-        pipe2.n_vin_pipe = 0;
-        pipe2.n_vin_chn = 0;
-        sprintf(pipe2.m_venc_attr.end_point, "axstream1"); // 重复的会创建失败
-        pipe2.m_venc_attr.n_venc_chn = 1;                  // 重复的会创建失败
+        // pipeline_t &pipe2 = pipelines[2];
+        // {
+        //     pipeline_ivps_config_t &config2 = pipe2.m_ivps_attr;
+        //     config2.n_ivps_grp = 2;    // 重复的会创建失败
+        //     config2.n_ivps_rotate = 1; // 旋转90度，现在rtsp流是竖着的画面了
+        //     config2.n_ivps_fps = s_sample_framerate;
+        //     config2.n_ivps_width = 960;
+        //     config2.n_ivps_height = 540;
+        //     config2.n_osd_rgn = 4;
+        // }
+        // pipe2.enable = 1;
+        // pipe2.pipeid = 2; // 重复的会创建失败
+        // pipe2.m_input_type = pi_vin;
+        // pipe2.m_output_type = po_rtsp_h264;
+        // pipe2.n_loog_exit = 0;
+        // pipe2.n_vin_pipe = 0;
+        // pipe2.n_vin_chn = 0;
+        // sprintf(pipe2.m_venc_attr.end_point, "axstream1"); // 重复的会创建失败
+        // pipe2.m_venc_attr.n_venc_chn = 1;                  // 重复的会创建失败
 
         for (size_t i = 0; i < pipe_count; i++)
         {

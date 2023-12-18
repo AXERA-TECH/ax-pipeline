@@ -16,32 +16,15 @@ function(ax_include_link name input_type)
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
     target_link_libraries(${name} PRIVATE drm)
 
-    if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
+    if(AXERA_TARGET_CHIP MATCHES "AX650")
         target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
         if(input_type MATCHES "vin")
             target_link_libraries(${name} PRIVATE ax_proton ax_3a ax_mipi ax_nt_stream ax_nt_ctrl)
         endif()
-    elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
-        OR AXERA_TARGET_CHIP MATCHES "AX620E"
-        OR AXERA_TARGET_CHIP MATCHES "AX620e"
-        OR AXERA_TARGET_CHIP MATCHES "ax630e"
-        OR AXERA_TARGET_CHIP MATCHES "ax630E"
-        )
-        target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
-        if(input_type MATCHES "vin")
-            target_link_libraries(${name} PRIVATE ax_proton ax_ae ax_af ax_awb ax_mipi ax_nt_stream ax_nt_ctrl)
-        endif()
-    elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
-        OR AXERA_TARGET_CHIP MATCHES "ax620"
-        OR AXERA_TARGET_CHIP MATCHES "AX620"
-        OR AXERA_TARGET_CHIP MATCHES "AX620A"
-        OR AXERA_TARGET_CHIP MATCHES "AX620a"
-        OR AXERA_TARGET_CHIP MATCHES "ax630a"
-        OR AXERA_TARGET_CHIP MATCHES "ax630"
-        OR AXERA_TARGET_CHIP MATCHES "AX630"
-        OR AXERA_TARGET_CHIP MATCHES "AX630A"
-        OR AXERA_TARGET_CHIP MATCHES "AX630a"
-    )
+    elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
+        target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo ax_proton ax_ae ax_af ax_awb ax_mipi ax_nt_stream ax_nt_ctrl gomp stdc++fs)
+
+    elseif(AXERA_TARGET_CHIP MATCHES "AX620A")
         # target_link_libraries(sample_vin_ivps_joint_venc_rtsp PRIVATE pthread dl stdc++fs) # ax620u use this
         target_link_libraries(${name} PRIVATE ax_run_joint ax_interpreter_external ax_interpreter ax_sys axsyslog stdc++fs)
         target_link_libraries(${name} PRIVATE ax_venc ax_vdec ax_vo ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp)

@@ -115,7 +115,6 @@ void _demux_frame_callback(const void *buff, int len, void *reserve)
     buf_h26x.p_vir = (void *)buff;
     buf_h26x.n_size = len;
     user_input((pipeline_t *)reserve, 1, &buf_h26x);
-    usleep(5 * 1000);
 }
 
 // 允许外部调用
@@ -260,7 +259,7 @@ int main(int argc, char *argv[])
         {
             pipeline_ivps_config_t &config0 = pipe0.m_ivps_attr;
             config0.n_ivps_grp = 0;                  // 重复的会创建失败
-            config0.n_ivps_fps = s_sample_framerate; // 屏幕只能是60gps
+            config0.n_ivps_fps = s_sample_framerate; 
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
             config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
@@ -292,6 +291,9 @@ int main(int argc, char *argv[])
         pipe1.m_input_type = pi_vdec_h264;
         if (g_sample.gModels && g_sample.bRunJoint)
         {
+#ifdef AXERA_TARGET_CHIP_AX620E
+            pipe1.m_output_type = po_buff_nv12;
+#else
             switch (axdl_get_color_space(g_sample.gModels))
             {
             case axdl_color_space_rgb:
@@ -305,6 +307,7 @@ int main(int argc, char *argv[])
                 pipe1.m_output_type = po_buff_nv12;
                 break;
             }
+#endif
         }
         else
         {

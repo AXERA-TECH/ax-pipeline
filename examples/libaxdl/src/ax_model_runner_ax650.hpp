@@ -3,7 +3,7 @@
 #include "ax_common_api.h"
 #include "utilities/object_register.hpp"
 
-#ifdef AXERA_TARGET_CHIP_AX650
+#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E) 
 class ax_runner_ax650 : public ax_runner_base
 {
 protected:
@@ -23,4 +23,6 @@ public:
     int inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box) override;
 };
 REGISTER(RUNNER_AX650,ax_runner_ax650)
+typedef ax_runner_ax650 ax_runner_ax620e;
+REGISTER(RUNNER_AX620E,ax_runner_ax620e)
 #endif

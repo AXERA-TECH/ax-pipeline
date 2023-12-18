@@ -320,7 +320,7 @@ int create_pipeline(pipeline_t *pipe)
             AX_VENC_MOD_ATTR_T stModAttr;
             memset(&stModAttr, 0, sizeof(AX_VENC_MOD_ATTR_T));
             stModAttr.enVencType = AX_VENC_VIDEO_ENCODER;
-            stModAttr.stModThdAttr.u32TotalThreadNum = 1;
+            stModAttr.stModThdAttr.u32TotalThreadNum = 3;
             stModAttr.stModThdAttr.bExplicitSched = AX_FALSE;
 
             int s32Ret = AX_VENC_Init(&stModAttr);

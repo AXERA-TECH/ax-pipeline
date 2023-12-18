@@ -293,7 +293,6 @@ private:
         {
             demux->cbs[i].first(buff, len, demux->cbs[i].second);
         }
-        usleep(20 * 1000);
         return 0;
     }
 

@@ -112,7 +112,7 @@ void *_vdec_get_frame_thread(void *arg)
 }
 #endif
 
-AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId)
+AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId, AX_U32 u32FrameBufCnt)
 {
     AX_S32 s32Ret = AX_SUCCESS;
     /* vdec use pool to alloc output buffer */
@@ -121,7 +121,7 @@ AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId)
 
     memset(&stPoolConfig, 0, sizeof(AX_POOL_CONFIG_T));
     stPoolConfig.MetaSize = 512;
-    stPoolConfig.BlkCnt = 10;
+    stPoolConfig.BlkCnt = u32FrameBufCnt;
     stPoolConfig.BlkSize = FrameSize;
     stPoolConfig.CacheMode = AX_POOL_CACHE_MODE_NONCACHE;
     memset(stPoolConfig.PartitionName, 0, sizeof(stPoolConfig.PartitionName));
@@ -143,7 +143,7 @@ AX_S32 FramePoolInit(AX_VDEC_GRP VdGrp, AX_U32 FrameSize, AX_POOL *PoolId)
         ALOGE("Attach pool err. 0x%x\n", s32Ret);
     }
 
-    printf("FramePoolInit successfully! %d\n", s32PoolId);
+    ALOGI("FramePoolInit successfully cnt %d size %#x! %d\n", s32PoolId, u32FrameBufCnt, FrameSize);
 
     return s32Ret;
 }
@@ -163,15 +163,18 @@ int _create_vdec_grp(pipeline_t *pipe)
     {
         gGrpAttr.enCodecType = PT_H264;
         gGrpAttr.enInputMode = AX_VDEC_INPUT_MODE_FRAME;
-        gGrpAttr.u32PicWidth = 3840;
-        gGrpAttr.u32PicHeight = 2160;
-        gGrpAttr.u32StreamBufSize = 8 * 1024 * 1024;
-        // gGrpAttr.u32MaxFrameBufCnt = 10;
+        gGrpAttr.u32PicWidth = 1920;
+        gGrpAttr.u32PicHeight = 1920;
+        gGrpAttr.u32FrameHeight = 0;
+        gGrpAttr.u32StreamBufSize = 1 * 1024 * 1024;
+        gGrpAttr.enOutOrder = AX_VDEC_OUTPUT_ORDER_DISP;
+        gGrpAttr.u32FrameBufCnt = 30;
+        gGrpAttr.enVdecVbSource = AX_POOL_SOURCE_USER;
         // gGrpAttr.u32InputFifoDepth = 100;
         // gGrpAttr.bSdkAutoFramePool = AX_TRUE;
         // gGrpAttr.bSdkAutoFramePool = AX_FALSE;
 #if VDEC_LINK_MODE
-        // gGrpAttr.enLinkMode = AX_LINK_MODE;
+        gGrpAttr.enLinkMode = AX_LINK_MODE;
 #endif
         AX_POOL s32PoolId = 0;
         AX_U32 FrameSize = 0;
@@ -183,49 +186,9 @@ int _create_vdec_grp(pipeline_t *pipe)
             return -1;
         }
 
-        //         {
-        //             AX_VDEC_CHN_ATTR_T stVdChnAttr = {0};
-
-        //             stVdChnAttr.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-        //             stVdChnAttr.enOutputMode = AX_VDEC_OUTPUT_ORIGINAL;
-        //             stVdChnAttr.u32PicWidth = 3840;
-        //             stVdChnAttr.u32PicHeight = 2160;
-        //             stVdChnAttr.u32FrameBufCnt = 5;
-        //             AX_U32 uPixBits = 8;
-        // #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
-        // #define AX_VDEC_WIDTH_ALIGN AX_SHIFT_LEFT_ALIGN(8)
-        //             stVdChnAttr.u32FrameStride = AX_COMM_ALIGN(AX_COMM_ALIGN(stVdChnAttr.u32PicWidth, 128) * uPixBits,
-        //                                                        AX_VDEC_WIDTH_ALIGN * 8) /
-        //                                          8;
-        //             // stVdChnAttr.u32FrameStride = AX_COMM_ALIGN(stVdChnAttr.u32PicWidth * 8, AX_VDEC_WIDTH_ALIGN * 8) / 8;
-        //             stVdChnAttr.u32FramePadding = 0;
-        //             stVdChnAttr.u32CropX = 0;
-        //             stVdChnAttr.u32CropY = 0;
-        //             stVdChnAttr.u32ScaleRatioX = 1;
-        //             stVdChnAttr.u32ScaleRatioY = 1;
-
-        //             stVdChnAttr.u32OutputFifoDepth = 0;
-
-        //             ret = AX_VDEC_SetChnAttr(pipe->m_vdec_attr.n_vdec_grp, 0, &stVdChnAttr);
-        //             if (ret != AX_SUCCESS)
-        //             {
-        //                 ALOGE("AX_VDEC_SetChnAttr failed! Error:%x %s\n", ret, AX_VdecRetStr(ret));
-        //                 return -1;
-        //             }
-        //             ret = AX_VDEC_EnableChn(pipe->m_vdec_attr.n_vdec_grp, 0);
-        //             if (ret != AX_SUCCESS)
-        //             {
-        //                 ALOGE("AX_VDEC_EnableChn failed! Error:%x %s\n", ret, AX_VdecRetStr(ret));
-        //                 return -1;
-        //             }
-        //         }
-
-        //         // AX_FRAME_COMPRESS_INFO_T stCompressInfo = {0};
-        //         if (gGrpAttr.bSdkAutoFramePool != AX_TRUE)
-        //         {
-        FrameSize = AX_VDEC_GetPicBufferSize(3840, 2160, PT_H264); // 3655712;
+        FrameSize = AX_VDEC_GetPicBufferSize(1920, 1920, PT_H264); // 3655712;
         printf("Get pool mem size is %d\n", FrameSize);
-        ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId);
+        ret = FramePoolInit(pipe->m_vdec_attr.n_vdec_grp, FrameSize, &s32PoolId, gGrpAttr.u32FrameBufCnt);
         if (ret != AX_SUCCESS)
         {
             ALOGE("FramePoolInit failed! Error:%x\n", ret);
@@ -234,8 +197,27 @@ int _create_vdec_grp(pipeline_t *pipe)
         //         }
 
         pipe->m_vdec_attr.poolid = s32PoolId;
+
+        AX_VDEC_GRP_PARAM_T stGrpParam;
+        ret = AX_VDEC_GetGrpParam(pipe->m_vdec_attr.n_vdec_grp, &stGrpParam);
+        if (ret != AX_SUCCESS)
+        {
+            ALOGE("AX_VDEC_GetGrpParam failed! 0x%x", ret);
+            return -1;
+        }
+
+        stGrpParam.enVdecMode = VIDEO_DEC_MODE_IPB;
+        ret = AX_VDEC_SetGrpParam(pipe->m_vdec_attr.n_vdec_grp, &stGrpParam);
+        if (ret != AX_SUCCESS)
+        {
+            ALOGE("AX_VDEC_SetGrpParam failed! 0x%x", ret);
+            return -1;
+        }
+
+        ret = AX_VDEC_SetDisplayMode(pipe->m_vdec_attr.n_vdec_grp, AX_VDEC_DISPLAY_MODE_PLAYBACK);
+
         AX_VDEC_RECV_PIC_PARAM_T stRecvParam = {0};
-        stRecvParam.s32RecvPicNum = -1;
+        stRecvParam.s32RecvPicNum = 0;
         ret = AX_VDEC_StartRecvStream(pipe->m_vdec_attr.n_vdec_grp, &stRecvParam);
         if (ret != AX_SUCCESS)
         {

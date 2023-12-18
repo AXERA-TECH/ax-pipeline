@@ -1,4 +1,4 @@
-#ifdef AXERA_TARGET_CHIP_AX650
+#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E) 
 #include "ax_model_runner_ax650.hpp"
 #include "string.h"
 #include <fcntl.h>
