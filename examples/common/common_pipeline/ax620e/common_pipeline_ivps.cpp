@@ -124,19 +124,23 @@ int _create_ivps_grp(pipeline_t *pipe)
     memset(&stPipelineAttr.tFilter, 0x00, sizeof(stPipelineAttr.tFilter));
 
     stPipelineAttr.tFilter[nChn][0].bEngage = AX_TRUE;
-    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nSrcFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
-    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nDstFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
-    // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetX0 = 0;
-    // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetY0 = 0;
-    stPipelineAttr.tFilter[nChn][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_width;
-    stPipelineAttr.tFilter[nChn][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_height;
+    stPipelineAttr.tFilter[nChn][0].nDstPicWidth = 1920;
+    stPipelineAttr.tFilter[nChn][0].nDstPicHeight = 1080;
     stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
-    // stPipelineAttr.tFilter[nChn+1][0].nDstFrameWidth = pipe->m_ivps_attr.n_ivps_width;
-    // stPipelineAttr.tFilter[nChn+1][0].nDstFrameHeight = pipe->m_ivps_attr.n_ivps_height;
     stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_TDP;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.u32CompressLevel = 4;
+    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_GDC;
+
+    stPipelineAttr.tFilter[nChn + 1][0].bEngage = AX_TRUE;
+    stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_width;
+    stPipelineAttr.tFilter[nChn + 1][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_height;
+    stPipelineAttr.tFilter[nChn + 1][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
+    stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+    stPipelineAttr.tFilter[nChn + 1][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+    stPipelineAttr.tFilter[nChn + 1][0].tCompressInfo.u32CompressLevel = 4;
+    stPipelineAttr.tFilter[nChn + 1][0].eEngine = AX_IVPS_ENGINE_TDP;
+    stPipelineAttr.tFilter[nChn + 1][0].bInplace = AX_TRUE;
 
     if (pipe->m_ivps_attr.b_letterbox)
     {
@@ -146,20 +150,21 @@ int _create_ivps_grp(pipeline_t *pipe)
         tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
         tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
         tAspectRatio.nBgColor = 0x0000FF;
-        stPipelineAttr.tFilter[nChn][0].tAspectRatio = tAspectRatio;
+        stPipelineAttr.tFilter[nChn+1][0].tAspectRatio = tAspectRatio;
     }
 
-    stPipelineAttr.tFilter[nChn][0].tTdpCfg.bFlip = pipe->m_ivps_attr.b_ivps_flip > 0 ? AX_TRUE : AX_FALSE;
-    stPipelineAttr.tFilter[nChn][0].tTdpCfg.bMirror = pipe->m_ivps_attr.b_ivps_mirror > 0 ? AX_TRUE : AX_FALSE;
-    stPipelineAttr.tFilter[nChn][0].tTdpCfg.eRotation = (AX_IVPS_ROTATION_E)pipe->m_ivps_attr.n_ivps_rotate;
+    stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.bFlip = pipe->m_ivps_attr.b_ivps_flip > 0 ? AX_TRUE : AX_FALSE;
+    stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.bMirror = pipe->m_ivps_attr.b_ivps_mirror > 0 ? AX_TRUE : AX_FALSE;
+    stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.eRotation = (AX_IVPS_ROTATION_E)pipe->m_ivps_attr.n_ivps_rotate;
 
-    switch (stPipelineAttr.tFilter[nChn][0].tTdpCfg.eRotation)
+    switch (stPipelineAttr.tFilter[nChn + 1][0].tTdpCfg.eRotation)
     {
     case AX_IVPS_ROTATION_90:
     case AX_IVPS_ROTATION_270:
-        stPipelineAttr.tFilter[nChn][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_height;
-        stPipelineAttr.tFilter[nChn][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_width;
-        stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
+        stPipelineAttr.tFilter[nChn + 1][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_height;
+        stPipelineAttr.tFilter[nChn + 1][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_width;
+        stPipelineAttr.tFilter[nChn + 1][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
+        stPipelineAttr.tFilter[nChn + 1][0].bInplace = AX_FALSE;
         // stPipelineAttr.tFilter[nChn+1][0].nDstFrameWidth = pipe->m_ivps_attr.n_ivps_height;
         // stPipelineAttr.tFilter[nChn+1][0].nDstFrameHeight = pipe->m_ivps_attr.n_ivps_width;
         break;
@@ -171,13 +176,13 @@ int _create_ivps_grp(pipeline_t *pipe)
     switch (pipe->m_output_type)
     {
     case po_buff_rgb:
-        stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_RGB888;
+        stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_FORMAT_RGB888;
         break;
     case po_buff_bgr:
-        stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_BGR888;
+        stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_FORMAT_BGR888;
         break;
     case po_buff_nv21:
-        stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR_VU;
+        stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR_VU;
         break;
     case po_buff_nv12:
     case po_venc_mjpg:
@@ -186,7 +191,7 @@ int _create_ivps_grp(pipeline_t *pipe)
     case po_rtsp_h264:
     case po_rtsp_h265:
     case po_vo_sipeed_maix3_screen:
-        stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+        stPipelineAttr.tFilter[nChn + 1][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
         break;
     default:
         break;
@@ -224,7 +229,7 @@ int _create_ivps_grp(pipeline_t *pipe)
         IVPS_RGN_HANDLE hChnRgn = AX_IVPS_RGN_Create();
         if (AX_IVPS_INVALID_REGION_HANDLE != hChnRgn)
         {
-            AX_S32 nFilter = 0x00;
+            AX_S32 nFilter = 0x10;
             int nRet = AX_IVPS_RGN_AttachToFilter(hChnRgn, pipe->m_ivps_attr.n_ivps_grp, nFilter);
             if (0 != nRet)
             {

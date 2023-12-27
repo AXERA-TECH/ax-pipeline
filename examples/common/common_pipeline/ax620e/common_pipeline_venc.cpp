@@ -181,7 +181,7 @@ static AX_VOID SAMPLE_SetDefaultVencParams(SAMPLE_VENC_CMD_PARA_T *pstPara, AX_U
     pstPara->picH = height;
     pstPara->maxPicW = width;
     pstPara->maxPicH = height;
-    pstPara->rcMode = SAMPLE_RC_CBR;
+    pstPara->rcMode = SAMPLE_RC_VBR;
     pstPara->chnNum = 1;
     pstPara->srcFrameRate = 30;
     pstPara->dstFrameRate = 30;

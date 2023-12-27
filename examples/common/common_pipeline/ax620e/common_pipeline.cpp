@@ -555,6 +555,11 @@ int destory_pipeline(pipeline_t *pipe)
 
         if (contain(pipeline_handle.vdec_grp, pipe->m_vdec_attr.n_vdec_grp))
         {
+            AX_VDEC_STREAM_T stream = {0};
+            memset(&stream, 0, sizeof(AX_VDEC_STREAM_T));
+            stream.bEndOfFrame = AX_TRUE;
+            stream.bEndOfStream = AX_TRUE;
+            AX_VDEC_SendStream(pipe->m_vdec_attr.n_vdec_grp, &stream, 200);
             if (pipe->m_input_type == pi_vdec_h264)
                 _destore_vdec_grp(pipe);
             erase(pipeline_handle.vdec_grp, pipe->m_vdec_attr.n_vdec_grp);
