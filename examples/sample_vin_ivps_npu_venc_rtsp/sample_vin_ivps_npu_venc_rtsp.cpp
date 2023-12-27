@@ -182,6 +182,10 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t\t2: Single GC4653\n");
     printf("\t\t3: Single OS08A20\n");
     printf("\t\t4: Single OS04A10 Online\n");
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    printf("\t-c: ISP Test Case:\n");
+    printf("\t\t0: Single OS04A10\n");
+    printf("\t\t1: Single SC450AI\n");
 #endif
     printf("\t-e: SDR/HDR Mode:\n");
     printf("\t\t1: SDR\n");
@@ -203,10 +207,12 @@ int main(int argc, char *argv[])
 
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     COMMON_SYS_ARGS_T tPrivArgs = {0};
-    AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
 #ifdef AXERA_TARGET_CHIP_AX620
+    AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     COMMON_SYS_CASE_E eSysCase = SYS_CASE_SINGLE_GC4653;
     SAMPLE_SNS_TYPE_E eSnsType = GALAXYCORE_GC4653;
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+    SAMPLE_VIN_CASE_E eSnsCase = SAMPLE_VIN_SINGLE_OS04A10;
 #endif
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);
@@ -227,10 +233,14 @@ int main(int argc, char *argv[])
         case 'c':
             eSysCase = (COMMON_SYS_CASE_E)atoi(optarg);
             break;
-#endif
         case 'e':
             eHdrMode = (AX_SNS_HDR_MODE_E)atoi(optarg);
             break;
+#elif defined(AXERA_TARGET_CHIP_AX620E)
+        case 'c':
+            eSnsCase = (SAMPLE_VIN_CASE_E)atoi(optarg);
+            break;
+#endif
         case 'r':
             s_sample_framerate = (AX_S32)atoi(optarg);
             if (s_sample_framerate <= 0)
@@ -285,7 +295,7 @@ int main(int argc, char *argv[])
     SAMPLE_MAJOR_STREAM_WIDTH = 1920;
     SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-    s32Ret = SAMPLE_VIN_Init(SAMPLE_VIN_SINGLE_OS04A10);
+    s32Ret = SAMPLE_VIN_Init(eSnsCase);
     if (0 != s32Ret)
     {
         ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
