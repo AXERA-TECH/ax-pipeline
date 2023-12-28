@@ -190,8 +190,8 @@ static AX_VOID SAMPLE_SetDefaultVencParams(SAMPLE_VENC_CMD_PARA_T *pstPara, AX_U
 
     pstPara->gopLen = 30;
     pstPara->virILen = pstPara->gopLen / 2;
-    pstPara->bitRate = 2000;
-    pstPara->qpMin = 22;
+    pstPara->bitRate = width * height * 3 / 1024;
+    pstPara->qpMin = 10;
     pstPara->qpMax = 51;
     pstPara->qpMinI = 10;
     pstPara->qpMaxI = 51;

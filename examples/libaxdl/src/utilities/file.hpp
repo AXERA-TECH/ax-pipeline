@@ -1,13 +1,13 @@
 /*
  * AXERA is pleased to support the open source community by making ax-samples available.
- * 
+ *
  * Copyright (c) 2022, AXERA Semiconductor (Shanghai) Co., Ltd. All rights reserved.
- * 
+ *
  * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
- * 
+ *
  * https://opensource.org/licenses/BSD-3-Clause
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied. See the License for the
@@ -27,7 +27,7 @@
 
 namespace utilities
 {
-    bool file_exist(const std::string& path)
+    static bool file_exist(const std::string &path)
     {
         auto flag = false;
 
@@ -38,7 +38,7 @@ namespace utilities
         return flag;
     }
 
-    bool read_file(const std::string& path, std::vector<char>& data)
+    static bool read_file(const std::string &path, std::vector<char> &data)
     {
         std::fstream fs(path, std::ios::in | std::ios::binary);
 
@@ -63,7 +63,7 @@ namespace utilities
         return true;
     }
 
-    bool dump_file(const std::string& path, std::vector<char>& data)
+    static bool dump_file(const std::string &path, std::vector<char> &data)
     {
         std::fstream fs(path, std::ios::out | std::ios::binary);
 
@@ -77,7 +77,7 @@ namespace utilities
         return true;
     }
 
-    bool dump_file(const std::string& path, char* data, int size)
+    static bool dump_file(const std::string &path, char *data, int size)
     {
         std::fstream fs(path, std::ios::out | std::ios::binary);
 

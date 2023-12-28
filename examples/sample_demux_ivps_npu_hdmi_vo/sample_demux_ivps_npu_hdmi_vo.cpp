@@ -78,6 +78,7 @@ static struct _g_sample_
 
         for (size_t i = 0; i < model_max_count; i++)
         {
+            gModels[i].osd_helper.Stop();
             gModels[i].pipes_need_osd.clear();
             gModels[i].gModel = nullptr;
             gModels[i].bRunJoint = 0;

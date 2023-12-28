@@ -224,6 +224,8 @@ protected:
 
 public:
     virtual int init(void *json_obj) override;
+    // 用作自定义模型初始化自定义参数，可不继承实现
+    virtual int sub_init(void *json_obj) { return 0; }
     virtual void deinit() override;
 
     axdl_color_space_e get_color_space() override { return m_runner->get_color_space(); }

@@ -56,6 +56,7 @@ int axdl_parse_param_init(char *json_file_path, void **pModels)
     int mt = ax_model_base::get_model_type(&jsondata, strModelType);
     if (mt == MT_UNKNOWN)
     {
+        ALOGE("unknown model type: %s", strModelType.c_str());
         return -1;
     }
     *pModels = new ax_model_handle_t;

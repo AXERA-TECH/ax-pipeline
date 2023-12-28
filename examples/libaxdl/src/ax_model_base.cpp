@@ -25,6 +25,7 @@ std::map<std::string, int> ModelTypeTable = {
 #include "ax_model_ml_sub.hpp"
 
 #include "ax_model_custom.hpp"
+#include "ax_model_clip.hpp"
 
 #include "ax_model_runner_ax620.hpp"
 #include "ax_model_runner_ax650.hpp"
@@ -313,6 +314,7 @@ int ax_model_single_base_t::init(void *json_obj)
     {
         CLASS_NAMES.push_back("unknown");
     }
+    sub_init(json_obj);
     return 0;
 }
 

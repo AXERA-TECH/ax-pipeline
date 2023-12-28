@@ -62,6 +62,7 @@ extern "C"
 
 
         MT_CUSTOM_MODEL = 0x50000,
+        MT_CLIP,
 
         MT_END,
     } MODEL_TYPE_E;

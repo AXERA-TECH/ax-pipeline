@@ -273,7 +273,7 @@ private:
     axdl_results_t results;
     std::thread th_osd;
     std::mutex locker;
-    volatile int gLoopExit = 0;
+    volatile int gLoopExit = 1;
     void *gModels = nullptr;
 
 public:
@@ -294,8 +294,11 @@ public:
 
     void Stop()
     {
-        gLoopExit = 1;
-        th_osd.join();
+        if (gLoopExit == 0)
+        {
+            gLoopExit = 1;
+            th_osd.join();
+        }
     }
 
     void Update(axdl_results_t *pResults)

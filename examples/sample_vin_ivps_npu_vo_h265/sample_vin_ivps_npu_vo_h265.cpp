@@ -65,6 +65,7 @@ static struct _g_sample_
     }
     void Deinit()
     {
+        osd_helper.Stop();
         pipes_need_osd.clear();
 
         ALOGN("g_sample Deinit\n");

@@ -1,4 +1,4 @@
-#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E) 
+#if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
 #include "ax_model_runner_ax650.hpp"
 #include "string.h"
 #include <fcntl.h>
@@ -277,20 +277,42 @@ axdl_color_space_e ax_runner_ax650::get_color_space()
 
 int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_resize_box)
 {
-    if (imgproc.process(pstFrame, (axdl_bbox_t *)crop_resize_box) != 0)
+    // if (imgproc.process(pstFrame, (axdl_bbox_t *)crop_resize_box) != 0)
+    // {
+    //     ALOGE("image process failed");
+    //     return -1;
+    // }
+    static std::map<AX_IMG_FORMAT_E, axdl_color_space_e> color_space_map =
+        {{AX_FORMAT_RGB888, axdl_color_space_rgb},
+         {AX_FORMAT_BGR888, axdl_color_space_bgr},
+         {AX_FORMAT_YUV420_SEMIPLANAR, axdl_color_space_nv12},
+         {AX_FORMAT_YUV420_SEMIPLANAR_VU, axdl_color_space_nv21}};
+
+    if (color_space_map[(AX_IMG_FORMAT_E)m_handle->algo_colorformat] == pstFrame->eDtype &&
+        m_handle->algo_width == pstFrame->nWidth &&
+        m_handle->algo_height == pstFrame->nHeight)
     {
-        ALOGE("image process failed");
-        return -1;
+        memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
     }
-    // unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
-    // unsigned char *src = (unsigned char *)imgproc.get()->pVir;
+    else
+    {
+        if (imgproc.process(pstFrame, (axdl_bbox_t *)crop_resize_box) != 0)
+        {
+            ALOGE("image process failed");
+            return -1;
+        }
+    }
 
     // switch (m_handle->algo_colorformat)
     // {
     // case AX_FORMAT_RGB888:
     // case AX_FORMAT_BGR888:
+    // {
+    //     unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
+    //     unsigned char *src = (unsigned char *)imgproc.get()->pVir;
     //     memcpy(dst, src, minput_tensors[0].nSize);
-    //     break;
+    // }
+    // break;
     // case AX_FORMAT_YUV420_SEMIPLANAR:
     // case AX_FORMAT_YUV420_SEMIPLANAR_VU:
     //     for (size_t i = 0; i < pstFrame->nHeight * 1.5; i++)

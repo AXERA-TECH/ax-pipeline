@@ -45,7 +45,7 @@ jobs:
           export PATH=$PATH:gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
           arm-linux-gnueabihf-gcc -v
 
-          cmake -DAXERA_TARGET_CHIP=AX620 -DBSP_MSP_DIR=$PWD/axpi_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/opencv-arm-linux/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
+          cmake -DAXERA_TARGET_CHIP=AX620A -DBSP_MSP_DIR=$PWD/axpi_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/opencv-arm-linux/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
           make -j8
           make install
       - name: build for ax650

@@ -1,0 +1,12 @@
+{
+    "MODEL_TYPE": "MT_CLIP",
+    "MODEL_PATH": "./models/image_encoder.axmodel",
+    "SAMPLE_IVPS_ALGO_WIDTH": 1280,
+    "SAMPLE_IVPS_ALGO_HEIGHT": 720,
+    "OSD_DRAW_FPS": false,
+    "TEXTS": {
+        "bird": "texts_feature/bird.bin",
+        "cat": "texts_feature/cat.bin",
+        "dog": "texts_feature/dog.bin"
+    }
+}
