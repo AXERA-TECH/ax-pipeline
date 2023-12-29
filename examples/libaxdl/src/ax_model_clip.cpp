@@ -148,10 +148,30 @@ void ax_model_clip::draw_custom(int chn, axdl_results_t *results, float fontscal
 {
     char text[256];
     float x = 50, y = 50;
+
+    // find the max id and score
+    int maxid = 0;
+    float max_score = -MAXFLOAT;
     for (int i = 0; i < results->nObjSize; i++)
     {
-        sprintf(text, "%s %.2f", texts[i].c_str(), results->mObjects[i].prob);
-        m_drawers[chn].add_text(text, {x / m_drawers[chn].get_width(), y / m_drawers[chn].get_height()}, {255, 0, 255, 0}, fontscale, thickness);
+        if (results->mObjects[i].prob > max_score)
+        {
+            max_score = results->mObjects[i].prob;
+            maxid = i;
+        }
+    }
+
+    for (int i = 0; i < results->nObjSize; i++)
+    {
+        sprintf(text, "%10s %.2f", texts[i].c_str(), results->mObjects[i].prob);
+        if (i == maxid)
+        {
+            m_drawers[chn].add_text(text, {x / m_drawers[chn].get_width(), y / m_drawers[chn].get_height()}, {255, 0, 255, 0}, fontscale * 2, thickness);
+        }
+        else
+        {
+            m_drawers[chn].add_text(text, {x / m_drawers[chn].get_width(), y / m_drawers[chn].get_height()}, {255, 0, 0, 255}, fontscale * 2, thickness);
+        }
         y += 50;
     }
 }
