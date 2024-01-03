@@ -30,6 +30,13 @@ if(NOT BSP_MSP_DIR)
 endif()
 message(STATUS "BSP_MSP_DIR = ${BSP_MSP_DIR}")
 
+if(ONNXRUNTIME_DIR)
+    add_compile_options(-DBUILT_WITH_ONNXRUNTIME)
+    message(STATUS "ONNXRUNTIME_DIR = ${ONNXRUNTIME_DIR}")
+else()
+    message(STATUS "ONNXRUNTIME_DIR = NOT SET")
+endif()
+
 # option(BUILD_ON_BOARD "build in axpi" OFF)
 option(SIPY_BUILD "build *.so for sipeed python package" OFF)
 if(SIPY_BUILD)

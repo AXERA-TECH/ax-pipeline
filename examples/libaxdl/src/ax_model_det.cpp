@@ -1115,11 +1115,10 @@ int ax_model_yolov8_native::post_process(axdl_image_t *pstFrame, axdl_bbox_t *cr
     std::vector<detection::Object> proposals;
     std::vector<detection::Object> objects;
 
-    for (uint32_t i = 0; i < m_runner->get_num_outputs(); ++i)
+    for (int32_t i = 0; i < m_runner->get_num_outputs(); ++i)
     {
         auto ptr = (float *)m_runner->get_output(i).pVirAddr;
-        int32_t stride = (1 << i) * 8;
-        detection::generate_proposals_yolov8_native(stride, ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
+        detection::generate_proposals_yolov8_native(STRIDES[i], ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), CLASS_NUM);
     }
 
     detection::get_out_bbox(proposals, objects, NMS_THRESHOLD, get_algo_height(), get_algo_width(), HEIGHT_DET_BBOX_RESTORE, WIDTH_DET_BBOX_RESTORE);
@@ -1354,10 +1353,10 @@ int ax_model_yolov8_pose_native::post_process(axdl_image_t *pstFrame, axdl_bbox_
     std::vector<detection::Object> objects;
 
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; i++)
     {
-        auto feat_ptr = (float *)pOutputsInfo[2 * i + 1].pVirAddr;
-        auto feat_kps_ptr = (float *)pOutputsInfo[2 * i].pVirAddr;
+        auto feat_ptr = (float *)pOutputsInfo[i + 3].pVirAddr;
+        auto feat_kps_ptr = (float *)pOutputsInfo[i].pVirAddr;
         detection::generate_proposals_yolov8_pose_native(STRIDES[i], feat_ptr, feat_kps_ptr, PROB_THRESHOLD, proposals, get_algo_width(), get_algo_height(), SAMPLE_BODY_LMK_SIZE, CLASS_NUM);
     }
 

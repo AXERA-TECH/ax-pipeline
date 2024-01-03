@@ -45,6 +45,7 @@ namespace detection
         cv::Mat mask;
         std::vector<float> mask_feat;
         std::vector<float> kps_feat;
+        std::string text;
     } Object;
 
     /* for palm hand detection */

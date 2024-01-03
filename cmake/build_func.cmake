@@ -16,6 +16,13 @@ function(ax_include_link name input_type)
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
     target_link_libraries(${name} PRIVATE drm)
 
+    # onnxruntime
+    if(ONNXRUNTIME_DIR)
+        target_include_directories(${name} PRIVATE ${ONNXRUNTIME_DIR}/include)
+        target_link_directories(${name} PRIVATE ${ONNXRUNTIME_DIR}/lib)
+        target_link_libraries(${name} PRIVATE onnxruntime)
+    endif()
+
     if(AXERA_TARGET_CHIP MATCHES "AX650")
         target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_ive ax_engine ax_vo gomp stdc++fs)
         if(input_type MATCHES "vin")

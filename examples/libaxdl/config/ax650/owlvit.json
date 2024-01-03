@@ -1,0 +1,30 @@
+{
+    "MODEL_TYPE": "MT_OWLVIT",
+    "MODEL_PATH": "./models/owlvit-image.axmodel",
+    "DECODER_PATH": "./models/owlvit-post.onnx",
+    "OSD_DRAW_FPS": true,
+    "PROB_THRESHOLD": 0.1,
+    "INFO":"参考 https://github.com/AXERA-TECH/OWLVIT-ONNX-AX650-CPP 生成以下信息。",
+    "TEXTS": [
+        {
+            "text": "cat",
+            "texts_feature": "cat.bin",
+            "input_ids": [49406, 2368, 49407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+        {
+            "text": "dog",
+            "texts_feature": "dog.bin",
+            "input_ids": [49406, 1929, 49407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+        {
+            "text": "bird",
+            "texts_feature": "bird.bin",
+            "input_ids": [49406, 3329, 49407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+        {
+            "text": "person",
+            "texts_feature": "person.bin",
+            "input_ids": [49406, 2533, 49407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+    ]
+}

@@ -9,6 +9,13 @@ function(targetlink name)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include/npu_cv_kit)
     target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/ByteTrack/include)
+    
+    # onnxruntime
+    if(ONNXRUNTIME_DIR)
+        target_include_directories(${name} PRIVATE ${ONNXRUNTIME_DIR}/include)
+        target_link_directories(${name} PRIVATE ${ONNXRUNTIME_DIR}/lib)
+        target_link_libraries(${name} PRIVATE onnxruntime)
+    endif()
 endfunction()
 
 file(GLOB SRC_LIST "src/*.cpp" "src/utilities/*.cpp")
