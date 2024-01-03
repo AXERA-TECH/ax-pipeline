@@ -151,7 +151,7 @@ void ax_model_clip::draw_custom(int chn, axdl_results_t *results, float fontscal
 
     // find the max id and score
     int maxid = 0;
-    float max_score = -MAXFLOAT;
+    float max_score = -FLT_MAX;
     for (int i = 0; i < results->nObjSize; i++)
     {
         if (results->mObjects[i].prob > max_score)
