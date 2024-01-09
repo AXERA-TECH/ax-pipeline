@@ -3,11 +3,13 @@
 #include "ax_model_runner.hpp"
 #include "ax_osd_drawer.hpp"
 
-#include "vector"
-#include "string"
-#include "memory"
+#include <vector>
+#include <string>
+#include <memory>
 #include "bytetrack.h"
 #include "opencv2/opencv.hpp"
+
+#include "../src/utilities/timer.hpp"
 
 class ax_model_base
 {
@@ -218,6 +220,14 @@ protected:
 
     axdl_image_t dstFrame = {0};
     bool bMalloc = false;
+
+    timer m_infer_timer;
+    std::map<std::string,float> m_cost_times {
+        {"preprocess", 0},
+        {"post_process", 0},
+        {"inference", 0},
+        {"track", 0},
+    };
 
     virtual int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results);
     virtual int post_process(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) = 0;

@@ -434,7 +434,7 @@ int main(int argc, char *argv[])
         {
             auto &pipelines = vpipelines[i];
             VideoDemux *demux = new VideoDemux();
-            if (demux->Open(rtsp_urls[i].c_str(), true, _demux_frame_callback, pipelines.data()))
+            if (demux->Open(rtsp_urls[i].c_str(), true, _demux_frame_callback, pipelines.data(), s_sample_framerate))
             {
                 video_demuxes.push_back(demux);
             }

@@ -25,9 +25,41 @@
 
 typedef void (*VideoDemuxCallback)(const void *buff, int len, void *reserve);
 
+class frame_rater
+{
+public:
+    frame_rater()
+    {
+        set_fps(30.0);
+    }
+
+    void set_fps(double fps)
+    {
+        time_between_frames = std::chrono::duration_cast<decltype(time_between_frames)>(std::chrono::duration<double>(1.0 / fps));
+        tp = std::chrono::steady_clock::now();
+    }
+
+    void sleep()
+    {
+        // add to time point
+        tp += time_between_frames;
+
+        // and sleep until that time point
+        std::this_thread::sleep_until(tp);
+    }
+
+private:
+    // a duration with a length of 1/FPS seconds
+    std::chrono::nanoseconds time_between_frames;
+
+    // the time point we'll add to in every loop
+    std::chrono::time_point<std::chrono::steady_clock, decltype(time_between_frames)> tp;
+};
+
 class VideoDemux
 {
 private:
+    frame_rater frame_rater_;
     std::string url = "";
     std::vector<std::pair<VideoDemuxCallback, void *>> cbs;
     // std::vector<void *> reserves;
@@ -278,7 +310,7 @@ private:
                     }
                     // demux->cb(cbuffer.data(), sReadLen, demux->reserve);
                 }
-                usleep(0);
+                demux->frame_rater_.sleep();
             }
             fclose(fInput);
         } while (demux->loopPlay && !demux->gLoopExit);
@@ -293,6 +325,7 @@ private:
         {
             demux->cbs[i].first(buff, len, demux->cbs[i].second);
         }
+        demux->frame_rater_.sleep();
         return 0;
     }
 
@@ -317,6 +350,7 @@ private:
         default:
             break;
         }
+        // demux->frame_rater_.sleep();
     }
 
 public:
@@ -345,9 +379,10 @@ public:
         cbs.clear();
     }
 
-    bool Open(std::string _url, bool _loopPlay, VideoDemuxCallback _cb, void *_reserve)
+    bool Open(std::string _url, bool _loopPlay, VideoDemuxCallback _cb, void *_reserve, double fps = 30.0)
     {
         Stop();
+        frame_rater_.set_fps(fps);
         gLoopExit = 0;
         url = _url;
         loopPlay = _loopPlay;

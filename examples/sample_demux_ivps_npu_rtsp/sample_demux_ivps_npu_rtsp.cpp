@@ -133,6 +133,7 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t-p: model config file path\n");
     printf("\t-f: mp4 file/rtsp url(just only support h264 format)\n");
     printf("\t-l: loop play video\n");
+    printf("\t-r: sample framerate\n");
     exit(0);
 }
 
@@ -259,8 +260,8 @@ int main(int argc, char *argv[])
         pipeline_t &pipe0 = pipelines[0];
         {
             pipeline_ivps_config_t &config0 = pipe0.m_ivps_attr;
-            config0.n_ivps_grp = 0;                  // 重复的会创建失败
-            config0.n_ivps_fps = s_sample_framerate; 
+            config0.n_ivps_grp = 0; // 重复的会创建失败
+            config0.n_ivps_fps = s_sample_framerate;
             config0.n_ivps_width = 1920;
             config0.n_ivps_height = 1080;
             config0.n_osd_rgn = 4; // osd rgn 的个数，一个rgn可以osd 32个目标
@@ -335,7 +336,7 @@ int main(int argc, char *argv[])
 
     {
         VideoDemux demux;
-        demux.Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0]);
+        demux.Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0], s_sample_framerate);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);

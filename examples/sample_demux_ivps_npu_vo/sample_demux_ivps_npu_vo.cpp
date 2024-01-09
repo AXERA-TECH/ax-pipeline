@@ -134,6 +134,7 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t-p: model config file path\n");
     printf("\t-f: mp4 file/rtsp url(just only support h264 format)\n");
     printf("\t-l: loop play video\n");
+    printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
     exit(0);
 }
 
@@ -327,7 +328,7 @@ int main(int argc, char *argv[])
 
     {
         VideoDemux demux;
-        demux.Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0]);
+        demux.Open(video_url, loopPlay, _demux_frame_callback, &pipelines[0], s_sample_framerate);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);

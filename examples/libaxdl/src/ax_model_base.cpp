@@ -343,19 +343,31 @@ int ax_model_single_base_t::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop
 
 int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
+    m_infer_timer.start();
     int ret = preprocess(pstFrame, crop_resize_box, results);
     if (ret != 0)
     {
         ALOGE("preprocess failed %d", ret);
         return ret;
     }
+    m_cost_times["preprocess"] = m_infer_timer.cost();
+    m_infer_timer.start();
     ret = m_runner->inference(&dstFrame, crop_resize_box);
     if (ret != 0)
     {
         ALOGE("inference failed 0x%x", ret);
         return ret;
     }
+    m_cost_times["inference"] = m_infer_timer.cost();
+    m_infer_timer.start();
     ret = post_process(pstFrame, crop_resize_box, results);
+    if (ret != 0)
+    {
+        ALOGE("post_process failed %d", ret);
+        return ret;
+    }
+    m_cost_times["post_process"] = m_infer_timer.cost();
+    m_infer_timer.start();
     results->bObjTrack = b_track ? 1 : 0;
     if (b_track && tracker)
     {
@@ -416,6 +428,13 @@ int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_
             }
         }
     }
+    m_cost_times["track"] = m_infer_timer.cost();
+
+    // print cost time
+    // for (auto iter = m_cost_times.begin(); iter != m_cost_times.end(); iter++)
+    // {
+    //     ALOGI("[%s] cost time %f ms", iter->first.c_str(), iter->second);
+    // }
 
     return ret;
 }

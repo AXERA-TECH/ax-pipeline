@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
 
     {
         VideoDemux demux;
-        demux.Open(video_url, true, _demux_frame_callback, &pipelines[0]);
+        demux.Open(video_url, true, _demux_frame_callback, &pipelines[0], s_sample_framerate);
         while (!gLoopExit)
         {
             usleep(1000 * 1000);

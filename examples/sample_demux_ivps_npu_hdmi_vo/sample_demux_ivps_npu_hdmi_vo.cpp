@@ -389,7 +389,7 @@ int main(int argc, char *argv[])
     {
 
         VideoDemux *video_demux = new VideoDemux;
-        video_demux->Open(video_url, loopPlay, nullptr, nullptr);
+        video_demux->Open(video_url, loopPlay, nullptr, nullptr, s_sample_framerate);
         for (size_t i = 0; i < config_files.size(); i++)
         {
             auto &pipelines = vpipelines[i];
