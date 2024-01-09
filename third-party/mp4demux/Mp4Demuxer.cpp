@@ -1,6 +1,7 @@
 #include "Mp4Demuxer.h"
 #define MINIMP4_IMPLEMENTATION
 #define ENABLE_AUDIO 0
+#define ENABLE_MMAP 0
 #include "minimp4/minimp4.h"
 
 #include <stdio.h>
@@ -10,6 +11,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 typedef struct
 {
@@ -19,10 +22,12 @@ typedef struct
 
 typedef struct
 {
+#if !ENABLE_MMAP
     std::shared_ptr<uint8_t> buf_h264;
     ssize_t h264_size;
-
+#endif
     std::vector<uint8_t> spspps_buffer;
+    std::vector<uint8_t> cache;
 
     std::string path;
     mp4_frame_callback cb;
@@ -65,16 +70,35 @@ static int read_callback(int64_t offset, void *buffer, size_t size, void *token)
 
 void pth_demux(Mp4DemuxerHandle *handle)
 {
+#if ENABLE_MMAP
+    printf("Read video(%s) file by mmap.\n", handle->path.c_str());
+    auto *file_fp = fopen(handle->path.c_str(), "r");
+    if (!file_fp)
+    {
+        printf("Read video(%s) file failed.\n", handle->path.c_str());
+        return;
+    }
+    fseek(file_fp, 0, SEEK_END);
+    int file_size = ftell(file_fp);
+    fclose(file_fp);
+    int fd = open(handle->path.c_str(), O_RDWR, 0644);
+    uint8_t *file_addr = (uint8_t *)mmap(NULL, file_size, PROT_WRITE, MAP_SHARED, fd, 0);
+    INPUT_BUFFER buf = {file_addr, file_size};
+#else
+    printf("Read whole video(%s) file to memory.\n", handle->path.c_str());
+    handle->buf_h264.reset(preload(handle->path.c_str(), &handle->h264_size), std::default_delete<uint8_t[]>());
+    INPUT_BUFFER buf = {handle->buf_h264.get(), handle->h264_size};
+    int file_size = handle->h264_size;
+    uint8_t *file_addr = handle->buf_h264.get();
+#endif
     do
     {
-        handle->buf_h264.reset(preload(handle->path.c_str(), &handle->h264_size), std::default_delete<uint8_t[]>());
         int ntrack = 0;
         unsigned /*ntrack, */ i;
         int spspps_bytes;
         const void *spspps;
-        INPUT_BUFFER buf = {handle->buf_h264.get(), handle->h264_size};
         MP4D_demux_t mp4 = {0};
-        MP4D_open(&mp4, read_callback, &buf, handle->h264_size);
+        MP4D_open(&mp4, read_callback, &buf, file_size);
 
         MP4D_track_t *tr = mp4.track + ntrack;
         unsigned sum_duration = 0;
@@ -123,19 +147,25 @@ void pth_demux(Mp4DemuxerHandle *handle)
             {
                 unsigned frame_bytes, timestamp, duration;
                 MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, ntrack, i, &frame_bytes, &timestamp, &duration);
-                uint8_t *mem = handle->buf_h264.get() + ofs;
+                uint8_t *mem = file_addr + ofs;
                 sum_duration += duration;
                 while (frame_bytes)
                 {
                     uint32_t size = ((uint32_t)mem[0] << 24) | ((uint32_t)mem[1] << 16) | ((uint32_t)mem[2] << 8) | mem[3];
                     size += 4;
-                    mem[0] = 0;
-                    mem[1] = 0;
-                    mem[2] = 0;
-                    mem[3] = 1;
+                    if (handle->cache.size() < size)
+                    {
+                        handle->cache.resize(size);
+                    }
+
+                    memcpy(handle->cache.data(), mem, size);
+                    handle->cache[0] = 0;
+                    handle->cache[1] = 0;
+                    handle->cache[2] = 0;
+                    handle->cache[3] = 1;
                     if (handle->cb)
                     {
-                        handle->cb(mem + USE_SHORT_SYNC, size - USE_SHORT_SYNC, ft_video, handle->reserve);
+                        handle->cb(handle->cache.data() + USE_SHORT_SYNC, size - USE_SHORT_SYNC, ft_video, handle->reserve);
                     }
                     // fwrite(mem + USE_SHORT_SYNC, 1, size - USE_SHORT_SYNC, fout);
                     if (frame_bytes < size)
@@ -150,6 +180,9 @@ void pth_demux(Mp4DemuxerHandle *handle)
         }
         MP4D_close(&mp4);
     } while (handle->loopPlay && !handle->loopExit);
+#if ENABLE_MMAP
+    munmap(file_addr, file_size);
+#endif
 
     if (handle->cb)
     {
