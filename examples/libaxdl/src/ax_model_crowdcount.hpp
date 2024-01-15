@@ -1,3 +1,4 @@
+#pragma once
 #include "../include/ax_model_base.hpp"
 #include "utilities/object_register.hpp"
 #include "../../utilities/ringbuffer.hpp"
