@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     gLoopExit = 0;
     g_sample.Init();
 
-    AX_S32 isExit = 0, i, ch;
+    AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     char video_url[512];

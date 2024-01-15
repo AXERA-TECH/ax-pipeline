@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
     gLoopExit = 0;
     g_sample.Init();
 
-    AX_S32 isExit = 0, i, ch;
+    AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
     COMMON_SYS_ARGS_T tCommonArgs = {0};
     signal(SIGPIPE, SIG_IGN);
@@ -300,7 +300,6 @@ int main(int argc, char *argv[])
         V4L2DeviceParameters param("/dev/video0", V4L2_PIX_FMT_MJPEG, 1280, 720, 30, IOTYPE_MMAP, 0);
         V4l2Capture *videoCapture = V4l2Capture::create(param);
 
-        AX_U32 sReadLen = 0;
         timeval timeout = {0};
         timeout.tv_usec = 200;
         while (!gLoopExit)

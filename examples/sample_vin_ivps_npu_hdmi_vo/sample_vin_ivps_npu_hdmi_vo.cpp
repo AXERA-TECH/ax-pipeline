@@ -146,8 +146,6 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
-    COMMON_SYS_ARGS_T tCommonArgs = {0};
-    COMMON_SYS_ARGS_T tPrivArgs = {0};
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, __sigExit);

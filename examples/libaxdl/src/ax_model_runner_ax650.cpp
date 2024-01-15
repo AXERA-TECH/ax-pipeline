@@ -114,7 +114,7 @@ struct ax_joint_runner_ax650_handle_t
     AX_ENGINE_IO_INFO_T *io_info;
     AX_ENGINE_IO_T io_data;
 
-    int algo_width, algo_height;
+    unsigned int algo_width, algo_height;
     int algo_colorformat;
 };
 

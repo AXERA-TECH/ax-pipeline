@@ -183,14 +183,14 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t\t2: Single GC4653\n");
     printf("\t\t3: Single OS08A20\n");
     printf("\t\t4: Single OS04A10 Online\n");
+    printf("\t-e: SDR/HDR Mode:\n");
+    printf("\t\t1: SDR\n");
+    printf("\t\t2: HDR 2DOL\n");
 #elif defined(AXERA_TARGET_CHIP_AX620E)
     printf("\t-c: ISP Test Case:\n");
     printf("\t\t0: Single OS04A10\n");
     printf("\t\t1: Single SC450AI\n");
 #endif
-    printf("\t-e: SDR/HDR Mode:\n");
-    printf("\t\t1: SDR\n");
-    printf("\t\t2: HDR 2DOL\n");
 
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
@@ -203,12 +203,11 @@ int main(int argc, char *argv[])
     gLoopExit = 0;
     g_sample.Init();
 
-    AX_S32 isExit = 0, i, ch;
+    AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
 
-    COMMON_SYS_ARGS_T tCommonArgs = {0};
-    COMMON_SYS_ARGS_T tPrivArgs = {0};
 #ifdef AXERA_TARGET_CHIP_AX620
+    COMMON_SYS_ARGS_T tCommonArgs = {0};
     AX_SNS_HDR_MODE_E eHdrMode = AX_SNS_LINEAR_MODE;
     COMMON_SYS_CASE_E eSysCase = SYS_CASE_SINGLE_GC4653;
     SAMPLE_SNS_TYPE_E eSnsType = GALAXYCORE_GC4653;
@@ -361,7 +360,7 @@ int main(int argc, char *argv[])
         goto EXIT_2;
     }
 
-    for (i = 0; i < tCommonArgs.nCamCnt; i++)
+    for (AX_U8 i = 0; i < tCommonArgs.nCamCnt; i++)
     {
         s32Ret = COMMON_CAM_Open(&g_sample.gCams[i]);
         if (s32Ret)
@@ -404,7 +403,7 @@ int main(int argc, char *argv[])
         {
             pipeline_ivps_config_t &config1 = pipe1.m_ivps_attr;
             config1.n_ivps_grp = 1; // 重复的会创建失败
-            config1.n_ivps_fps = 60;
+            config1.n_ivps_fps = s_sample_framerate;
             config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH;
             config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT;
             if (axdl_get_model_type(g_sample.gModels) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels) != MT_SEG_DINOV2)
@@ -515,7 +514,7 @@ int main(int argc, char *argv[])
 
 EXIT_6:
 #ifdef AXERA_TARGET_CHIP_AX620
-    for (i = 0; i < tCommonArgs.nCamCnt; i++)
+    for (AX_U8 i = 0; i < tCommonArgs.nCamCnt; i++)
     {
         if (!g_sample.gCams[i].bOpen)
             continue;

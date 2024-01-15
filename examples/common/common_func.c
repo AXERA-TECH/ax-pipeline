@@ -1157,7 +1157,6 @@ static AX_U32 __sample_case_config(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARG
 AX_S32 SAMPLE_VIN_Init()
 {
     AX_S32 axRet = 0;
-    AX_S32 i = 0, j = 0;
 
     SAMPLE_VIN_PARAM_T tVinParam = {
         SAMPLE_VIN_SINGLE_OS08A20,

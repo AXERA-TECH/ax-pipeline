@@ -135,7 +135,7 @@ int ax_model_human_pose_axppl::inference(axdl_image_t *pstFrame, axdl_bbox_t *cr
             idxs.push_back(i);
         }
     }
-    int count = MIN(idxs.size(), MAX_SUB_INFER_COUNT);
+    int count = MIN((int)idxs.size(), MAX_SUB_INFER_COUNT);
     results->nObjSize = count;
     for (int i = 0; i < count; i++)
     {

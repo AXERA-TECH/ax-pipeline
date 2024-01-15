@@ -201,7 +201,7 @@ int ax_model_dinov2_depth::post_process(axdl_image_t *pstFrame, axdl_bbox_t *cro
         seg_mat_ptr.reset(new unsigned char[feature.cols * scale_height * 4], std::default_delete<unsigned char[]>());
     }
 
-    float *features_data = (float *)feature.data + offset;
+    // float *features_data = (float *)feature.data + offset;
     uchar *out_data = seg_mat_ptr.get();
     uchar *dst_data = dst.data + 3 * offset;
     for (int i = 0; i < feature.cols * scale_height; i++)
@@ -280,7 +280,7 @@ int ax_model_glpdepth::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_re
         seg_mat_ptr.reset(new unsigned char[feature.cols * scale_height * 4], std::default_delete<unsigned char[]>());
     }
 
-    float *features_data = (float *)feature.data + offset;
+    // float *features_data = (float *)feature.data + offset;
     uchar *out_data = seg_mat_ptr.get();
     uchar *dst_data = dst.data + 3 * offset;
     for (int i = 0; i < feature.cols * scale_height; i++)
