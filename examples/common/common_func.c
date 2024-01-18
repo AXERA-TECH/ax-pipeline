@@ -1624,7 +1624,7 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase)
 
     /* Step1: cam config & pool Config */
     __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
-    gCams[0].tSnsAttr.fFrameRate = 25.0f;
+    // gCams[0].tSnsAttr.fFrameRate = 25.0f;
     /* Step2: SYS Init */
     s32Ret = COMMON_SYS_Init(&tCommonArgs);
     if (s32Ret)
