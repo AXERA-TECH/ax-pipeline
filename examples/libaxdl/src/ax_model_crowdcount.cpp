@@ -120,6 +120,8 @@ int ax_model_crowdcount::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 {
     if (width_anchor != get_algo_width() || height_anchor != get_algo_height())
     {
+        width_anchor = get_algo_width();
+        height_anchor = get_algo_height();
         std::vector<int> pyramid_levels(1, 3);
         generate_anchor_points(get_algo_width(), get_algo_height(), pyramid_levels, 2, 2, all_anchor_points);
     }
@@ -156,12 +158,17 @@ int ax_model_crowdcount::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
     // AX_U32 nOutputSize = m_runner->get_num_outputs();
     const ax_runner_tensor_t *pOutputsInfo = m_runner->get_outputs_ptr();
 
-    axdl_point_t *pred_points_ptr = (axdl_point_t *)pOutputsInfo[0].pVirAddr;
-    axdl_point_t *pred_scores_ptr = (axdl_point_t *)pOutputsInfo[1].pVirAddr;
+    struct crowd_point_t
+    {
+        float x, y;
+    };
+
+    crowd_point_t *pred_points_ptr = (crowd_point_t *)pOutputsInfo[0].pVirAddr;
+    crowd_point_t *pred_scores_ptr = (crowd_point_t *)pOutputsInfo[1].pVirAddr;
 
     int len = pOutputsInfo[0].nSize / sizeof(float) / 2;
 
-    axdl_point_t *anchor_points_ptr = (axdl_point_t *)all_anchor_points.data();
+    crowd_point_t *anchor_points_ptr = (crowd_point_t *)all_anchor_points.data();
 
     std::vector<float> _softmax_result(2, 0);
 
@@ -182,6 +189,7 @@ int ax_model_crowdcount::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_
 
                 p.x = (p.x - tmp_w) * ratio_x;
                 p.y = (p.y - tmp_h) * ratio_y;
+                p.score = _softmax_result[1];
                 vCrowdCount.push_back(p);
             }
         }
