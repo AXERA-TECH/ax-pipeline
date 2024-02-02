@@ -23,6 +23,7 @@
 #include "../../../third-party/RtspServer/RtspServerWarpper.h"
 #include "../../utilities/sample_log.h"
 #include "../../utilities/net_utils.h"
+#include "../../utilities/version_compare.h"
 
 #include "ax_ivps_api.h"
 #include "ax_vdec_api.h"
@@ -148,6 +149,10 @@ rtsp_session_t get_rtsp_session_handle(int pipeid)
 
 int create_pipeline(pipeline_t *pipe)
 {
+    if (ax_version_compare() != 0)
+    {
+        return -1;
+    }
     if (!pipe)
     {
         ALOGE("invalid pipeline_t ptr");
@@ -611,61 +616,62 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
 
     switch (pipe->m_input_type)
     {
+        // 不确定是否能用
     case pi_user:
     {
-        // AX_VIDEO_FRAME_INFO_T frameInfo = {0};
+        AX_VIDEO_FRAME_INFO_T frameInfo = {0};
 
-        // AX_U32 uiPicSize = (buf->n_width * buf->n_height) * 3 / 2;
-        // AX_BLK blk_id = AX_POOL_GetBlock(frameInfo.u32PoolId, uiPicSize, NULL);
-        // if (AX_INVALID_BLOCKID == blk_id)
-        // {
-        //     printf("AX_POOL_GetBlock AX_POOL_GetBlockfailed! \n");
-        //     return -1;
-        // }
+        AX_U32 uiPicSize = (buf->n_width * buf->n_height) * 3 / 2;
+        AX_BLK blk_id = AX_POOL_GetBlock(0, uiPicSize, NULL);
+        if (AX_INVALID_BLOCKID == blk_id)
+        {
+            printf("AX_POOL_GetBlock AX_POOL_GetBlockfailed! \n");
+            return -1;
+        }
 
-        // frameInfo.bEof = AX_TRUE;
-        // frameInfo.enModId = AX_ID_IVPS;
-        // frameInfo.stVFrame.u32BlkId[0] = blk_id;
-        // frameInfo.stVFrame.u32Width = buf->n_width;
-        // frameInfo.stVFrame.u32Height = buf->n_height;
-        // frameInfo.stVFrame.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-        // frameInfo.stVFrame.enVscanFormat = AX_VSCAN_FORMAT_RASTER;
-        // frameInfo.stVFrame.enCompressMode = AX_COMPRESS_MODE_NONE;
-        // frameInfo.stVFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(blk_id);
-        // frameInfo.stVFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(blk_id);
-        // frameInfo.stVFrame.u32PicStride[0] = buf->n_width;
-        // frameInfo.stVFrame.u64PhyAddr[1] = frameInfo.stVFrame.u64PhyAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
-        // frameInfo.stVFrame.u64PhyAddr[2] = 0;
-        // frameInfo.stVFrame.u64VirAddr[1] = frameInfo.stVFrame.u64VirAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
-        // frameInfo.stVFrame.u64VirAddr[2] = 0;
+        frameInfo.bEndOfStream = AX_FALSE;
+        frameInfo.enModId = AX_ID_IVPS;
+        frameInfo.stVFrame.u32BlkId[0] = blk_id;
+        frameInfo.stVFrame.u32Width = buf->n_width;
+        frameInfo.stVFrame.u32Height = buf->n_height;
+        frameInfo.stVFrame.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+        frameInfo.stVFrame.enVscanFormat = AX_VSCAN_FORMAT_RASTER;
+        frameInfo.stVFrame.stCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+        frameInfo.stVFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(blk_id);
+        frameInfo.stVFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(blk_id);
+        frameInfo.stVFrame.u32PicStride[0] = buf->n_width;
+        frameInfo.stVFrame.u64PhyAddr[1] = frameInfo.stVFrame.u64PhyAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        frameInfo.stVFrame.u64PhyAddr[2] = 0;
+        frameInfo.stVFrame.u64VirAddr[1] = frameInfo.stVFrame.u64VirAddr[0] + frameInfo.stVFrame.u32PicStride[0] * frameInfo.stVFrame.u32Height;
+        frameInfo.stVFrame.u64VirAddr[2] = 0;
         // frameInfo.u32PoolId = AX_POOL_Handle2PoolId(blk_id);
 
-        // memcpy((void *)frameInfo.stVFrame.u64VirAddr[0], buf->p_vir, uiPicSize);
-        // int ret;
-        // std::vector<int> tmp_;
+        memcpy((void *)frameInfo.stVFrame.u64VirAddr[0], buf->p_vir, uiPicSize);
+        int ret;
+        std::vector<int> tmp_;
 
-        // for (int i = 0; i < pipe_cnt; i++)
-        // {
-        //     if (!contain(tmp_, pipe[i].m_ivps_attr.n_ivps_grp))
-        //     {
-        //         ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
-        //         if (ret != 0)
-        //         {
-        //             // ALOGE("AX_IVPS_SendFrame 0x%x", ret);
-        //         }
-        //         tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
-        //     }
-        // }
+        for (int i = 0; i < pipe_cnt; i++)
+        {
+            if (!contain(tmp_, pipe[i].m_ivps_attr.n_ivps_grp))
+            {
+                ret = AX_IVPS_SendFrame(pipe[i].m_ivps_attr.n_ivps_grp, &frameInfo.stVFrame, 200);
+                if (ret != 0)
+                {
+                    // ALOGE("AX_IVPS_SendFrame 0x%x", ret);
+                }
+                tmp_.push_back(pipe[i].m_ivps_attr.n_ivps_grp);
+            }
+        }
 
-        // // AX_U32 PoolId = frameInfo.u32PoolId;
+        // AX_U32 PoolId = frameInfo.u32PoolId;
 
-        // AX_BLK BlkId = frameInfo.stVFrame.u32BlkId[0];
-        // ret = AX_POOL_ReleaseBlock(BlkId);
-        // if (ret != 0)
-        // {
-        //     printf("AX_POOL_ReleaseBlock fail!Error Code:0x%X\n", ret);
-        //     return -1;
-        // }
+        AX_BLK BlkId = frameInfo.stVFrame.u32BlkId[0];
+        ret = AX_POOL_ReleaseBlock(BlkId);
+        if (ret != 0)
+        {
+            printf("AX_POOL_ReleaseBlock fail!Error Code:0x%X\n", ret);
+            return -1;
+        }
     }
     break;
     case pi_vdec_h264:

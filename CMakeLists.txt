@@ -30,6 +30,17 @@ if(NOT BSP_MSP_DIR)
 endif()
 message(STATUS "BSP_MSP_DIR = ${BSP_MSP_DIR}")
 
+set(CMD_GET_BSP_VERSION "strings ${BSP_MSP_DIR}/lib/libax_sys.so | grep 'Axera version' | awk '{print $4}'")
+message(STATUS "CMD_GET_BSP_VERSION = ${CMD_GET_BSP_VERSION}")
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env "SHELL=/bin/bash" bash -c "${CMD_GET_BSP_VERSION}"
+    TIMEOUT 5
+    OUTPUT_VARIABLE BSP_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message(STATUS "BSP_VERSION = ${BSP_VERSION}")
+add_definitions(-DAXERA_BSP_VERSION="${BSP_VERSION}")
+
 if(ONNXRUNTIME_DIR)
     add_compile_options(-DBUILT_WITH_ONNXRUNTIME)
     message(STATUS "ONNXRUNTIME_DIR = ${ONNXRUNTIME_DIR}")
