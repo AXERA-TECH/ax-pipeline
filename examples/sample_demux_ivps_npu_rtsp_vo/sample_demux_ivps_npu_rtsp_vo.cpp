@@ -325,7 +325,11 @@ int main(int argc, char *argv[])
 
         for (size_t i = 0; i < pipe_count; i++)
         {
-            create_pipeline(&pipelines[i]);
+            s32Ret = create_pipeline(&pipelines[i]);
+            if (s32Ret != 0)
+            {
+                continue;
+            }
             if (pipelines[i].m_ivps_attr.n_osd_rgn > 0)
             {
                 g_sample.pipes_need_osd.push_back(&pipelines[i]);

@@ -668,6 +668,7 @@ int user_input(pipeline_t *pipe, int pipe_cnt, pipeline_buffer_t *buf)
     if (!contain(pipeline_handle.pipeid_pipe, pipe->pipeid))
     {
         ALOGE("pipe-%d haven`t create", pipe->pipeid);
+        usleep(100 * 1000);
         return -1;
     }
 

@@ -325,7 +325,11 @@ int main(int argc, char *argv[])
         auto &pipelines = vpipelines[i];
         for (size_t j = 0; j < pipelines.size(); j++)
         {
-            create_pipeline(&pipelines[j]);
+            s32Ret = create_pipeline(&pipelines[j]);
+            if (s32Ret != 0)
+            {
+                continue;
+            }
             if (pipelines[j].m_ivps_attr.n_osd_rgn > 0)
             {
                 g_sample.gModels[i].pipes_need_osd.push_back(&pipelines[j]);
