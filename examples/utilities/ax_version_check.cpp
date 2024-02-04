@@ -1,4 +1,4 @@
-#include "version_compare.h"
+#include "ax_version_check.h"
 
 #include <string>
 #include <vector>
@@ -74,7 +74,7 @@ static int get_board_version(std::string &major_version, std::string &minor_vers
     return get_version(tokens[1], major_version, minor_version, build_time);
 }
 
-int ax_version_compare()
+int ax_version_check()
 {
     std::string board_major_version;
     std::string board_minor_version;

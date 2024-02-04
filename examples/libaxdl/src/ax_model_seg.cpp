@@ -304,3 +304,105 @@ int ax_model_glpdepth::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_re
 
     return 0;
 }
+
+int ax_model_depth_anything::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (!dstFrame.pVir)
+    {
+        dstFrame.eDtype = srcFrame->eDtype;
+        dstFrame.nHeight = get_algo_height();
+        dstFrame.nWidth = get_algo_width();
+        dstFrame.tStride_W = dstFrame.nWidth;
+        if (dstFrame.eDtype == axdl_color_space_nv12)
+        {
+            dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3 / 2;
+        }
+        else if (dstFrame.eDtype == axdl_color_space_rgb || dstFrame.eDtype == axdl_color_space_bgr)
+        {
+            dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3;
+        }
+        else
+        {
+            ALOGE("just only support nv12/rgb/bgr format\n");
+            return -1;
+        }
+        ax_sys_memalloc(&dstFrame.pPhy, (void **)&dstFrame.pVir, dstFrame.nSize, 32, NULL);
+        bMalloc = true;
+    }
+    cv::Mat dst(dstFrame.nHeight, dstFrame.nWidth, CV_8UC3, (unsigned char *)dstFrame.pVir);
+    cv::Mat src(srcFrame->nHeight, srcFrame->nWidth, CV_8UC3, (unsigned char *)srcFrame->pVir);
+    cv::Mat src_rgb;
+
+    if (srcFrame->eDtype == axdl_color_space_bgr)
+    {
+        src_rgb = src;
+    }
+    else if (srcFrame->eDtype == axdl_color_space_rgb)
+    {
+        cv::cvtColor(src, src_rgb, cv::COLOR_RGB2BGR);
+    }
+    else if (srcFrame->eDtype == axdl_color_space_nv12)
+    {
+        src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
+        cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV12);
+    }
+    else if (srcFrame->eDtype == axdl_color_space_nv21)
+    {
+        src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
+        cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV21);
+    }
+    cv::resize(src_rgb, dst, cv::Size(get_algo_width(), get_algo_height()));
+
+    // cv::imwrite("image.png", dst);
+
+    return 0;
+}
+
+int ax_model_depth_anything::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+{
+    if (mSimpleRingBuffer.size() == 0)
+    {
+        mSimpleRingBuffer.resize(SAMPLE_RINGBUFFER_CACHE_COUNT);
+    }
+    results->bPPHumSeg = 1;
+    auto ptr = (float *)m_runner->get_output(0).pVirAddr;
+
+    cv::Mat feature(m_runner->get_output(0).vShape[2], m_runner->get_output(0).vShape[3], CV_32FC1, ptr);
+
+    double minVal, maxVal;
+    cv::minMaxLoc(feature, &minVal, &maxVal);
+
+    feature -= minVal;
+    feature /= (maxVal - minVal);
+    feature *= 255;
+
+    feature.convertTo(feature, CV_8UC1);
+
+    cv::Mat dst(m_runner->get_output(0).vShape[2], m_runner->get_output(0).vShape[3], CV_8UC3);
+    cv::applyColorMap(feature, dst, cv::ColormapTypes::COLORMAP_MAGMA);
+
+    auto &seg_mat_ptr = mSimpleRingBuffer.next();
+    if (!seg_mat_ptr.get())
+    {
+        seg_mat_ptr.reset(new unsigned char[feature.cols * feature.rows * 4], std::default_delete<unsigned char[]>());
+    }
+
+    uchar *out_data = seg_mat_ptr.get();
+    uchar *dst_data = dst.data;
+    for (int i = 0; i < feature.cols * feature.rows; i++)
+    {
+        out_data[4 * i + 0] = 255;
+        out_data[4 * i + 1] = dst_data[3 * i + 2]; // R
+        out_data[4 * i + 2] = dst_data[3 * i + 1]; // G
+        out_data[4 * i + 3] = dst_data[3 * i + 0]; // B
+    }
+    cv::Mat seg_mat(feature.rows, feature.cols, CV_8UC4, out_data);
+
+    results->mPPHumSeg.h = feature.rows;
+    results->mPPHumSeg.w = feature.cols;
+    results->mPPHumSeg.c = 4;
+    results->mPPHumSeg.s = feature.cols * results->mPPHumSeg.c;
+    results->mPPHumSeg.data = seg_mat_ptr.get();
+
+    return 0;
+}

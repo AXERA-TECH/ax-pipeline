@@ -4,6 +4,7 @@
 
 #include "../../utilities/ringbuffer.hpp"
 #include "opencv2/opencv.hpp"
+#include "ax_model_clip.hpp"
 
 class ax_model_pphumseg : public ax_model_single_base_t
 {
@@ -43,3 +44,11 @@ protected:
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
 REGISTER(MT_SEG_GLPDEPTH, ax_model_glpdepth)
+
+class ax_model_depth_anything : public ax_model_dinov2_depth
+{
+protected:
+    int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
+    int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
+};
+REGISTER(MT_SEG_DEPTH_ANYTHING, ax_model_depth_anything)

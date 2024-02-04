@@ -2,5 +2,6 @@
     "MODEL_TYPE": "MT_SEG_DINOV2",
     "MODEL_PATH": "./models/dinov2_small_518_precision_opt.axmodel",
     "DINOV2_PCA_INTERVAL": 100,
+    "SAMPLE_LETTER_BOX": false,
     "OSD_DRAW_FPS": false
 }

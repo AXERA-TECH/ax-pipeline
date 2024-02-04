@@ -1,0 +1,8 @@
+{
+    "MODEL_TYPE": "MT_SEG_DEPTH_ANYTHING",
+    "MODEL_PATH": "./models/depth_anything.axmodel",
+    "SAMPLE_IVPS_ALGO_WIDTH": 960,
+    "SAMPLE_IVPS_ALGO_HEIGHT": 540,
+    "SAMPLE_LETTER_BOX": false,
+    "OSD_DRAW_FPS": false
+}

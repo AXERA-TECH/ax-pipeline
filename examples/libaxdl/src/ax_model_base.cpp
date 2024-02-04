@@ -292,6 +292,7 @@ int ax_model_single_base_t::init(void *json_obj)
     update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
     update_val(jsondata, "OSD_DRAW_FPS", &b_draw_fps);
     update_val(jsondata, "DINOV2_PCA_INTERVAL", &dinov2_pca_interval);
+    update_val(jsondata, "SAMPLE_LETTER_BOX", &b_letter_box);
 
     std::string strModelType;
     m_model_type = (MODEL_TYPE_E)get_model_type(&jsondata, strModelType);
@@ -519,6 +520,8 @@ int ax_model_multi_base_t::init(void *json_obj)
         MAX_SUB_INFER_COUNT = MIN(MAX_SUB_INFER_COUNT, SAMPLE_MAX_BBOX_COUNT);
         update_val(jsondata, "FACE_FEAT_LEN", &FACE_FEAT_LEN);
         update_val(jsondata, "OSD_DRAW_NAME", &b_draw_obj_name);
+        update_val(jsondata, "SAMPLE_LETTER_BOX", &b_letter_box);
+        update_val(jsondata, "OSD_DRAW_FPS", &b_draw_fps);
 
         model_0->set_face_recognition_threshold(FACE_RECOGNITION_THRESHOLD);
         // model_0->set_max_mask_obj_count(MAX_MASK_OBJ_COUNT);

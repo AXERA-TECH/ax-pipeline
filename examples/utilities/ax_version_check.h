@@ -6,7 +6,8 @@ extern "C"
 {
 #endif
     // compare compile sdk version and board sdk version
-    int ax_version_compare();
+    // return 0 if equal, -1 if not
+    int ax_version_check();
 #ifdef __cplusplus
 }
 #endif

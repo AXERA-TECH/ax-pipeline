@@ -46,7 +46,7 @@ extern "C"
         MT_SEG_DINOV2,
         MT_SEG_DINOV2_DEPTH,
         MT_SEG_GLPDEPTH,
-
+        MT_SEG_DEPTH_ANYTHING,
 
         // instance segmentation
         MT_INSEG = 0x30000,
@@ -60,7 +60,6 @@ extern "C"
         MT_MLM_HAND_POSE,
         MT_MLM_FACE_RECOGNITION,
         MT_MLM_VEHICLE_LICENSE_RECOGNITION,
-
 
         MT_CUSTOM_MODEL = 0x50000,
         MT_CLIP,
@@ -176,10 +175,22 @@ extern "C"
     int axdl_parse_param_init(char *json_file_path, void **pModels);
     void axdl_deinit(void **pModels);
 
+    /* set it like this in json file:
+    {
+        "SAMPLE_IVPS_ALGO_WIDTH": 960,
+        "SAMPLE_IVPS_ALGO_HEIGHT": 540
+    }
+    */
     int axdl_get_ivps_width_height(void *pModels, char *json_file_path, int *width_ivps, int *height_ivps);
     int axdl_set_ivps_width_height(void *pModels, int width_ivps, int height_ivps);
     axdl_color_space_e axdl_get_color_space(void *pModels);
     int axdl_get_model_type(void *pModels);
+    /* set it like this in json file:
+    {
+        "SAMPLE_LETTER_BOX": false
+    }
+    */
+    int axdl_get_letterbox_enable(void *pModels);
 
     int axdl_inference(void *pModels, axdl_image_t *pstFrame, axdl_results_t *pResults);
 

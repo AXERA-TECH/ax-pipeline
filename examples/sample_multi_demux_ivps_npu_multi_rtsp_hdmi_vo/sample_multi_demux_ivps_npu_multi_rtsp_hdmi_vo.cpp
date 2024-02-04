@@ -331,10 +331,7 @@ int main(int argc, char *argv[])
                 config1.n_ivps_fps = 60;
                 config1.n_ivps_width = SAMPLE_IVPS_ALGO_WIDTH[i];
                 config1.n_ivps_height = SAMPLE_IVPS_ALGO_HEIGHT[i];
-                if (axdl_get_model_type(g_sample.gModels[i].gModel) != MT_SEG_PPHUMSEG && axdl_get_model_type(g_sample.gModels[i].gModel) != MT_SEG_DINOV2)
-                {
-                    config1.b_letterbox = 1;
-                }
+                config1.b_letterbox = axdl_get_letterbox_enable(g_sample.gModels[i].gModel);
                 config1.n_fifo_count = 1; // 如果想要拿到数据并输出到回调 就设为1~4
             }
             pipe1.enable = g_sample.gModels[i].bRunJoint;

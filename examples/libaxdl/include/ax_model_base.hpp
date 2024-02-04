@@ -101,6 +101,7 @@ protected:
     int cur_idx = 0;
 
     // pipe chn
+    bool b_letter_box = true;
     bool b_draw_fps = true;
     bool b_draw_obj_name = true;
     std::map<int, ax_osd_drawer> m_drawers;
@@ -150,6 +151,8 @@ public:
     }
 
     int get_model_type() { return m_model_type; }
+
+    bool get_letter_box_enable() { return b_letter_box; }
 
     void set_nms_threshold(float nms_threshold) { NMS_THRESHOLD = nms_threshold; }
 

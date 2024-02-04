@@ -1,4 +1,5 @@
 {
     "MODEL_TYPE": "MT_SEG_PPHUMSEG",
-    "MODEL_PATH": "./models/pp_human_seg_mobile_sim.joint"
+    "MODEL_PATH": "./models/pp_human_seg_mobile_sim.joint",
+    "SAMPLE_LETTER_BOX": false
 }

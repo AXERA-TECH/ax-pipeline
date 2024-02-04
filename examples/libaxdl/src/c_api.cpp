@@ -161,6 +161,15 @@ int axdl_get_model_type(void *pModels)
     return ((ax_model_handle_t *)pModels)->model->get_model_type();
 }
 
+int axdl_get_letterbox_enable(void *pModels)
+{
+    if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
+    {
+        return -1;
+    }
+    return ((ax_model_handle_t *)pModels)->model->get_letter_box_enable() ? 1 : 0;
+}
+
 int axdl_inference(void *pModels, axdl_image_t *pstFrame, axdl_results_t *pResults)
 {
     if (!(ax_model_handle_t *)(pModels) || !((ax_model_handle_t *)(pModels))->model.get())
