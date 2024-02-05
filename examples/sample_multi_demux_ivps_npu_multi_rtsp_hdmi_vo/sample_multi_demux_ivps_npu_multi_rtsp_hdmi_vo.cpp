@@ -412,6 +412,7 @@ int main(int argc, char *argv[])
             s32Ret = create_pipeline(&pipelines[j]);
             if (s32Ret != 0)
             {
+                ALOGE("create_pipeline failed,s32Ret:0x%x\n", s32Ret);
                 continue;
             }
             if (pipelines[j].m_ivps_attr.n_osd_rgn > 0)

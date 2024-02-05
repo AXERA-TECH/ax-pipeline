@@ -206,7 +206,7 @@ int ax_runner_ax650::init(const char *model_file)
     }
 
     // 6. alloc io
-    ret = prepare_io(m_handle->io_info, &m_handle->io_data, &imgproc, std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
+    ret = prepare_io(m_handle->io_info, &m_handle->io_data, &imgproc, std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_DEFAULT));
     if (0 != ret)
     {
         return ret;

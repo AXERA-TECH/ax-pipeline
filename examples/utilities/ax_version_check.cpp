@@ -36,6 +36,7 @@ static int get_version(std::string version_str, std::string &major_version, std:
     auto tokens = split_str(version_str, "_");
     if (tokens.size() != 3)
     {
+        ALOGE("invalid version string: %s", version_str.c_str());
         return -1;
     }
 
@@ -59,6 +60,7 @@ static int get_board_version(std::string &major_version, std::string &minor_vers
     FILE *fp = fopen(AX_BOARD_VERSION_PATH, "r");
     if (fp == NULL)
     {
+        ALOGE("open %s failed", AX_BOARD_VERSION_PATH);
         return -1;
     }
     char buf[256] = {0};
@@ -68,6 +70,7 @@ static int get_board_version(std::string &major_version, std::string &minor_vers
     std::vector<std::string> tokens = split_str(version, " ");
     if (tokens.size() != 2)
     {
+        ALOGE("invalid board version: %s", version.c_str());
         return -1;
     }
 
@@ -82,6 +85,7 @@ int ax_version_check()
     int ret = get_board_version(board_major_version, board_minor_version, board_build_time);
     if (ret != 0)
     {
+        ALOGE("get board version failed");
         return -1;
     }
 
@@ -92,6 +96,7 @@ int ax_version_check()
     ret = get_version(AXERA_BSP_VERSION, compile_major_version, compile_minor_version, compile_build_time);
     if (ret != 0)
     {
+        ALOGE("get compile version failed");
         return -1;
     }
 
