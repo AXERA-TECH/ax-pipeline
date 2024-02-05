@@ -9,7 +9,7 @@ if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
                                 "${BSP_MSP_DIR}/../sample/common/common_isp.c"
                                 "${BSP_MSP_DIR}/../sample/common/common_hw.c"
                                 "${BSP_MSP_DIR}/../sample/common/vo/*.c"
-                                "../common/common_func.c")
+                                "../common/common_func.c" "../common/common_check.cpp")
 elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "ax620"
     OR AXERA_TARGET_CHIP MATCHES "AX620"
@@ -21,7 +21,7 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
     OR AXERA_TARGET_CHIP MATCHES "AX630A"
     OR AXERA_TARGET_CHIP MATCHES "AX630a"
 )
-    file(GLOB SRC_LIST_COMMON "../common/common_func.c" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
+    file(GLOB SRC_LIST_COMMON "../common/common_func.c" "../common/common_check.cpp" "${BSP_MSP_DIR}/../sample/common/*.c" "${BSP_MSP_DIR}/../sample/common/common_codec/*.c" "${BSP_MSP_DIR}/../sample/common/vo/*.c")
 endif()
     # file(GLOB SRC_LIST_RTSP "../rtsp/src/*.c")
 list(APPEND SRC_BASE_LIST

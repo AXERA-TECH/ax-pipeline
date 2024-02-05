@@ -1,6 +1,6 @@
 #ifndef __COMMON_FUNC_H__
 #define __COMMON_FUNC_H__
-
+#include "common_check.h"
 #if __cplusplus
 extern "C"
 {

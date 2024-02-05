@@ -185,6 +185,10 @@ static AX_VOID PrintHelp(char *testApp)
 
 int main(int argc, char *argv[])
 {
+    if (SAMPLE_Check_Bsp_Version() != 0)
+    {
+        return -1;
+    }
     optind = 0;
     gLoopExit = 0;
     g_sample.Init();

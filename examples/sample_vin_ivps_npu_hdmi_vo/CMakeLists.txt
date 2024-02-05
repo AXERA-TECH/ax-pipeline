@@ -8,7 +8,7 @@ file(GLOB SRC_LIST_COMMON   "${BSP_MSP_DIR}/../sample/common/common_sys.c"
                             "${BSP_MSP_DIR}/../sample/common/common_isp.c"
                             "${BSP_MSP_DIR}/../sample/common/common_hw.c"
                             "${BSP_MSP_DIR}/../sample/common/vo/*.c"
-                            "../common/common_func.c")
+                            "../common/common_func.c" "../common/common_check.cpp")
 list(APPEND SRC_BASE_LIST
     ${SRC_LIST}
     ${SRC_LIST_COMMON}

@@ -23,7 +23,6 @@
 #include "../../../third-party/RtspServer/RtspServerWarpper.h"
 #include "../../utilities/sample_log.h"
 #include "../../utilities/net_utils.h"
-#include "../../utilities/ax_version_check.h"
 
 #include "ax_ivps_api.h"
 #include "ax_vdec_api.h"
@@ -149,10 +148,6 @@ rtsp_session_t get_rtsp_session_handle(int pipeid)
 
 int create_pipeline(pipeline_t *pipe)
 {
-    if (ax_version_check() != 0)
-    {
-        return -1;
-    }
     if (!pipe)
     {
         ALOGE("invalid pipeline_t ptr");
