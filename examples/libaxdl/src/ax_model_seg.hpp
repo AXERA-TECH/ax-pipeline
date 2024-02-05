@@ -48,7 +48,7 @@ REGISTER(MT_SEG_GLPDEPTH, ax_model_glpdepth)
 class ax_model_depth_anything : public ax_model_dinov2_depth
 {
 protected:
-    int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
+    // int preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
     int post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results) override;
 };
 REGISTER(MT_SEG_DEPTH_ANYTHING, ax_model_depth_anything)

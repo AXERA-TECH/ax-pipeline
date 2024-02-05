@@ -305,59 +305,59 @@ int ax_model_glpdepth::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_re
     return 0;
 }
 
-int ax_model_depth_anything::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
-{
-    if (!dstFrame.pVir)
-    {
-        dstFrame.eDtype = axdl_color_space_bgr;
-        dstFrame.nHeight = get_algo_height();
-        dstFrame.nWidth = get_algo_width();
-        dstFrame.tStride_W = dstFrame.nWidth;
-        if (dstFrame.eDtype == axdl_color_space_nv12)
-        {
-            dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3 / 2;
-        }
-        else if (dstFrame.eDtype == axdl_color_space_rgb || dstFrame.eDtype == axdl_color_space_bgr)
-        {
-            dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3;
-        }
-        else
-        {
-            ALOGE("just only support nv12/rgb/bgr format\n");
-            return -1;
-        }
-        ax_sys_memalloc(&dstFrame.pPhy, (void **)&dstFrame.pVir, dstFrame.nSize, 32, NULL);
-        bMalloc = true;
-    }
-    ax_imgproc_csc(srcFrame, &dstFrame);
-    // cv::Mat dst(dstFrame.nHeight, dstFrame.nWidth, CV_8UC3, (unsigned char *)dstFrame.pVir);
-    // cv::Mat src(srcFrame->nHeight, srcFrame->nWidth, CV_8UC3, (unsigned char *)srcFrame->pVir);
-    // cv::Mat src_rgb;
+// int ax_model_depth_anything::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
+// {
+//     if (!dstFrame.pVir)
+//     {
+//         dstFrame.eDtype = axdl_color_space_bgr;
+//         dstFrame.nHeight = get_algo_height();
+//         dstFrame.nWidth = get_algo_width();
+//         dstFrame.tStride_W = dstFrame.nWidth;
+//         if (dstFrame.eDtype == axdl_color_space_nv12)
+//         {
+//             dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3 / 2;
+//         }
+//         else if (dstFrame.eDtype == axdl_color_space_rgb || dstFrame.eDtype == axdl_color_space_bgr)
+//         {
+//             dstFrame.nSize = dstFrame.nHeight * dstFrame.nWidth * 3;
+//         }
+//         else
+//         {
+//             ALOGE("just only support nv12/rgb/bgr format\n");
+//             return -1;
+//         }
+//         ax_sys_memalloc(&dstFrame.pPhy, (void **)&dstFrame.pVir, dstFrame.nSize, 32, NULL);
+//         bMalloc = true;
+//     }
+//     ax_imgproc_csc(srcFrame, &dstFrame);
+//     // cv::Mat dst(dstFrame.nHeight, dstFrame.nWidth, CV_8UC3, (unsigned char *)dstFrame.pVir);
+//     // cv::Mat src(srcFrame->nHeight, srcFrame->nWidth, CV_8UC3, (unsigned char *)srcFrame->pVir);
+//     // cv::Mat src_rgb;
 
-    // if (srcFrame->eDtype == axdl_color_space_bgr)
-    // {
-    //     src_rgb = src;
-    // }
-    // else if (srcFrame->eDtype == axdl_color_space_rgb)
-    // {
-    //     cv::cvtColor(src, src_rgb, cv::COLOR_RGB2BGR);
-    // }
-    // else if (srcFrame->eDtype == axdl_color_space_nv12)
-    // {
-    //     src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
-    //     cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV12);
-    // }
-    // else if (srcFrame->eDtype == axdl_color_space_nv21)
-    // {
-    //     src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
-    //     cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV21);
-    // }
-    // cv::resize(src_rgb, dst, cv::Size(get_algo_width(), get_algo_height()));
+//     // if (srcFrame->eDtype == axdl_color_space_bgr)
+//     // {
+//     //     src_rgb = src;
+//     // }
+//     // else if (srcFrame->eDtype == axdl_color_space_rgb)
+//     // {
+//     //     cv::cvtColor(src, src_rgb, cv::COLOR_RGB2BGR);
+//     // }
+//     // else if (srcFrame->eDtype == axdl_color_space_nv12)
+//     // {
+//     //     src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
+//     //     cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV12);
+//     // }
+//     // else if (srcFrame->eDtype == axdl_color_space_nv21)
+//     // {
+//     //     src = cv::Mat(srcFrame->nHeight * 1.5, srcFrame->nWidth, CV_8UC1, (unsigned char *)srcFrame->pVir);
+//     //     cv::cvtColor(src, src_rgb, cv::COLOR_YUV2RGB_NV21);
+//     // }
+//     // cv::resize(src_rgb, dst, cv::Size(get_algo_width(), get_algo_height()));
 
-    // cv::imwrite("image.png", dst);
+//     // cv::imwrite("image.png", dst);
 
-    return 0;
-}
+//     return 0;
+// }
 
 int ax_model_depth_anything::post_process(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {

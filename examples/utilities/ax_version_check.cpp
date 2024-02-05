@@ -36,8 +36,9 @@ static int get_version(std::string version_str, std::string &major_version, std:
     auto tokens = split_str(version_str, "_");
     if (tokens.size() != 3)
     {
-        ALOGE("invalid version string: %s", version_str.c_str());
-        return -1;
+        ALOGW("invalid version string: %s", version_str.c_str());
+        major_version = tokens[0];
+        return 0;
     }
 
     // trim " "
