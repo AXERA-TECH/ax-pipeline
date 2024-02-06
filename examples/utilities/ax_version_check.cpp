@@ -2,9 +2,43 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
+
 #include "sample_log.h"
 
 #define AX_BOARD_VERSION_PATH "/proc/ax_proc/version"
+
+static std::vector<std::string> v_libax_sys_so_path = {
+    "/soc/lib/libax_sys.so",
+    "/opt/lib/libax_sys.so",
+};
+
+static std::string exec_cmd(std::string cmd)
+{
+    ALOGI("exec cmd: %s", cmd.c_str());
+    FILE *pipe = popen(cmd.c_str(), "r");
+    if (!pipe)
+    {
+        return "";
+    }
+    char buffer[128];
+    std::string result = "";
+    while (!feof(pipe))
+    {
+        if (fgets(buffer, 128, pipe) != NULL)
+        {
+            result += buffer;
+        }
+    }
+    pclose(pipe);
+    return result;
+}
+
+static bool file_exists(const std::string &name)
+{
+    std::ifstream f(name.c_str());
+    return f.good();
+}
 
 static std::vector<std::string> split_str(const std::string &str, const std::string &delim)
 {
@@ -36,9 +70,8 @@ static int get_version(std::string version_str, std::string &major_version, std:
     auto tokens = split_str(version_str, "_");
     if (tokens.size() != 3)
     {
-        ALOGW("invalid version string: %s", version_str.c_str());
-        major_version = tokens[0];
-        return 0;
+        ALOGE("invalid version string: %s", version_str.c_str());
+        return -1;
     }
 
     // trim " "
@@ -58,24 +91,37 @@ static int get_version(std::string version_str, std::string &major_version, std:
 // return V1.45.0
 static int get_board_version(std::string &major_version, std::string &minor_version, std::string &build_time)
 {
-    FILE *fp = fopen(AX_BOARD_VERSION_PATH, "r");
-    if (fp == NULL)
+    std::string version = exec_cmd("cat " + std::string(AX_BOARD_VERSION_PATH) + " |awk '{print $2}'");
+    if (version.empty())
     {
-        ALOGE("open %s failed", AX_BOARD_VERSION_PATH);
-        return -1;
-    }
-    char buf[256] = {0};
-    fgets(buf, sizeof(buf), fp);
-    fclose(fp);
-    std::string version = std::string(buf);
-    std::vector<std::string> tokens = split_str(version, " ");
-    if (tokens.size() != 2)
-    {
-        ALOGE("invalid board version: %s", version.c_str());
+        ALOGE("get board version failed");
         return -1;
     }
 
-    return get_version(tokens[1], major_version, minor_version, build_time);
+    return get_version(version, major_version, minor_version, build_time);
+}
+
+static int get_board_so_version(std::string &major_version, std::string &minor_version, std::string &build_time)
+{
+    // std::string cmd = "strings ${BSP_MSP_DIR}/lib/libax_sys.so | grep 'Axera version' | awk '{print $4}'";
+    char cmd[128] = {0};
+    for (size_t i = 0; i < v_libax_sys_so_path.size(); i++)
+    {
+        if (!file_exists(v_libax_sys_so_path[i]))
+        {
+            continue;
+        }
+        sprintf(cmd, "strings %s | grep 'Axera version' | awk '{print $4}'", v_libax_sys_so_path[i].c_str());
+        std::string version = exec_cmd(cmd);
+        if (!version.empty())
+        {
+            if (get_version(version, major_version, minor_version, build_time) == 0)
+            {
+                return 0;
+            }
+        }
+    }
+    return -1;
 }
 
 int ax_version_check()
@@ -87,7 +133,13 @@ int ax_version_check()
     if (ret != 0)
     {
         ALOGE("get board version failed");
-        return -1;
+        ALOGI("try to get board so version");
+        ret = get_board_so_version(board_major_version, board_minor_version, board_build_time);
+        if (ret != 0)
+        {
+            ALOGE("get board so version failed");
+            return -1;
+        }
     }
 
     std::string compile_major_version;
