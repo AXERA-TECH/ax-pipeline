@@ -1609,7 +1609,7 @@ static AX_U32 __sample_case_config(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARG
     return 0;
 }
 
-AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase)
+AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase, int bAIISP_enable)
 {
     AX_S32 s32Ret = 0;
 
@@ -1618,7 +1618,7 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase)
         COMMON_VIN_SENSOR,
         AX_SNS_LINEAR_MODE,
         LOAD_RAW_NONE,
-        0,
+        bAIISP_enable,
         .statDeltaPtsFrmNum = 0,
     };
 

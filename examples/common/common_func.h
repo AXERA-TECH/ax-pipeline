@@ -64,7 +64,7 @@ typedef enum {
 } SAMPLE_VIN_CASE_E;
 
 
-AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase);
+AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase, int bAIISP_enable);
 AX_S32 SAMPLE_VIN_Open();
 AX_S32 SAMPLE_VIN_Start();
 AX_S32 SAMPLE_VIN_Deinit();

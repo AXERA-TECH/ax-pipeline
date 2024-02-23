@@ -191,7 +191,9 @@ static AX_VOID PrintHelp(char *testApp)
     printf("\t\t0: Single OS04A10\n");
     printf("\t\t1: Single SC450AI\n");
 #endif
-
+#if defined(AXERA_TARGET_CHIP_AX620E)
+    printf("\t-a: AIISP enable\n");
+#endif
     printf("\t-r: Sensor&Video Framerate (framerate need supported by sensor), default is 25\n");
 
     exit(0);
@@ -209,6 +211,7 @@ int main(int argc, char *argv[])
 
     AX_S32 isExit = 0, ch;
     AX_S32 s32Ret = 0;
+    AX_S32 bAIISP_enable = 0;
 
 #ifdef AXERA_TARGET_CHIP_AX620
     COMMON_SYS_ARGS_T tCommonArgs = {0};
@@ -224,7 +227,7 @@ int main(int argc, char *argv[])
 
     ALOGN("sample begin\n\n");
 
-    while ((ch = getopt(argc, argv, "p:c:e:r:h")) != -1)
+    while ((ch = getopt(argc, argv, "p:c:e:r:a:h")) != -1)
     {
         switch (ch)
         {
@@ -243,6 +246,19 @@ int main(int argc, char *argv[])
 #elif defined(AXERA_TARGET_CHIP_AX620E)
         case 'c':
             eSnsCase = (SAMPLE_VIN_CASE_E)atoi(optarg);
+            break;
+#endif
+#if defined(AXERA_TARGET_CHIP_AX620E)
+        case 'a':
+            bAIISP_enable = atoi(optarg);
+            if (bAIISP_enable > 0)
+            {
+                bAIISP_enable = 1;
+            }
+            else
+            {
+                bAIISP_enable = 0;
+            }
             break;
 #endif
         case 'r':
@@ -299,7 +315,7 @@ int main(int argc, char *argv[])
     SAMPLE_MAJOR_STREAM_WIDTH = 1920;
     SAMPLE_MAJOR_STREAM_HEIGHT = 1080;
 
-    s32Ret = SAMPLE_VIN_Init(eSnsCase);
+    s32Ret = SAMPLE_VIN_Init(eSnsCase, bAIISP_enable);
     if (0 != s32Ret)
     {
         ALOGE("SAMPLE_VIN_Init failed, ret:0x%x", s32Ret);
