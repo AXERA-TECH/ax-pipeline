@@ -1633,7 +1633,10 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase, int bAIISP_enable)
         return -1;
     }
 
-    s32Ret = AX_ENGINE_Init();
+    AX_ENGINE_NPU_ATTR_T npu_attr;
+    memset(&npu_attr, 0, sizeof(npu_attr));
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+    s32Ret = AX_ENGINE_Init(&npu_attr);
     if (0 != s32Ret)
     {
         ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
