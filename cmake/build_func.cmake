@@ -6,6 +6,7 @@ function(ax_include_link name input_type)
     
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include/npu_cv_kit)
+    target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../sample/common)
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/lib)
     # new 20e bsp
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/arm_glibc/include)
@@ -25,7 +26,6 @@ function(ax_include_link name input_type)
     endif()
 
     if(AXERA_TARGET_CHIP MATCHES "AX650")
-        target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../sample/common)
         # drm
         target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
         target_link_libraries(${name} PRIVATE drm)
@@ -34,11 +34,9 @@ function(ax_include_link name input_type)
             target_link_libraries(${name} PRIVATE ax_proton ax_3a ax_mipi ax_nt_stream ax_nt_ctrl)
         endif()
     elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
-        target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../sample/common)
         target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_engine ax_proton ax_ae ax_af ax_awb ax_mipi ax_nt_stream ax_nt_ctrl gomp stdc++fs)
 
     elseif(AXERA_TARGET_CHIP MATCHES "AX620A")
-        target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../sample/common)
         # drm
         target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
         target_link_libraries(${name} PRIVATE drm)
