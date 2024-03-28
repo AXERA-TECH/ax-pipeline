@@ -234,7 +234,10 @@ int main(int argc, char *argv[])
     npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
     s32Ret = AX_ENGINE_Init(&npu_attr);
 #elif defined(AXERA_TARGET_CHIP_AX620E)
-    s32Ret = AX_ENGINE_Init();
+    AX_ENGINE_NPU_ATTR_T npu_attr;
+    memset(&npu_attr, 0, sizeof(npu_attr));
+    npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_ENABLE;
+    s32Ret = AX_ENGINE_Init(&npu_attr);
 #endif
     if (0 != s32Ret)
     {

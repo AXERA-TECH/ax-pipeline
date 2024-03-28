@@ -1256,12 +1256,6 @@ typedef struct
     SAMPLE_LOAD_RAW_NODE_E eLoadRawNode;
     AX_BOOL bAiispEnable;
     AX_S32 nDumpFrameNum;
-    AX_S32 nPipeId; /* For VIN */
-    AX_S32 nGrpId;  /* For IVPS */
-    AX_S32 nOutChnNum;
-    char *pFrameInfo;
-    AX_VIN_IVPS_MODE_E eMode;
-    AX_U32 statDeltaPtsFrmNum;
 } SAMPLE_VIN_PARAM_T;
 
 /* comm pool */
@@ -1272,12 +1266,10 @@ COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleDummySdr[] = {
 };
 
 COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04a10Sdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 3, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
-    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 4},                            /* vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 3},                            /* vin nv21/nv21 use */
+    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 6, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
+    {1920, 1080, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 3, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
     {720, 576, 720, AX_FORMAT_YUV420_SEMIPLANAR, 3},                               /* vin nv21/nv21 use */
 };
-
 /* private pool */
 COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleDummySdr[] = {
     {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_16BPP, 10},
@@ -1289,9 +1281,8 @@ COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleOs04a10Sdr[] = {
 
 // SC450AI
 COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs450aiSdr[] = {
-    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 3, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
-    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 4},                            /* vin nv21/nv21 use */
-    {1920, 1080, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 3},                            /* vin nv21/nv21 use */
+    {2688, 1520, 2688, AX_FORMAT_YUV420_SEMIPLANAR, 4, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
+    {1920, 1080, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 3, AX_COMPRESS_MODE_LOSSY, 4}, /* vin nv21/nv21 use */
     {720, 576, 720, AX_FORMAT_YUV420_SEMIPLANAR, 3},                               /* vin nv21/nv21 use */
 };
 
@@ -1619,7 +1610,7 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase, int bAIISP_enable)
         AX_SNS_LINEAR_MODE,
         LOAD_RAW_NONE,
         bAIISP_enable,
-        .statDeltaPtsFrmNum = 0,
+        0,
     };
 
     /* Step1: cam config & pool Config */
@@ -1632,11 +1623,11 @@ AX_S32 SAMPLE_VIN_Init(SAMPLE_VIN_CASE_E eCase, int bAIISP_enable)
         ALOGE("COMMON_SYS_Init fail, ret:0x%x", s32Ret);
         return -1;
     }
-
-    s32Ret = AX_ENGINE_Init();
-    if (0 != s32Ret)
+    /* Step4: NPU Init */
+    s32Ret = COMMON_NPU_Init();
+    if (s32Ret)
     {
-        ALOGE("AX_ENGINE_Init 0x%x", s32Ret);
+        ALOGE("COMMON_NPU_Init fail, ret:0x%x", s32Ret);
         return -1;
     }
 

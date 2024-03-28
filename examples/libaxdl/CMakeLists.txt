@@ -7,6 +7,8 @@ function(targetlink name)
     target_include_directories(${name} PRIVATE include)
     target_include_directories(${name} PRIVATE ../utilities)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include)
+    target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/arm_glibc/include)
+    target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/arm64_glibc/include)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include/npu_cv_kit)
     target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/third-party/ByteTrack/include)
     
