@@ -1,6 +1,7 @@
 set(SampleName common_pipeline)
 
 function(targetlink name)
+target_include_directories(${name} PRIVATE ${OpenCV_INCLUDE_DIRS})
     target_include_directories(${name} PRIVATE .)
     target_include_directories(${name} PRIVATE ../utilities)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/include)

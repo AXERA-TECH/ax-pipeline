@@ -188,8 +188,8 @@ int _create_vdec_grp(pipeline_t *pipe)
 
             stVdChnAttr.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
             stVdChnAttr.enOutputMode = AX_VDEC_OUTPUT_ORIGINAL;
-            stVdChnAttr.u32PicWidth = 3840;
-            stVdChnAttr.u32PicHeight = 2160;
+            stVdChnAttr.u32PicWidth = 1920;
+            stVdChnAttr.u32PicHeight = 1080;
             stVdChnAttr.u32FrameBufCnt = 5;
             AX_U32 uPixBits = 8;
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))

@@ -29,6 +29,8 @@
 #include "string.h"
 #include "pthread.h"
 
+#include <opencv2/opencv.hpp>
+
 #ifndef ALIGN_UP
 #define ALIGN_UP(x, align) ((((x) + ((align)-1)) / (align)) * (align))
 #endif
@@ -57,9 +59,38 @@ void *_ivps_get_frame_thread(void *arg)
             usleep(200 * 1000);
             continue;
         }
+        // printf("%d %d\n",tVideoFrame.u64VirAddr[0],tVideoFrame.u64PhyAddr[0]);
+        unsigned char *img_data = (unsigned char *)AX_SYS_Mmap(tVideoFrame.u64PhyAddr[0], tVideoFrame.u32FrameSize);
 
-        tVideoFrame.u64VirAddr[0] = (AX_U64)AX_POOL_GetBlockVirAddr(tVideoFrame.u32BlkId[0]);
-        tVideoFrame.u64PhyAddr[0] = AX_POOL_Handle2PhysAddr(tVideoFrame.u32BlkId[0]);
+#if 0
+        static int count = 0;
+        cv::Mat src;
+        if (tVideoFrame.enImgFormat == AX_FORMAT_RGB888 || tVideoFrame.enImgFormat == AX_FORMAT_BGR888)
+        {
+            src = cv::Mat(tVideoFrame.u32Height, tVideoFrame.u32Width, CV_8UC3, img_data);
+        }
+        else if (tVideoFrame.enImgFormat == AX_FORMAT_YUV420_SEMIPLANAR)
+        {
+            cv::Mat nv12_mat(tVideoFrame.u32Height * 3 / 2, tVideoFrame.u32Width, CV_8UC1, img_data);
+            cv::cvtColor(nv12_mat, src, cv::COLOR_YUV2BGR_NV12);
+        }
+        else
+        {
+            ALOGE("unknown color space %d", tVideoFrame.enImgFormat);
+            // return -1;
+        }
+
+        // print pstFrame
+        // ALOGI("pstFrame: %dx%d, size:%d, stride:%d, fmt:%d, phy:0x%x", pstFrame->nWidth, pstFrame->nHeight, pstFrame->nSize, pstFrame->tStride_W, pstFrame->eDtype, pstFrame->pPhy);
+        if (count % 10 == 0 && count < 105)
+        {
+            cv::imwrite("debug_" + std::to_string(count) + ".jpg", src);
+            ALOGI("write debug_%d.jpg", count);
+        }
+
+        count++;
+#endif
+
         if (pipe->m_output_type == po_vo_hdmi)
         {
             ret = _sent_frame_vo(pipe, &tVideoFrame);
@@ -78,7 +109,7 @@ void *_ivps_get_frame_thread(void *arg)
             buf.n_width = tVideoFrame.u32Width;
             buf.n_height = tVideoFrame.u32Height;
 
-            buf.n_stride = (0 == tVideoFrame.u32PicStride[0]) ? tVideoFrame.u32Width : tVideoFrame.u32PicStride[0];
+            buf.n_stride = (0 == tVideoFrame.u32PicStride[0]) ? tVideoFrame.u32Width * 3 : tVideoFrame.u32PicStride[0];
             switch (tVideoFrame.enImgFormat)
             {
             case AX_FORMAT_YUV420_SEMIPLANAR:
@@ -86,23 +117,23 @@ void *_ivps_get_frame_thread(void *arg)
                 buf.d_type = po_buff_nv12;
                 break;
             case AX_FORMAT_RGB888:
-                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height;
                 buf.d_type = po_buff_rgb;
                 break;
             case AX_FORMAT_BGR888:
-                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height * 3;
+                buf.n_size = tVideoFrame.u32PicStride[0] * tVideoFrame.u32Height;
                 buf.d_type = po_buff_bgr;
                 break;
             default:
                 buf.d_type = po_none;
                 break;
             }
-            buf.p_vir = (AX_U8 *)tVideoFrame.u64VirAddr[0];
+            buf.p_vir = img_data; 
             buf.p_phy = tVideoFrame.u64PhyAddr[0];
             buf.p_pipe = pipe;
             pipe->output_func(&buf);
         }
-
+        
         ret = AX_IVPS_ReleaseChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame);
     }
     // ALOGN("SAMPLE_RUN_JOINT ---");
@@ -137,18 +168,21 @@ int _create_ivps_grp(pipeline_t *pipe)
 
     memset(&stPipelineAttr.tFilter, 0x00, sizeof(stPipelineAttr.tFilter));
 
+    // stPipelineAttr.tFilter[nChn][0].bEngage = AX_TRUE;
+    // stPipelineAttr.tFilter[nChn][0].nDstPicWidth = 1920;
+    // stPipelineAttr.tFilter[nChn][0].nDstPicHeight = 1080;
+    // stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
+    // stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+    // stPipelineAttr.tFilter[nChn][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+    // stPipelineAttr.tFilter[nChn][0].tCompressInfo.u32CompressLevel = 4;
+    // stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_VPP;
+
     stPipelineAttr.tFilter[nChn][0].bEngage = AX_TRUE;
-    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nSrcFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
-    // stPipelineAttr.tFilter[nChn][0].uFRC.tFrmRateCtrl.nDstFrameRate = AX_FRAME_RATE(pipe->m_ivps_attr.n_ivps_fps);
-    // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetX0 = 0;
-    // stPipelineAttr.tFilter[nChn+1][0].nDstPicOffsetY0 = 0;
     stPipelineAttr.tFilter[nChn][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_width;
     stPipelineAttr.tFilter[nChn][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_height;
     stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
-    // stPipelineAttr.tFilter[nChn+1][0].nDstFrameWidth = pipe->m_ivps_attr.n_ivps_width;
-    // stPipelineAttr.tFilter[nChn+1][0].nDstFrameHeight = pipe->m_ivps_attr.n_ivps_height;
     stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_TDP;
+    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_VPP;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.u32CompressLevel = 4;
 
@@ -174,8 +208,6 @@ int _create_ivps_grp(pipeline_t *pipe)
         stPipelineAttr.tFilter[nChn][0].nDstPicWidth = pipe->m_ivps_attr.n_ivps_height;
         stPipelineAttr.tFilter[nChn][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_width;
         stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
-        // stPipelineAttr.tFilter[nChn+1][0].nDstFrameWidth = pipe->m_ivps_attr.n_ivps_height;
-        // stPipelineAttr.tFilter[nChn+1][0].nDstFrameHeight = pipe->m_ivps_attr.n_ivps_width;
         break;
 
     default:
@@ -186,9 +218,11 @@ int _create_ivps_grp(pipeline_t *pipe)
     {
     case po_buff_rgb:
         stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_RGB888;
+        stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64) * 3;
         break;
     case po_buff_bgr:
         stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_BGR888;
+        stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64) * 3;
         break;
     case po_buff_nv21:
         stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR_VU;

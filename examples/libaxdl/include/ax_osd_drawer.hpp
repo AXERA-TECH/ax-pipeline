@@ -164,6 +164,16 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nY = box->y * nHeight;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW = box->w * nWidth;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH = box->h * nHeight;
+        ALOGI("add_rect [%0.2f,%0.2f,%0.2f,%0.2f] [%d,%d,%d,%d] w=%d,h=%d", box->x, box->y, box->w, box->h,
+              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nX,
+              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nY,
+              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW,
+              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH,
+              nWidth, nHeight);
+        if (vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW == 0 || vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH == 0)
+        {
+            vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_FALSE;
+        }
     }
 
     void add_polygon(axdl_point_t *pts, int num, ax_abgr_t color, int linewidth)
@@ -264,9 +274,9 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nAlpha = 255;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nColor = color.iargb;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nLineWidth = linewidth;
-#ifndef AXERA_TARGET_CHIP_AX620E
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = 2;
-#endif
+        // #ifndef AXERA_TARGET_CHIP_AX620E
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = 2;
+        // #endif
 
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[0].nX = pt0.x * nWidth;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[0].nY = pt0.y * nHeight;
@@ -276,28 +286,28 @@ public:
 
     void add_line(axdl_point_t *pts, int num, ax_abgr_t color, int linewidth)
     {
-#ifndef AXERA_TARGET_CHIP_AX620E
-        if (!add_index())
-        {
-            return;
-        }
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_TRUE;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].eType = AX_IVPS_RGN_TYPE_LINE;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nAlpha = 255;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nColor = color.iargb;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nLineWidth = linewidth;
-        vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = std::min(num, MAX_NUM_PTS);
-        for (int i = 0; i < (int)vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum; i++)
-        {
-            vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[i].nX = pts[i].x * nWidth;
-            vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[i].nY = pts[i].y * nHeight;
-        }
-#else
+        // #ifndef AXERA_TARGET_CHIP_AX620E
+        //         if (!add_index())
+        //         {
+        //             return;
+        //         }
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_TRUE;
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].eType = AX_IVPS_RGN_TYPE_LINE;
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nAlpha = 255;
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nColor = color.iargb;
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nLineWidth = linewidth;
+        //         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum = std::min(num, MAX_NUM_PTS);
+        //         for (int i = 0; i < (int)vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.nPointNum; i++)
+        //         {
+        //             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[i].nX = pts[i].x * nWidth;
+        //             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tLine.tPTs[i].nY = pts[i].y * nHeight;
+        //         }
+        // #else
         for (int i = 1; i < num; i++)
         {
             add_line(pts[i - 1], pts[i], color, linewidth);
         }
-#endif
+        // #endif
     }
 
     void add_mask(axdl_bbox_t *box, axdl_mat_t *mask, ax_abgr_t color)

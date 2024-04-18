@@ -344,6 +344,35 @@ int ax_model_single_base_t::preprocess(axdl_image_t *srcFrame, axdl_bbox_t *crop
 
 int ax_model_single_base_t::inference(axdl_image_t *pstFrame, axdl_bbox_t *crop_resize_box, axdl_results_t *results)
 {
+#if 0
+    static int count = 0;
+    cv::Mat src;
+    if (pstFrame->eDtype == axdl_color_space_bgr)
+    {
+        src = cv::Mat(pstFrame->nHeight, pstFrame->nWidth, CV_8UC3, pstFrame->pVir);
+    }
+    else if (pstFrame->eDtype == axdl_color_space_nv12)
+    {
+        cv::Mat nv12_mat(pstFrame->nHeight * 3 / 2, pstFrame->nWidth, CV_8UC1, pstFrame->pVir);
+        cv::cvtColor(nv12_mat, src, cv::COLOR_YUV2BGR_NV12);
+    }
+    else
+    {
+        ALOGE("unknown color space %d", pstFrame->eDtype);
+        return -1;
+    }
+
+    // print pstFrame
+    ALOGI("pstFrame: %dx%d, size:%d, stride:%d, fmt:%d, phy:0x%x", pstFrame->nWidth, pstFrame->nHeight, pstFrame->nSize, pstFrame->tStride_W, pstFrame->eDtype, pstFrame->pPhy);
+    if (count % 10 == 0 && count < 105)
+    {
+        cv::imwrite("debug_" + std::to_string(count) + ".jpg", src);
+        ALOGI("write debug_%d.jpg", count);
+    }
+
+    count++;
+#endif
+
     m_infer_timer.start();
     int ret = preprocess(pstFrame, crop_resize_box, results);
     if (ret != 0)

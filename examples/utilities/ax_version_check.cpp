@@ -68,23 +68,36 @@ static std::string trim_str(const std::string &str, const std::string &delim = "
 static int get_version(std::string version_str, std::string &major_version, std::string &minor_version, std::string &build_time)
 {
     auto tokens = split_str(version_str, "_");
-    if (tokens.size() != 3)
+    if (tokens.size() == 2)
     {
-        ALOGE("invalid version string: %s", version_str.c_str());
-        return -1;
+        // trim " "
+        major_version = trim_str(tokens[0]);
+        minor_version = "";
+        build_time = trim_str(tokens[1]);
+
+        // trim "\n"
+        major_version = trim_str(major_version, "\n");
+        minor_version = trim_str(minor_version, "\n");
+        build_time = trim_str(build_time, "\n");
+
+        return 0;
     }
+    else if (tokens.size() == 3)
+    {
+        // trim " "
+        major_version = trim_str(tokens[0]);
+        minor_version = trim_str(tokens[1]);
+        build_time = trim_str(tokens[2]);
 
-    // trim " "
-    major_version = trim_str(tokens[0]);
-    minor_version = trim_str(tokens[1]);
-    build_time = trim_str(tokens[2]);
+        // trim "\n"
+        major_version = trim_str(major_version, "\n");
+        minor_version = trim_str(minor_version, "\n");
+        build_time = trim_str(build_time, "\n");
 
-    // trim "\n"
-    major_version = trim_str(major_version, "\n");
-    minor_version = trim_str(minor_version, "\n");
-    build_time = trim_str(build_time, "\n");
-
-    return 0;
+        return 0;
+    }
+    ALOGE("invalid version string: %s", version_str.c_str());
+    return -1;
 }
 
 // for example: "Ax_Version V1.45.0_P1_20230922094955"
