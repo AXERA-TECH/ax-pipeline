@@ -164,12 +164,12 @@ public:
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nY = box->y * nHeight;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW = box->w * nWidth;
         vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH = box->h * nHeight;
-        ALOGI("add_rect [%0.2f,%0.2f,%0.2f,%0.2f] [%d,%d,%d,%d] w=%d,h=%d", box->x, box->y, box->w, box->h,
-              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nX,
-              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nY,
-              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW,
-              vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH,
-              nWidth, nHeight);
+        // ALOGI("add_rect [%0.2f,%0.2f,%0.2f,%0.2f] [%d,%d,%d,%d] w=%d,h=%d", box->x, box->y, box->w, box->h,
+        //       vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nX,
+        //       vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nY,
+        //       vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW,
+        //       vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH,
+        //       nWidth, nHeight);
         if (vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nW == 0 || vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].uDisp.tPolygon.tRect.nH == 0)
         {
             vRgns[get_cur_rgn_id()].arrDisp[get_cur_rgn_idx()].bShow = AX_FALSE;

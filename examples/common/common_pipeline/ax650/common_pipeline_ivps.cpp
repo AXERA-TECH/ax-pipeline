@@ -49,7 +49,7 @@ void *_ivps_get_frame_thread(void *arg)
 
     while (!pipe->n_loog_exit)
     {
-        AX_VIDEO_FRAME_T tVideoFrame;
+        AX_VIDEO_FRAME_T tVideoFrame = {0};
 
         AX_S32 ret = AX_IVPS_GetChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame, nMilliSec);
 
@@ -128,12 +128,12 @@ void *_ivps_get_frame_thread(void *arg)
                 buf.d_type = po_none;
                 break;
             }
-            buf.p_vir = img_data; 
+            buf.p_vir = img_data;
             buf.p_phy = tVideoFrame.u64PhyAddr[0];
             buf.p_pipe = pipe;
             pipe->output_func(&buf);
         }
-        
+
         ret = AX_IVPS_ReleaseChnFrame(pipe->m_ivps_attr.n_ivps_grp, 0, &tVideoFrame);
     }
     // ALOGN("SAMPLE_RUN_JOINT ---");
@@ -182,7 +182,7 @@ int _create_ivps_grp(pipeline_t *pipe)
     stPipelineAttr.tFilter[nChn][0].nDstPicHeight = pipe->m_ivps_attr.n_ivps_height;
     stPipelineAttr.tFilter[nChn][0].nDstPicStride = ALIGN_UP(stPipelineAttr.tFilter[nChn][0].nDstPicWidth, 64);
     stPipelineAttr.tFilter[nChn][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_VPP;
+    stPipelineAttr.tFilter[nChn][0].eEngine = AX_IVPS_ENGINE_TDP;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
     stPipelineAttr.tFilter[nChn][0].tCompressInfo.u32CompressLevel = 4;
 

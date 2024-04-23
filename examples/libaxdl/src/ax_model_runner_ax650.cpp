@@ -1,11 +1,13 @@
 #if defined(AXERA_TARGET_CHIP_AX650) || defined(AXERA_TARGET_CHIP_AX620E)
 #include "ax_model_runner_ax650.hpp"
-#include "string.h"
+#include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include "utilities/file.hpp"
 #include <ax_sys_api.h>
 #include <ax_engine_api.h>
+
+#include <opencv2/opencv.hpp>
 
 #include "../../utilities/sample_log.h"
 
@@ -303,28 +305,35 @@ int ax_runner_ax650::inference(axdl_image_t *pstFrame, const axdl_bbox_t *crop_r
         }
     }
 
-    // switch (m_handle->algo_colorformat)
-    // {
-    // case AX_FORMAT_RGB888:
-    // case AX_FORMAT_BGR888:
-    // {
-    //     unsigned char *dst = (unsigned char *)minput_tensors[0].pVirAddr;
-    //     unsigned char *src = (unsigned char *)imgproc.get()->pVir;
-    //     memcpy(dst, src, minput_tensors[0].nSize);
-    // }
-    // break;
-    // case AX_FORMAT_YUV420_SEMIPLANAR:
-    // case AX_FORMAT_YUV420_SEMIPLANAR_VU:
-    //     for (size_t i = 0; i < pstFrame->nHeight * 1.5; i++)
-    //     {
-    //         memcpy(dst + i * pstFrame->nWidth, src + i * pstFrame->tStride_W, pstFrame->nWidth);
-    //     }
-    //     break;
-    // default:
-    //     break;
-    // }
+#if 0
+    static int count = 0;
+    cv::Mat src;
+    if (pstFrame->eDtype == axdl_color_space_bgr)
+    {
+        src = cv::Mat(m_handle->algo_height, m_handle->algo_width, CV_8UC3, m_handle->io_data.pInputs[0].pVirAddr);
+    }
+    else if (pstFrame->eDtype == axdl_color_space_nv12)
+    {
+        // cv::Mat nv12_mat(pstFrame->nHeight * 3 / 2, pstFrame->nWidth, CV_8UC1, pstFrame->pVir);
+        cv::Mat nv12_mat(m_handle->algo_height, m_handle->algo_width, CV_8UC1, m_handle->io_data.pInputs[0].pVirAddr);
+        cv::cvtColor(nv12_mat, src, cv::COLOR_YUV2BGR_NV12);
+    }
+    else
+    {
+        ALOGE("unknown color space %d", pstFrame->eDtype);
+        return -1;
+    }
 
-    // memcpy(minput_tensors[0].pVirAddr, pstFrame->pVir, minput_tensors[0].nSize);
+    // print pstFrame
+    // ALOGI("pstFrame: %dx%d, size:%d, stride:%d, fmt:%d, phy:0x%x", pstFrame->nWidth, pstFrame->nHeight, pstFrame->nSize, pstFrame->tStride_W, pstFrame->eDtype, pstFrame->pPhy);
+    if (count % 10 == 0 && count < 105)
+    {
+        cv::imwrite("debug_" + std::to_string(count) + ".jpg", src);
+        ALOGI("write debug_%d.jpg", count);
+    }
+
+    count++;
+#endif
     return AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data);
 }
 #endif
