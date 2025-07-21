@@ -17,8 +17,6 @@ elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
                     "${BSP_MSP_DIR}/../sample/common/common_venc.c" 
                     "${BSP_MSP_DIR}/../sample/common/common_venc_log.c" 
                     "../../utilities/ax_version_check.cpp")
-elseif(AXERA_TARGET_CHIP MATCHES "AX620A")
-    file(GLOB SRC_LIST "ax620/*.cpp")
 endif()
 
 list(APPEND SRC_BASE_LIST

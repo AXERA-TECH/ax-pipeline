@@ -56,8 +56,10 @@ jobs:
           ../download_ax_bsp.sh ax650
           cd ax650n_bsp_sdk
           wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
+          wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
           mkdir third-party
           unzip drm.zip -d third-party
+          unzip libexif.zip -d third-party
           cd ..
 
           wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libopencv-4.5.5-aarch64.zip

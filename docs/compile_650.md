@@ -37,8 +37,10 @@ cd ax-pipeline
 git submodule update --init
 mkdir bsp && cd bsp
 wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
+wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
 mkdir third-party
 unzip drm.zip -d third-party
+unzip libexif.zip -d third-party
 mkdir -p msp/out
 ln -s /soc/* msp/out/
 wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/sample.zip
@@ -52,7 +54,7 @@ cd ..
 cd ..
 mkdir build
 cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../bsp/msp/out -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../bsp/msp/out -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
 make $(expr `nproc` - 1)
 make install
 ```
@@ -100,8 +102,10 @@ git submodule update --init
 ./download_ax_bsp.sh ax650
 cd ax650n_bsp_sdk
 wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
+wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
 mkdir third-party
 unzip drm.zip -d third-party
+unzip libexif.zip -d third-party
 cd ..
 ```
 
@@ -132,7 +136,7 @@ export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
 cd ..
 mkdir build
 cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4 -DSIPY_BUILD=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
 make $(expr `nproc` - 1)
 make install
 ```

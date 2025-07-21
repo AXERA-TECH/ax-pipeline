@@ -3,7 +3,6 @@
 ### 阅读文档
 
 仔细阅读 
-- [AXera Pulsar 工具链指导手册](https://pulsar-docs.readthedocs.io/zh_CN/latest/index.html) (AX620A/U)
 - [AXera Pulsar2 工具链指导手册](https://pulsar2-docs.readthedocs.io/zh-cn/latest/) (AX650N/AX650A/AX630C/AX620E)\
   学习如何将自定义的 onnx 模型，转换成 AX620/AX650/AX620E 中所用的 Joint/Axmodel 模型。
 

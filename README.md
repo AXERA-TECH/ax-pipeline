@@ -12,13 +12,10 @@
 - AX630C/AX620Q
   - SDK:v1.0.0
 - AX650A/AX650N
-  - SDK:v1.45.0 
-- AX620A/AX620U
-  - SDK:v1.13.0
+  - SDK:v1.45.0
 
 ### 已支持开发板
 
-- [AXera-Pi](https://wiki.sipeed.com/m3axpi)(AX620A)
 - [AXera-Pi Pro](https://wiki.sipeed.com/m4ndock)(AX650N)
 - [AXera-Pi Zero](https://axera-pi-zero-docs-cn.readthedocs.io/zh-cn/latest/index.html)(AX620Q)
 
@@ -59,7 +56,6 @@
 
 - [ax-samples](https://github.com/AXERA-TECH/ax-samples) 该项目实现了常见的 深度学习开源算法 在 爱芯元智 的 AI SoC 上的示例代码，方便社区开发者进行快速评估和适配。
 - NPU 工具链在线文档
-  - [Pulsar](https://pulsar-docs.readthedocs.io/zh_CN/latest/)(Support AX630A/AX620A/AX620U)
   - [Pulsar2](https://pulsar2-docs.readthedocs.io/zh_CN/latest/)(Support AX650A/AX650N/AX630C/AX620Q)
 
 ## 技术讨论

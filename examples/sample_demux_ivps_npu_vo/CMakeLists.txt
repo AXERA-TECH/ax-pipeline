@@ -14,16 +14,3 @@ add_executable(${SampleName}
 )
 ax_include_link(${SampleName} "demux")
 install(TARGETS ${SampleName} DESTINATION bin)
-
-
-set(SampleName ${SampleName}_sipy)
-
-if (SIPY_BUILD)
-    add_library(${SampleName} SHARED
-        ${SRC_BASE_LIST}
-    )
-    SET_TARGET_PROPERTIES(${SampleName} PROPERTIES VERSION ${SIPY_VERSION} SOVERSION ${SIPY_SOVERSION})
-    SET_TARGET_PROPERTIES(${SampleName} PROPERTIES OUTPUT_NAME ${SampleName})
-    ax_include_link(${SampleName} "demux")
-    install(TARGETS ${SampleName} DESTINATION lib)
-endif()
