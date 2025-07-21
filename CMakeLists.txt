@@ -20,7 +20,7 @@ endif()
 
 # default compile for ax620
 if(NOT AXERA_TARGET_CHIP)
-    set(AXERA_TARGET_CHIP "ax620a")
+    set(AXERA_TARGET_CHIP "ax650")
 endif()
 if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
     set(AXERA_TARGET_CHIP "AX650")
@@ -37,18 +37,8 @@ elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
     )
     set(AXERA_TARGET_CHIP "AX620E")
     message(STATUS "SET AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
-elseif(AXERA_TARGET_CHIP MATCHES "ax620a"
-    OR AXERA_TARGET_CHIP MATCHES "AX620A"
-    OR AXERA_TARGET_CHIP MATCHES "AX620a"
-    OR AXERA_TARGET_CHIP MATCHES "ax620a"
-    OR AXERA_TARGET_CHIP MATCHES "ax620u"
-    OR AXERA_TARGET_CHIP MATCHES "AX620u"
-    OR AXERA_TARGET_CHIP MATCHES "AX620U"
-    )
-    set(AXERA_TARGET_CHIP "AX620A")
-    message(STATUS "SET AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
 else()
-    message(FATAL_ERROR "Not support AXERA_TARGET_CHIP: ${AXERA_TARGET_CHIP}, choose from [AX620A, AX650, AX620E]")
+    message(FATAL_ERROR "Not support AXERA_TARGET_CHIP: ${AXERA_TARGET_CHIP}, choose from [ AX650, AX620E]")
 endif()
 message(STATUS "AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
 
@@ -89,9 +79,7 @@ foreach(PATH ${MSP_LIB_PATHS})
 endforeach()
 
 if(NOT BSP_VERSION)
-    if(NOT AXERA_TARGET_CHIP MATCHES "AX620A")
-        message(FATAL_ERROR "FATAL: BSP_VERSION ${BSP_VERSION} not found")
-    endif()
+    message(FATAL_ERROR "FATAL: BSP_VERSION ${BSP_VERSION} not found")
 endif()
 message(STATUS "BSP_VERSION = ${BSP_VERSION}")
 add_definitions(-DAXERA_BSP_VERSION="${BSP_VERSION}")
@@ -102,13 +90,6 @@ if(ONNXRUNTIME_DIR)
     message(STATUS "ONNXRUNTIME_DIR = ${ONNXRUNTIME_DIR}")
 else()
     message(STATUS "ONNXRUNTIME_DIR = NOT SET")
-endif()
-
-# option(BUILD_ON_BOARD "build in axpi" OFF)
-option(SIPY_BUILD "build *.so for sipeed python package" OFF)
-if(SIPY_BUILD)
-    set(SIPY_SOVERSION 1)
-    set(SIPY_VERSION ${SIPY_SOVERSION}.1.2)
 endif()
 
 # check toolchain about
@@ -150,8 +131,6 @@ if(AXERA_TARGET_CHIP MATCHES "AX650")
     add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo)
     add_subdirectory(examples/sample_demux_ivps_npu_rtsp_hdmi_vo)
     add_subdirectory(examples/sample_demux_ivps_npu_hdmi_vo)
-    add_subdirectory(examples/sample_vin_ivps_npu_hdmi_vo)
-    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
     file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
     install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
 elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
@@ -174,43 +153,5 @@ elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
     add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
     add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
     file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
-    install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
-
-elseif(AXERA_TARGET_CHIP MATCHES "AX620A")
-    add_compile_options(-DAXERA_TARGET_CHIP_AX620)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX620E)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX650)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv7-a -mfloat-abi=hard -mfpu=neon")
-
-    # opencv
-    if(NOT OpenCV_DIR)
-        set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/opencv-arm-linux/lib/cmake/opencv4)
-    endif()
-    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
-    find_package(OpenCV REQUIRED)
-
-    add_subdirectory(examples/common/common_pipeline)
-    add_subdirectory(examples/libaxdl)
-    # deprecated
-    # add_subdirectory(examples/sample_run_joint)
-    # add_subdirectory(examples/sample_vin_joint)
-    # add_subdirectory(examples/sample_vin_ivps_joint_vo_old)
-    # add_subdirectory(examples/sample_vin_ivps_joint_venc_rtsp_old)
-    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp_vo)
-    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
-    add_subdirectory(examples/sample_vin_ivps_npu_vo)
-    add_subdirectory(examples/sample_vin_ivps_npu_vo_h265)
-    add_subdirectory(examples/sample_v4l2_ivps_npu_vo)
-    add_subdirectory(examples/sample_v4l2_user_ivps_npu_vo)
-    # add_subdirectory(examples/sample_h264_ivps_joint_vo)
-    # add_subdirectory(examples/sample_rtsp_ivps_joint_vo)
-    # add_subdirectory(examples/sample_rtsp_ivps_joint_rtsp)
-    add_subdirectory(examples/sample_demux_ivps_npu_vo)
-    add_subdirectory(examples/sample_demux_ivps_npu_rtsp)
-    add_subdirectory(examples/sample_demux_ivps_npu_rtsp_vo)
-    add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
-
-    file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax620/*")
     install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
 endif()

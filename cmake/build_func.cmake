@@ -14,10 +14,11 @@ function(ax_include_link name input_type)
     target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/arm64_glibc/include)
     target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/arm64_glibc/lib)
 
-    target_link_libraries(${name} PRIVATE pthread dl) # ax620a use this
+    target_link_libraries(${name} PRIVATE pthread dl) 
 
     target_link_libraries(${name} PRIVATE axdl common_pipeline)
 
+    target_include_directories(${name} PRIVATE ${BSP_MSP_DIR}/../component/isp_proton/sensor/platform/tcm)
     # onnxruntime
     if(ONNXRUNTIME_DIR)
         target_include_directories(${name} PRIVATE ${ONNXRUNTIME_DIR}/include)
@@ -37,17 +38,6 @@ function(ax_include_link name input_type)
     elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
         target_link_libraries(${name} PRIVATE ax_interpreter ax_sys ax_venc ax_vdec ax_ivps ax_engine ax_proton ax_ae ax_af ax_awb ax_mipi ax_nt_stream ax_nt_ctrl gomp stdc++fs)
 
-    elseif(AXERA_TARGET_CHIP MATCHES "AX620A")
-        # drm
-        target_link_directories(${name} PRIVATE ${BSP_MSP_DIR}/../../third-party/drm/lib)
-        target_link_libraries(${name} PRIVATE drm)
-        # target_link_libraries(sample_vin_ivps_joint_venc_rtsp PRIVATE pthread dl stdc++fs) # ax620u use this
-        target_link_libraries(${name} PRIVATE ax_run_joint ax_interpreter_external ax_interpreter ax_sys axsyslog stdc++fs)
-        target_link_libraries(${name} PRIVATE ax_venc ax_vdec ax_vo ax_ivps ax_npu_cv_kit ax_3a ax_proton ax_mipi gomp)
-
-        if(input_type MATCHES "vin")
-            target_link_libraries(${name} PRIVATE sns_os04a10 sns_os04a10_master sns_os04a10_slave sns_gc4653)
-        endif()
     endif()
 
     # openssl

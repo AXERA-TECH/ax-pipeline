@@ -30,24 +30,6 @@ jobs:
           git submodule update --init
 
       # Runs a set of commands using the runners shell
-      - name: build for ax620
-        run: |
-          mkdir build
-          cd build
-
-          ../download_ax_bsp.sh ax620
-
-          wget https://github.com/AXERA-TECH/ax-samples/releases/download/v0.1/opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
-          unzip opencv-arm-linux-gnueabihf-gcc-7.5.0.zip
-
-          wget http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-          tar -xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-          export PATH=$PATH:gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/
-          arm-linux-gnueabihf-gcc -v
-
-          cmake -DAXERA_TARGET_CHIP=AX620A -DBSP_MSP_DIR=$PWD/axpi_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/opencv-arm-linux/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=ON ..
-          make -j8
-          make install
       - name: build for ax650
         run: |
           mkdir build_650
@@ -56,8 +38,10 @@ jobs:
           ../download_ax_bsp.sh ax650
           cd ax650n_bsp_sdk
           wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
+          wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
           mkdir third-party
           unzip drm.zip -d third-party
+          unzip libexif.zip -d third-party
           cd ..
 
           wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libopencv-4.5.5-aarch64.zip
