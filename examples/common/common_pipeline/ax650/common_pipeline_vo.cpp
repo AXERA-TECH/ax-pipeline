@@ -310,7 +310,7 @@ static struct
     std::vector<AX_VO_CHN_ATTR_T> m_arrChns;
     VO_LAYER voLayer = 0;
     VO_DEV voDev = 0;
-    AX_U32 nPoolCnt = 10;
+    AX_U32 nPoolCnt = 5;
     AX_POOL m_LayerPool;
 
     AX_VO_RECT_T stArea{0, 0, 1920, 1080};

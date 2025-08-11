@@ -18,5 +18,5 @@ ffmpeg -re -stream_loop -1 -i test.h264 -rtsp_transport tcp -c copy -f rtsp rtsp
 
 5、运行以下命令，进行 rtsp 的取流、解码、推理的 pipeline
 ```
-./sample_demux_ivps_joint_rtsp_hdmi_vo -f rtsp://192.168.31.1:8554/test -p config/yolov5s.json
+./sample_demux_ivps_npu_rtsp_hdmi_vo -f rtsp://192.168.31.1:8554/test -p config/yolov5s.json
 ```

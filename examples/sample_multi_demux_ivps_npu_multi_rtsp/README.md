@@ -21,5 +21,5 @@ ffmpeg -re -stream_loop -1 -i test2.h264 -rtsp_transport tcp -c copy -f rtsp rts
 
 6、运行以下命令，进行 rtsp 的取流、解码、推理的 pipeline（重复设置 ```-f rtsp_url``` 进行多路输入输出）
 ```
-./sample_multi_demux_ivps_joint_multi_rtsp -f rtsp://192.168.31.1:5554/test -f rtsp://192.168.31.1:5554/test2 -p config/yolov5s.json
+./sample_multi_demux_ivps_npu_multi_rtsp -f rtsp://192.168.31.1:5554/test -f rtsp://192.168.31.1:5554/test2 -p config/yolov5s.json -r 25
 ```
