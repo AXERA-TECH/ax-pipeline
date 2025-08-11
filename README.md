@@ -52,8 +52,10 @@
 
 ## 联动项目
 
-- [ax-samples](https://github.com/AXERA-TECH/ax-samples) 该项目实现了常见的 深度学习开源算法 在 爱芯元智 的 AI SoC 上的示例代码，方便社区开发者进行快速评估和适配。
-- [NPU工具链在线文档](https://pulsar2-docs.readthedocs.io/zh_CN/latest/)(Support AX650A/AX650N/AX8850N/AX8850/AX630C/AX620Q)
+- [ax-samples](https://github.com/AXERA-TECH/ax-samples)：该项目实现了常见的 深度学习开源算法 在 爱芯元智 的 AI SoC 上的示例代码，方便社区开发者进行快速评估和适配
+- [基于 AX650N 部署 YOLO11](https://zhuanlan.zhihu.com/p/772269394)
+- [基于 AX620Q 部署 YOLOv8](https://zhuanlan.zhihu.com/p/683050593)
+- [NPU工具链在线文档](https://pulsar2-docs.readthedocs.io/zh_CN/latest/)
 - [NPU工具链获取](https://huggingface.co/AXERA-TECH/Pulsar2)
 
 ## 技术讨论
