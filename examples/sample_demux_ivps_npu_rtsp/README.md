@@ -4,15 +4,15 @@
 ## 流程图
 ![](../../docs/sample_demux_ivps_joint_rtsp.png)
 
+## 环境准备
+rtsp服务及推拉流配置请参考   [rtsp-simple-server](../../docs/rtsp.md)
+
 ## 快速体验
-```bash
-Usage:./sample_demux_ivps_joint_rtsp -h for help
-
-        -p: model config file path
-        -f: mp4 file(just only support h264 format)
-        -l: loop play video(循环播放)
+1、运行以下命令，进行 mp4/h264 文件的解包、解码、推理，并通过rtsp推流输出结果。
 ```
-
+./sample_demux_ivps_npu_rtsp -f test.mp4 -l 1 -p config/yolov5s.json -r 25
 ```
-./sample_demux_ivps_joint_rtsp -f xxx.mp4 -l 1 -p config/yolov5s.json
+2、运行以下命令，进行 rtsp 的取流、解码、推理，并通过rtsp推流输出结果。
+```
+./sample_demux_ivps_npu_rtsp -f rtsp://192.168.31.1:8554/test -l 1 -p config/yolov5s.json -r 25
 ```

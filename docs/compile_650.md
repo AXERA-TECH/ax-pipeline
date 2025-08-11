@@ -1,6 +1,6 @@
 # 源码编译（AX650N）
 
-**注意：由于不可抗拒的原因，请务必保证 ax-pipeline、ax650n_bsp_sdk、board_bsp 三者版本一致（例如，当前 爱芯派Pro 的 BSP 版本为 1.45），否则将出现各种意想不到的异常问题:（**
+**注意：由于不可抗拒的原因，请务必保证 ax-pipeline、ax650n_bsp_sdk、board_bsp 三者版本一致（例如，当前 爱芯派Pro 的 BSP 版本为 3.6.2），否则将出现各种意想不到的异常问题:（**
 
 ax-samples 的源码编译目前有两种实现路径：
 
@@ -35,27 +35,17 @@ cd ax-pipeline
 
 ```shell
 git submodule update --init
-mkdir bsp && cd bsp
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
-mkdir third-party
-unzip drm.zip -d third-party
-unzip libexif.zip -d third-party
-mkdir -p msp/out
-ln -s /soc/* msp/out/
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/sample.zip
-unzip sample.zip -d msp
-cd ..
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/ax650n_bsp_sdk.tar.gz
+tar xzvf ax650n_bsp_sdk.tar.gz && rm ax650n_bsp_sdk.tar.gz
+ln -s /soc/lib/ ax650n_bsp_sdk/msp/out/lib
 ```
 
 ### 1.5 源码编译
 
 ```shell
-cd ..
-mkdir build
-cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../bsp/msp/out -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
-make $(expr `nproc` - 1)
+mkdir build && cd build
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install ..
+make -j$(expr `nproc` - 2)
 make install
 ```
 
@@ -64,24 +54,37 @@ make install
 ```shell
 ax-pipeline/build$ tree install
 install
-├── bin
-│   ├── config
-│   │   ├── dinov2.json
-│   │   ├── scrfd.json
-│   │   ├── yolov5_seg.json
-│   │   ├── yolov5s_650.json
-│   │   ├── yolov5s_face.json
-│   │   ├── yolov6.json
-│   │   ├── yolov7.json
-│   │   ├── yolov7_face.json
-│   │   ├── yolov8_pose.json
-│   │   └── yolox.json
-│   ├── sample_demux_ivps_joint_hdmi_vo
-│   ├── sample_demux_ivps_joint_rtsp
-│   ├── sample_demux_ivps_joint_rtsp_hdmi_vo
-│   ├── sample_multi_demux_ivps_joint_hdmi_vo
-│   ├── sample_multi_demux_ivps_joint_multi_rtsp
-│   └── sample_multi_demux_ivps_joint_multi_rtsp_hdmi_vo
+|-- bin
+|   |-- config
+|   |   |-- clip.json
+|   |   |-- crowdcount.json
+|   |   |-- custom_model.json
+|   |   |-- depth_anything.json
+|   |   |-- dinov2.json
+|   |   |-- dinov2_depth.json
+|   |   |-- glpdepth.json
+|   |   |-- owlvit.json
+|   |   |-- ppyoloe.json
+|   |   |-- scrfd.json
+|   |   |-- scrfd_recognition.json
+|   |   |-- yolo_nas.json
+|   |   |-- yolov5_seg.json
+|   |   |-- yolov5s.json
+|   |   |-- yolov5s_face.json
+|   |   |-- yolov5s_face_recognition.json
+|   |   |-- yolov6.json
+|   |   |-- yolov7.json
+|   |   |-- yolov7_face.json
+|   |   |-- yolov8.json
+|   |   |-- yolov8_pose.json
+|   |   |-- yolov8_seg.json
+|   |   `-- yolox.json
+|   |-- sample_demux_ivps_npu_hdmi_vo
+|   |-- sample_demux_ivps_npu_rtsp
+|   |-- sample_demux_ivps_npu_rtsp_hdmi_vo
+|   |-- sample_multi_demux_ivps_npu_hdmi_vo
+|   |-- sample_multi_demux_ivps_npu_multi_rtsp
+|   `-- sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo
 ```
 
 ## 2 交叉编译
@@ -99,24 +102,27 @@ cd ax-pipeline
 
 ```shell
 git submodule update --init
-./download_ax_bsp.sh ax650
-cd ax650n_bsp_sdk
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
-mkdir third-party
-unzip drm.zip -d third-party
-unzip libexif.zip -d third-party
-cd ..
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/ax650n_bsp_sdk.tar.gz
+tar xzvf ax650n_bsp_sdk.tar.gz && rm ax650n_bsp_sdk.tar.gz
+cd ax650n_bsp_sdk/msp/out/
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/lib.tar.gz
+tar xzvf lib.tar.gz && rm lib.tar.gz
+cd ../../../
+cd third-party
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/drm.tar.gz
+tar xzvf drm.tar.gz && rm drm.tar.gz
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/libexif.tar.gz
+tar xzvf libexif.tar.gz && rm libexif.tar.gz
+cd ../
 ```
 
 ### 2.3 创建 3rdparty，下载opencv
 
 ```shell
-mkdir 3rdparty
-cd 3rdparty
-wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libopencv-4.5.5-aarch64.zip
-unzip libopencv-4.5.5-aarch64.zip
-cd ..
+mkdir 3rdparty && cd 3rdparty
+wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/opencv_4.5.5.tar.gz
+tar xzvf opencv_4.5.5.tar.gz && rm opencv_4.5.5.tar.gz
+cd ../
 ```
 
 ### 2.4 编译环境
@@ -133,11 +139,9 @@ export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
 ### 2.5 源码编译
 
 ```shell
-cd ..
-mkdir build
-cd build
-cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
-make $(expr `nproc` - 1)
+mkdir build && cd build
+cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/opencv_4.5.5/lib/cmake/opencv4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+make -j$(expr `nproc` - 2)
 make install
 ```
 
@@ -146,22 +150,35 @@ make install
 ```shell
 ax-pipeline/build$ tree install
 install
-├── bin
-│   ├── config
-│   │   ├── dinov2.json
-│   │   ├── scrfd.json
-│   │   ├── yolov5_seg.json
-│   │   ├── yolov5s_650.json
-│   │   ├── yolov5s_face.json
-│   │   ├── yolov6.json
-│   │   ├── yolov7.json
-│   │   ├── yolov7_face.json
-│   │   ├── yolov8_pose.json
-│   │   └── yolox.json
-│   ├── sample_demux_ivps_joint_hdmi_vo
-│   ├── sample_demux_ivps_joint_rtsp
-│   ├── sample_demux_ivps_joint_rtsp_hdmi_vo
-│   ├── sample_multi_demux_ivps_joint_hdmi_vo
-│   ├── sample_multi_demux_ivps_joint_multi_rtsp
-│   └── sample_multi_demux_ivps_joint_multi_rtsp_hdmi_vo
+|-- bin
+|   |-- config
+|   |   |-- clip.json
+|   |   |-- crowdcount.json
+|   |   |-- custom_model.json
+|   |   |-- depth_anything.json
+|   |   |-- dinov2.json
+|   |   |-- dinov2_depth.json
+|   |   |-- glpdepth.json
+|   |   |-- owlvit.json
+|   |   |-- ppyoloe.json
+|   |   |-- scrfd.json
+|   |   |-- scrfd_recognition.json
+|   |   |-- yolo_nas.json
+|   |   |-- yolov5_seg.json
+|   |   |-- yolov5s.json
+|   |   |-- yolov5s_face.json
+|   |   |-- yolov5s_face_recognition.json
+|   |   |-- yolov6.json
+|   |   |-- yolov7.json
+|   |   |-- yolov7_face.json
+|   |   |-- yolov8.json
+|   |   |-- yolov8_pose.json
+|   |   |-- yolov8_seg.json
+|   |   `-- yolox.json
+|   |-- sample_demux_ivps_npu_hdmi_vo
+|   |-- sample_demux_ivps_npu_rtsp
+|   |-- sample_demux_ivps_npu_rtsp_hdmi_vo
+|   |-- sample_multi_demux_ivps_npu_hdmi_vo
+|   |-- sample_multi_demux_ivps_npu_multi_rtsp
+|   `-- sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo
 ```

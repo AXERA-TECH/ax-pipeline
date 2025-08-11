@@ -32,26 +32,30 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: build for ax650
         run: |
-          mkdir build_650
-          cd build_650
+          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/ax650n_bsp_sdk.tar.gz
+          tar xzvf ax650n_bsp_sdk.tar.gz && rm ax650n_bsp_sdk.tar.gz
+          cd ax650n_bsp_sdk/msp/out/
+          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/lib.tar.gz
+          tar xzvf lib.tar.gz && rm lib.tar.gz
+          cd ../../../
+          cd third-party
+          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/drm.tar.gz
+          tar xzvf drm.tar.gz && rm drm.tar.gz
+          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/libexif.tar.gz
+          tar xzvf libexif.tar.gz && rm libexif.tar.gz
+          cd ../
 
-          ../download_ax_bsp.sh ax650
-          cd ax650n_bsp_sdk
-          wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/drm.zip
-          wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libexif.zip
-          mkdir third-party
-          unzip drm.zip -d third-party
-          unzip libexif.zip -d third-party
-          cd ..
-
-          wget https://github.com/ZHEQIUSHUI/assets/releases/download/ax650/libopencv-4.5.5-aarch64.zip
-          unzip libopencv-4.5.5-aarch64.zip
+          mkdir 3rdparty && cd 3rdparty
+          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/opencv_4.5.5.tar.gz
+          tar xzvf opencv_4.5.5.tar.gz && rm opencv_4.5.5.tar.gz
+          cd ../
 
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
           tar -xf gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
           export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
           aarch64-none-linux-gnu-gcc -v
 
-          cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/libopencv-4.5.5-aarch64/lib/cmake/opencv4 -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install -DSIPY_BUILD=OFF ..
-          make -j8
+          mkdir build && cd build
+          cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/opencv_4.5.5/lib/cmake/opencv4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
+          make -j$(expr `nproc` - 2)
           make install
