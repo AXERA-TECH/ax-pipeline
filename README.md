@@ -12,6 +12,11 @@
 - AX650A/AX650N
 - AX8850N/AX8850
 
+### 支持 SDK 版本
+
+- AX650 Series
+  - v3.6.2([社区版本SDK获取方式](https://www.ebaina.com/down/240000038900))   
+
 ### 已支持开发板
 
 - AX650N DEMO Board
