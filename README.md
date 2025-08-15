@@ -37,19 +37,86 @@
   
 ### 示例
 
-| 示例 | 简介|
-|-|-|
-| [sample_vin_ivps_npu_vo](examples/sample_vin_ivps_npu_vo) |IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
-| [sample_vin_ivps_npu_venc_rtsp](examples/sample_vin_ivps_npu_venc_rtsp) |IVPS 出三路视频，两路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_vin_ivps_npu_venc_rtsp_vo](examples/sample_vin_ivps_npu_venc_rtsp_vo) |IVPS 出三路视频，一路用作 RTSP 推流，一路用作屏幕显示，一路用作 NPU 推理|
-| [sample_vin_ivps_npu_vo_h265](examples/sample_vin_ivps_npu_vo_h265) |IVPS 出三路视频，一路用作屏幕显示，一路用作 h265 文件保存，一路用作 NPU 推理|
-| [sample_v4l2_ivps_npu_vo](examples/sample_v4l2_ivps_npu_vo) | USB的 jpeg 输入，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 |
-| [sample_v4l2_user_ivps_npu_vo](examples/sample_v4l2_user_ivps_npu_vo) | USB的 jpeg 输入，使用 libjpeg 解码成 NV12，输入到 IVPS 中，IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理，演示了如何将 NV12 的图像输入到 IVPS 中 |
-| [sample_demux_ivps_npu_vo](examples/sample_demux_ivps_npu_vo) |读取 h264/mp4/rtsp 解码，通过 IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理|
-| [sample_demux_ivps_npu_rtsp](examples/sample_demux_ivps_npu_rtsp) | 读取 h264/mp4/rtsp 解码，IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_demux_ivps_npu_rtsp_vo](examples/sample_demux_ivps_npu_rtsp_vo) | 读取 h264/mp4/rtsp 解码，IVPS 出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 |
-| [sample_multi_demux_ivps_npu_multi_rtsp](examples/sample_multi_demux_ivps_npu_multi_rtsp) | 读取多路 h264/mp4/rtsp 解码，推理模型进行 OSD 后，多路 rtsp 输出 |
-| [sample_demux_ivps_npu_hdmi_vo](examples/sample_demux_ivps_npu_hdmi_vo) | 读取 h264/mp4/rtsp 解码，推理多个模型进行 OSD 后，分屏（分屏数量等于指定模型个数）同时输出到 HDMI 屏幕 |
+| 示例 | 简介 | 流程图 |
+| - | - | - |
+| [sample_demux_ivps_npu_vo](examples/sample_demux_ivps_npu_vo) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_vo) |
+| [sample_demux_ivps_npu_rtsp](examples/sample_demux_ivps_npu_rtsp) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_rtsp) |
+| [sample_demux_ivps_npu_rtsp_vo](examples/sample_demux_ivps_npu_rtsp_vo) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_rtsp_vo) |
+| [sample_demux_ivps_npu_hdmi_vo](examples/sample_demux_ivps_npu_hdmi_vo) | 读取 h264/mp4/rtsp 解码，推理多个模型并进行 OSD 后，分屏（分屏数量等于指定模型个数）同时输出到 HDMI 屏幕 | [查看流程图](#sample_demux_ivps_npu_hdmi_vo) |
+| [sample_demux_ivps_npu_rtsp_hdmi_vo](examples/sample_demux_ivps_npu_rtsp_hdmi_vo) | 读取 h264/mp4/rtsp 解码，推理多个模型并进行 OSD 后，分屏（分屏数量等于指定模型个数）同时输出到 HDMI 屏幕和 RTSP 推流 | [查看流程图](#sample_demux_ivps_npu_rtsp_hdmi_vo) |
+| [sample_multi_demux_ivps_npu_multi_rtsp](examples/sample_multi_demux_ivps_npu_multi_rtsp) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，多路 RTSP 推流输出 | [查看流程图](#sample_multi_demux_ivps_npu_multi_rtsp) |
+| [sample_multi_demux_ivps_npu_hdmi_vo](examples/sample_multi_demux_ivps_npu_hdmi_vo) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，多路 HDMI 屏幕输出 | [查看流程图](#sample_multi_demux_ivps_npu_hdmi_vo) |
+| [sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo](examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，同时输出到多路 RTSP 推流和 HDMI 屏幕 | [查看流程图](#sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo) |
+
+
+### sample_demux_ivps_npu_vo
+```mermaid
+flowchart LR
+    A[输入: h264/mp4/rtsp] --> B[解码]
+    B --> C[IVPS 分两路]
+    C --> D[屏幕显示]
+    C --> E[NPU 推理 + OSD] --> D  
+```
+
+### sample_demux_ivps_npu_rtsp
+```mermaid
+flowchart LR
+    A[输入: h264/mp4/rtsp] --> B[解码]
+    B --> C[IVPS 分两路]
+    C --> D[RTSP 推流]
+    C --> E[NPU 推理 + OSD] --> D
+```
+
+### sample_demux_ivps_npu_rtsp_vo
+```mermaid
+flowchart LR
+    A[输入: h264/mp4/rtsp] --> B[解码]
+    B --> C[IVPS 分三路]
+    C --> D[屏幕显示]
+    C --> E[RTSP 推流]
+    C --> F[NPU 推理 + OSD] --> E
+    F --> D
+```
+
+### sample_demux_ivps_npu_rtsp_hdmi_vo
+```mermaid
+flowchart LR
+    A[输入: h264/mp4/rtsp] --> B[解码]
+    B --> C[NPU 推理 + OSD]
+    B --> E[分屏输出]
+    B --> G[RTSP 推流]
+    C --> E
+    C --> G
+```
+
+### sample_multi_demux_ivps_npu_multi_rtsp
+```mermaid
+flowchart LR
+    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
+    B --> C[多路 NPU 推理 + OSD]
+    B --> E[多路 RTSP 推流]
+    C --> E
+```
+
+### sample_multi_demux_ivps_npu_hdmi_vo
+```mermaid
+flowchart LR
+    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
+    B --> C[多路 NPU 推理 + OSD]
+    B --> E[多路 HDMI 输出]
+    C --> E
+```
+
+### sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo
+```mermaid
+flowchart LR
+    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
+    B --> C[多路 NPU 推理 + OSD]
+    C --> E[多路 RTSP 推流]
+    C --> F[多路 HDMI 输出]
+    B --> E
+    B --> F
+```
 
 ## 更新日志
 
