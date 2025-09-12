@@ -11,5 +11,5 @@ rtsp服务及推拉流配置请参考   [rtsp-simple-server](../../docs/rtsp.md)
 ```
 2、运行以下命令，进行多路 mp4/h264 文件的解包、解码、推理，并通过多路 rtsp 推流输出结果。
 ```
-./sample_multi_demux_ivps_npu_multi_rtsp -f -f test.mp4 -f test2.mp4 -p config/yolov5s.json -r 25
+./sample_multi_demux_ivps_npu_multi_rtsp -f test.mp4 -f test2.mp4 -p config/yolov5s.json -r 25
 ```
