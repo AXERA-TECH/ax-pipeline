@@ -1,157 +1,101 @@
-# check CMake version
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
-# disable inplace builds to prevent source tree corruption.
+project(ax_pipeline LANGUAGES C CXX)
+
 if(" ${CMAKE_SOURCE_DIR}" STREQUAL " ${CMAKE_BINARY_DIR}")
-    message(FATAL_ERROR "FATAL: Building inplace are not allowed. You should create a separate directory for Building.")
+    message(FATAL_ERROR "In-place builds are not allowed. Use a separate build directory.")
 endif()
 
-# set cmake_install_prefix path
-if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation Directory")
-endif()
-message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# check if building type is not set
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build" FORCE)
-endif()
+option(AXP_BUILD_BYTETRACK "Build ByteTrack dependency (unused by default)" OFF)
 
-
-# default compile for ax620
-if(NOT AXERA_TARGET_CHIP)
-    set(AXERA_TARGET_CHIP "ax650")
-endif()
-if(AXERA_TARGET_CHIP MATCHES "ax650" OR AXERA_TARGET_CHIP MATCHES "AX650")
-    set(AXERA_TARGET_CHIP "AX650")
-    message(STATUS "SET AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
-elseif(AXERA_TARGET_CHIP MATCHES "ax620e"
-    OR AXERA_TARGET_CHIP MATCHES "AX620E"
-    OR AXERA_TARGET_CHIP MATCHES "AX620e"
-    OR AXERA_TARGET_CHIP MATCHES "AX620Q"
-    OR AXERA_TARGET_CHIP MATCHES "AX620q"
-    OR AXERA_TARGET_CHIP MATCHES "ax620q"
-    OR AXERA_TARGET_CHIP MATCHES "AX630C"
-    OR AXERA_TARGET_CHIP MATCHES "ax630C"
-    OR AXERA_TARGET_CHIP MATCHES "ax630c"
-    )
-    set(AXERA_TARGET_CHIP "AX620E")
-    message(STATUS "SET AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
-else()
-    message(FATAL_ERROR "Not support AXERA_TARGET_CHIP: ${AXERA_TARGET_CHIP}, choose from [ AX650, AX620E]")
-endif()
-message(STATUS "AXERA_TARGET_CHIP = ${AXERA_TARGET_CHIP}")
-
-# bsp
-if(NOT BSP_MSP_DIR)
-    set(BSP_MSP_DIR ${CMAKE_SOURCE_DIR}/axpi_bsp_sdk/msp/out)
-endif()
-message(STATUS "BSP_MSP_DIR = ${BSP_MSP_DIR}")
-
-# check bsp exist
-if(NOT EXISTS ${BSP_MSP_DIR})
-    message(FATAL_ERROR "FATAL: BSP_MSP_DIR ${BSP_MSP_DIR} not exist")
+# ---- ax-video-sdk (submodule) ----
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/CMakeLists.txt")
+    message(FATAL_ERROR "Missing submodule deps/ax-video-sdk. Run: git submodule update --init --recursive")
 endif()
 
+# Force shared build so consumers (this app) don't need to link MSP libs explicitly.
+set(AXSDK_BUILD_SHARED ON CACHE BOOL "" FORCE)
+set(AXSDK_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(AXSDK_BUILD_SMOKE_TESTS OFF CACHE BOOL "" FORCE)
 
-set(MSP_LIB_PATHS
-    "${BSP_MSP_DIR}/lib"
-    "${BSP_MSP_DIR}/arm_glibc/lib"
-    "${BSP_MSP_DIR}/arm64_glibc/lib"
+# ax-video-sdk expects these cache variables:
+# - AXSDK_CHIP_TYPE
+# - AXSDK_MSP_DIR (non-AXCL) OR AXSDK_AXCL_DIR (AXCL)
+add_subdirectory(deps/ax-video-sdk deps/ax-video-sdk-build)
+
+# ---- optional third-party ----
+if(AXP_BUILD_BYTETRACK AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third-party/ByteTrack/CMakeLists.txt")
+    add_subdirectory(third-party/ByteTrack)
+endif()
+
+# ---- app ----
+add_executable(ax_pipeline_app
+    src/main.cpp
 )
 
-set(BSP_VERSION "")
-foreach(PATH ${MSP_LIB_PATHS})
-    if(NOT BSP_VERSION)
-        set(CMD_GET_BSP_VERSION "strings ${PATH}/libax_sys.so | grep 'Axera version' | awk '{print $4}'")
-        message(STATUS "CMD_GET_BSP_VERSION = ${CMD_GET_BSP_VERSION}")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} -E env "SHELL=/bin/bash" bash -c "${CMD_GET_BSP_VERSION}"
-            TIMEOUT 5
-            RESULT_VARIABLE CMD_RESULT
-            OUTPUT_VARIABLE BSP_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        if(NOT CMD_RESULT EQUAL 0)
-            message(STATUS "Command execution failed for ${PATH}")
+target_include_directories(ax_pipeline_app
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/third-party/cmdline
+        ${CMAKE_CURRENT_SOURCE_DIR}/third-party/json
+)
+
+target_compile_options(ax_pipeline_app PRIVATE
+    -Wall -Wextra -Wno-unused-parameter
+)
+
+target_link_libraries(ax_pipeline_app PRIVATE ax_video_sdk)
+
+if(DEFINED AXSDK_CHIP_TYPE)
+    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_NORMALIZED)
+    if(NOT AXP_CHIP_NORMALIZED STREQUAL "axcl")
+        # Provide MSP -L paths for the link step; do not pull MSP libs into the app link line.
+        target_link_libraries(ax_pipeline_app PRIVATE ax_video_sdk::ax_msp)
+
+        # MSP shared objects sometimes have unresolved DT_NEEDED chains (e.g. optional libexif).
+        # Allow undefined symbols in shared libs at link time; they will be resolved on target.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_pipeline_app PRIVATE -Wl,--allow-shlib-undefined)
         endif()
     endif()
-endforeach()
-
-if(NOT BSP_VERSION)
-    message(FATAL_ERROR "FATAL: BSP_VERSION ${BSP_VERSION} not found")
-endif()
-message(STATUS "BSP_VERSION = ${BSP_VERSION}")
-add_definitions(-DAXERA_BSP_VERSION="${BSP_VERSION}")
-
-# onnxruntime for owlvit
-if(ONNXRUNTIME_DIR)
-    add_compile_options(-DBUILT_WITH_ONNXRUNTIME)
-    message(STATUS "ONNXRUNTIME_DIR = ${ONNXRUNTIME_DIR}")
-else()
-    message(STATUS "ONNXRUNTIME_DIR = NOT SET")
 endif()
 
-# check toolchain about
-message(STATUS "CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
+install(TARGETS ax_pipeline_app RUNTIME DESTINATION bin)
+install(DIRECTORY configs DESTINATION .)
 
-project(ax_pipeline)
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Ofast -Wall -s -fPIC -Wno-unused-function -Wno-unused-label")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -Wall -s -fPIC -Wno-unused-function -Wno-unused-label")
+# ---- debug tool: dump MP4 video samples to AnnexB elementary stream ----
+# Used to validate demux output against board samples (e.g. /opt/bin/sample_vdec).
+add_executable(ax_mp4_dump_annexb
+    src/mp4_dump_annexb.cpp
+)
 
-add_subdirectory(third-party/RTSP)
-add_subdirectory(third-party/RtspServer)    
-add_subdirectory(third-party/ByteTrack)
-add_subdirectory(third-party/mp4demux)
+target_include_directories(ax_mp4_dump_annexb
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/src/codec
+        ${CMAKE_CURRENT_SOURCE_DIR}/third-party/cmdline
+)
 
-# 添加 FLAGS 检查代码是否有明显 bug
-include(cmake/overlook.cmake)
-# 编译的函数
-include(cmake/build_func.cmake)
+target_compile_options(ax_mp4_dump_annexb PRIVATE
+    -Wall -Wextra -Wno-unused-parameter
+)
 
-if(AXERA_TARGET_CHIP MATCHES "AX650")
-    add_compile_options(-DAXERA_TARGET_CHIP_AX650)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX620E)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX620)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv8.2-a")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv8.2-a")
+target_link_libraries(ax_mp4_dump_annexb PRIVATE ax_video_sdk)
 
-    # opencv
-    if(NOT OpenCV_DIR)
-        set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
+if(DEFINED AXSDK_CHIP_TYPE)
+    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_NORMALIZED_TOOL)
+    if(NOT AXP_CHIP_NORMALIZED_TOOL STREQUAL "axcl")
+        target_link_libraries(ax_mp4_dump_annexb PRIVATE ax_video_sdk::ax_msp)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_mp4_dump_annexb PRIVATE -Wl,--allow-shlib-undefined)
+        endif()
     endif()
-    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
-    find_package(OpenCV REQUIRED)
-    
-    add_subdirectory(examples/common/common_pipeline)
-    add_subdirectory(examples/libaxdl)
-    add_subdirectory(examples/sample_demux_ivps_npu_rtsp)
-    add_subdirectory(examples/sample_multi_demux_ivps_npu_hdmi_vo)
-    add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
-    add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo)
-    add_subdirectory(examples/sample_demux_ivps_npu_rtsp_hdmi_vo)
-    add_subdirectory(examples/sample_demux_ivps_npu_hdmi_vo)
-    file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
-    install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
-elseif(AXERA_TARGET_CHIP MATCHES "AX620E")
-    add_compile_options(-DAXERA_TARGET_CHIP_AX620E)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX650)
-    add_compile_options(-UAXERA_TARGET_CHIP_AX620)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=armv8.2-a")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv8.2-a")
-
-    # opencv
-    if(NOT OpenCV_DIR)
-        set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/3rdparty/libopencv-4.5.5-aarch64/lib/cmake/opencv4)
-    endif()
-    message(STATUS "OpenCV_DIR = ${OpenCV_DIR}")
-    find_package(OpenCV REQUIRED)
-    
-    add_subdirectory(examples/common/common_pipeline)
-    add_subdirectory(examples/libaxdl)
-    add_subdirectory(examples/sample_demux_ivps_npu_rtsp)
-    add_subdirectory(examples/sample_multi_demux_ivps_npu_multi_rtsp)
-    add_subdirectory(examples/sample_vin_ivps_npu_venc_rtsp)
-    file(GLOB SAMPLE_RUN_JOINT_CONFIG_FILES "${CMAKE_SOURCE_DIR}/examples/libaxdl/config/ax650/*")
-    install(FILES ${SAMPLE_RUN_JOINT_CONFIG_FILES} DESTINATION bin/config)
 endif()
+
+install(TARGETS ax_mp4_dump_annexb RUNTIME DESTINATION bin)

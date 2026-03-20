@@ -1,0 +1,38 @@
+{
+  "system": {
+    "device_id": 2,
+    "enable_vdec": true,
+    "enable_venc": true,
+    "enable_ivps": true
+  },
+  "pipelines": [
+    {
+      "name": "axcl_h264",
+      "device_id": 2,
+      "uri": "/home/axera/ax_video_sdk/data/pedestrian_thailand_1920x1080_30fps_5s_h264.mp4",
+      "realtime_playback": false,
+      "loop_playback": false,
+      "npu_max_fps": 0,
+      "log_every_n_frames": 60,
+      "frame_output": {
+        "format": "bgr",
+        "width": 640,
+        "height": 640,
+        "resize": {
+          "mode": "keep_aspect",
+          "horizontal_align": "center",
+          "vertical_align": "center",
+          "background_color": 0
+        }
+      },
+      "outputs": [
+        {
+          "codec": "h264",
+          "uris": [
+            "/tmp/axp_results/axcl_out_h264.mp4"
+          ]
+        }
+      ]
+    }
+  ]
+}

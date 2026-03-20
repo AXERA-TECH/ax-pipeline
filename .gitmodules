@@ -1,12 +1,4 @@
-[submodule "third-party/libv4l2cpp"]
-	path = third-party/libv4l2cpp
-	url = https://github.com/mpromonet/libv4l2cpp.git
-[submodule "third-party/RTSP"]
-	path = third-party/RTSP
-	url = https://github.com/ZHEQIUSHUI/RTSP.git
-[submodule "third-party/RtspServer/RtspServer"]
-	path = third-party/RtspServer/RtspServer
-	url = https://github.com/ZHEQIUSHUI/RtspServer.git
-[submodule "third-party/mp4demux/minimp4"]
-	path = third-party/mp4demux/minimp4
-	url = https://github.com/lieff/minimp4.git
+[submodule "deps/ax-video-sdk"]
+	path = deps/ax-video-sdk
+	url = git@github.com:AXERA-TECH/ax-video-sdk.git
+	branch = main
