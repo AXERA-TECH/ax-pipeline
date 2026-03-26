@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -23,8 +24,24 @@ public:
         std::string name;
         std::int32_t device_id{-1};
         axvsdk::pipeline::PipelineConfig sdk{};
-        // Max NPU processing FPS (0 = no limit). This is a stub knob for now.
+        // Max NPU processing FPS:
+        // - > 0: limit NPU processing rate (best-effort).
+        // - 0 or -1: no limit (disable limiter).
         double npu_max_fps{0.0};
+        struct NpuCfg {
+            bool enable{false};
+            bool enable_osd{true};
+            // Enable ByteTrack object tracking on top of detector outputs.
+            // When enabled, OSD will be drawn from tracked boxes (stable IDs, per-ID colors).
+            bool enable_tracking{true};
+            // Track buffer in frames (roughly: how long a lost track is kept before removal).
+            std::int32_t track_buffer{30};
+            std::string model_path;
+            std::string model_type;  // yolov5 / yolov8
+            std::int32_t num_classes{80};
+            double conf_threshold{0.25};
+            double nms_threshold{0.45};
+        } npu{};
         std::uint32_t log_every_n_frames{30};
     };
 
@@ -59,6 +76,7 @@ public:
         }
 
         AppCfg cfg{};
+        const std::filesystem::path base_dir = std::filesystem::path(path).parent_path();
         if (j.contains("system")) {
             const auto& s = j["system"];
             if (!s.is_object()) return false;
@@ -82,6 +100,7 @@ public:
                 if (error) *error = "invalid pipelines[" + std::to_string(i) + "]";
                 return false;
             }
+            ResolvePathsRelativeToBase(base_dir, &p);
             cfg.pipelines.push_back(std::move(p));
         }
 
@@ -91,6 +110,35 @@ public:
 
 private:
     using json = nlohmann::json;
+
+    static void ResolvePathsRelativeToBase(const std::filesystem::path& base_dir, PipelineCfg* cfg) {
+        if (cfg == nullptr) {
+            return;
+        }
+
+        auto resolve = [&](std::string* p) {
+            if (p == nullptr || p->empty()) return;
+            std::filesystem::path pp(*p);
+            if (pp.is_relative() && !base_dir.empty()) {
+                *p = (base_dir / pp).lexically_normal().string();
+            }
+        };
+
+        resolve(&cfg->npu.model_path);
+
+        // Input URI: resolve only for local-file inputs.
+        if (cfg->sdk.input.uri.rfind("rtsp://", 0) != 0 && cfg->sdk.input.uri.rfind("rtsps://", 0) != 0) {
+            resolve(&cfg->sdk.input.uri);
+        }
+
+        // Output URIs: resolve file targets; keep RTSP URIs unchanged.
+        for (auto& u : cfg->sdk.outputs) {
+            for (auto& uri : u.uris) {
+                if (uri.rfind("rtsp://", 0) == 0 || uri.rfind("rtsps://", 0) == 0) continue;
+                resolve(&uri);
+            }
+        }
+    }
 
     static std::string ReadFileToString(const std::string& path, std::string* error) {
         std::ifstream file(path, std::ios::binary);
@@ -214,23 +262,30 @@ private:
 
         if (!GetOptDouble(j, "npu_max_fps", &out->npu_max_fps)) return false;
 
-        std::uint32_t npu_sleep_ms = 0;
-        if (!GetOptU32(j, "npu_sleep_ms", &npu_sleep_ms)) return false;
-        if (out->npu_max_fps <= 0.0 && npu_sleep_ms > 0) {
-            out->npu_max_fps = 1000.0 / static_cast<double>(npu_sleep_ms);
-        }
-
         if (!GetOptU32(j, "log_every_n_frames", &out->log_every_n_frames)) return false;
+
+        if (j.contains("npu")) {
+            const auto& n = j["npu"];
+            if (!n.is_object()) return false;
+            if (!GetOptBool(n, "enable", &out->npu.enable)) return false;
+            if (!GetOptBool(n, "enable_osd", &out->npu.enable_osd)) return false;
+            if (!GetOptBool(n, "enable_tracking", &out->npu.enable_tracking)) return false;
+            if (!GetOptI32(n, "track_buffer", &out->npu.track_buffer)) return false;
+            if (!GetOptString(n, "model_path", &out->npu.model_path)) return false;
+            if (!GetOptString(n, "model_type", &out->npu.model_type)) return false;
+            if (!GetOptI32(n, "num_classes", &out->npu.num_classes)) return false;
+            if (!GetOptDouble(n, "conf_threshold", &out->npu.conf_threshold)) return false;
+            if (!GetOptDouble(n, "nms_threshold", &out->npu.nms_threshold)) return false;
+        }
 
         out->sdk.device_id = out->device_id;
         out->sdk.input.uri = uri;
         out->sdk.input.realtime_playback = realtime;
         out->sdk.input.loop_playback = loop;
 
-        out->sdk.frame_output.output_image.format = axvsdk::common::PixelFormat::kBgr24;
-        out->sdk.frame_output.output_image.width = 640;
-        out->sdk.frame_output.output_image.height = 640;
-        out->sdk.frame_output.resize.mode = axvsdk::common::ResizeMode::kKeepAspectRatio;
+        // Default: follow decoded frame (usually NV12) and original resolution.
+        out->sdk.frame_output.output_image = {};
+        out->sdk.frame_output.resize = {};
 
         if (j.contains("frame_output")) {
             const auto& fo = j["frame_output"];
@@ -250,6 +305,13 @@ private:
             if (fo.contains("resize")) {
                 if (!ParseResizeOptions(fo["resize"], &out->sdk.frame_output.resize)) return false;
             }
+        }
+
+        // For ax-pipeline sample: when NPU + OSD is enabled, force callback/latest-frame to follow decoder source
+        // to keep detection coordinates consistent with OSD drawing space.
+        if (out->npu.enable && out->npu.enable_osd) {
+            out->sdk.frame_output.output_image = {};
+            out->sdk.frame_output.resize = {};
         }
 
         if (!j.contains("outputs") || !j["outputs"].is_array() || j["outputs"].empty()) return false;
@@ -298,4 +360,3 @@ private:
 };
 
 }  // namespace axpipeline
-

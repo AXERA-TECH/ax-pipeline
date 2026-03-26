@@ -1,5 +1,6 @@
 #include "bytetrack.h"
 #include "BYTETracker.h"
+#include <cstring>
 #include "map"
 #include "memory"
 
@@ -27,7 +28,7 @@ void bytetracker_release(bytetracker_t *ptracker)
         *ptracker = nullptr;
     }
 }
-void _bytetracker_track(BYTETracker *tracker, std::vector<track_object_t> &objs, std::vector<track_object_t> &track_objects, int label)
+void _bytetracker_track(BYTETracker *tracker, const std::vector<track_object_t> &objs, std::vector<track_object_t> &track_objects, int label)
 {
     auto track_results = tracker->update(objs.data(), objs.size());
     // objs->n_track_objects = track_results.size() > TRACK_OBJETCS_MAX_SIZE ? TRACK_OBJETCS_MAX_SIZE : track_results.size();
@@ -60,7 +61,7 @@ void bytetracker_track(bytetracker_t _tracker, bytetrack_object_t *objs)
         m_label_objs[objs->objects[i].label].push_back(objs->objects[i]);
     }
 
-    for (auto it : m_label_objs)
+    for (const auto& it : m_label_objs)
     {
         if (tracker->m_label_tracker[it.first].get() == nullptr)
         {

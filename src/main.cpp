@@ -1,8 +1,10 @@
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <mutex>
@@ -20,9 +22,24 @@
 #include "common/ax_system.h"
 #include "pipeline/ax_pipeline.h"
 
+#include "npu/async_detector.hpp"
+#include "tracking/ax_bytetrack.hpp"
+
 namespace {
 
 std::atomic<bool> g_stop{false};
+
+struct FrameInfo {
+    std::atomic<std::uint32_t> w{0};
+    std::atomic<std::uint32_t> h{0};
+};
+
+bool EnvFlagEnabled(const char* name) {
+    const char* v = std::getenv(name);
+    if (!v) return false;
+    const std::string s(v);
+    return s == "1" || s == "true" || s == "TRUE" || s == "yes" || s == "YES";
+}
 
 void HandleSignal(int) {
     g_stop.store(true, std::memory_order_relaxed);
@@ -67,6 +84,10 @@ int main(int argc, char** argv) {
 
     std::signal(SIGINT, HandleSignal);
     std::signal(SIGTERM, HandleSignal);
+#ifdef SIGPIPE
+    // RTSP clients may disconnect at any time; avoid process termination on SIGPIPE.
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
 
     if (!axvsdk::common::InitializeSystem(cfg.system)) {
         std::cerr << "InitializeSystem failed\n";
@@ -78,9 +99,16 @@ int main(int argc, char** argv) {
     pipelines.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> counters;
     counters.reserve(cfg.pipelines.size());
+    std::vector<std::shared_ptr<axpipeline::npu::AsyncDetector>> npu_workers;
+    npu_workers.reserve(cfg.pipelines.size());
+    std::vector<std::shared_ptr<FrameInfo>> frame_infos;
+    frame_infos.reserve(cfg.pipelines.size());
+    std::vector<std::shared_ptr<std::atomic<bool>>> dumped_first_frames;
+    dumped_first_frames.reserve(cfg.pipelines.size());
 
     for (std::size_t i = 0; i < cfg.pipelines.size(); ++i) {
-        const auto& p = cfg.pipelines[i];
+        auto& p = cfg.pipelines[i];
+
         auto pipe = axvsdk::pipeline::CreatePipeline();
         if (!pipe) {
             std::cerr << "CreatePipeline failed\n";
@@ -91,13 +119,172 @@ int main(int argc, char** argv) {
             return 6;
         }
 
+        std::shared_ptr<axpipeline::npu::AsyncDetector> npu_worker;
+        std::shared_ptr<axpipeline::tracking::ByteTrack> tracker;
+        auto fi = std::make_shared<FrameInfo>();
+        if (p.npu.enable) {
+            axpipeline::npu::AsyncDetectorOptions nopt{};
+            nopt.yolo.base.device_id = p.device_id;
+            nopt.yolo.base.model_path = p.npu.model_path;
+            nopt.yolo.base.resize_mode = axvsdk::common::ResizeMode::kKeepAspectRatio;
+            nopt.yolo.base.h_align = axvsdk::common::ResizeAlign::kCenter;
+            nopt.yolo.base.v_align = axvsdk::common::ResizeAlign::kCenter;
+            nopt.yolo.base.background_color = 0;
+            nopt.yolo.num_classes = static_cast<int>(p.npu.num_classes);
+            nopt.yolo.conf_threshold = static_cast<float>(p.npu.conf_threshold);
+            nopt.yolo.nms_threshold = static_cast<float>(p.npu.nms_threshold);
+            if (p.npu.model_type == "yolov5" || p.npu.model_type == "YOLOV5") {
+                nopt.model_type = axpipeline::npu::DetModelType::kYoloV5;
+            } else {
+                nopt.model_type = axpipeline::npu::DetModelType::kYoloV8Native;
+            }
+
+            npu_worker = std::make_shared<axpipeline::npu::AsyncDetector>(p.npu_max_fps);
+            if (!npu_worker->Init(nopt, &err)) {
+                std::cerr << "NPU init failed: pipeline=" << p.name << " err=" << err << "\n";
+                return 5;
+            }
+
+            if (p.npu.enable_tracking) {
+                const auto stream = pipe->GetInputStreamInfo();
+                const int fps = stream.frame_rate > 0.0 ? static_cast<int>(std::lround(stream.frame_rate)) : 30;
+                axpipeline::tracking::ByteTrackOptions topt{};
+                topt.frame_rate = fps > 0 ? fps : 30;
+                topt.track_buffer = p.npu.track_buffer > 0 ? static_cast<int>(p.npu.track_buffer) : 30;
+                topt.min_score = static_cast<float>(p.npu.conf_threshold);
+                tracker = std::make_shared<axpipeline::tracking::ByteTrack>(topt);
+            }
+            if (EnvFlagEnabled("AXP_NPU_INFO")) {
+                const auto& in = npu_worker->input_spec();
+                std::cout << "[npu init pipeline=" << p.name << " dev=" << p.device_id << "] input{fmt="
+                          << static_cast<int>(in.format)
+                          << " w=" << in.width
+                          << " h=" << in.height
+                          << "}\n";
+            }
+
+            auto* pipe_ptr = pipe.get();
+            npu_worker->SetCallbacks(
+                [name = p.name,
+                 idx = i,
+                 pipe_ptr,
+                 fi,
+                 enable_osd = p.npu.enable_osd,
+                 tracker](const std::vector<axpipeline::npu::Detection>& dets, std::uint64_t seq) {
+                    if (enable_osd && pipe_ptr) {
+                        const auto fw = fi->w.load(std::memory_order_relaxed);
+                        const auto fh = fi->h.load(std::memory_order_relaxed);
+                        axvsdk::common::DrawFrame osd{};
+                        // Keep OSD visible for multiple frames to avoid "blinking" when NPU runs slower than video.
+                        osd.hold_frames = 10;
+                        if (fw != 0 && fh != 0) {
+                            if (tracker) {
+                                const auto tracks = tracker->Update(dets);
+                                osd.rects.reserve(tracks.size());
+                                for (const auto& t : tracks) {
+                                    float x0f = t.x0;
+                                    float y0f = t.y0;
+                                    float x1f = t.x1;
+                                    float y1f = t.y1;
+                                    if (x1f < x0f) std::swap(x0f, x1f);
+                                    if (y1f < y0f) std::swap(y0f, y1f);
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
+                                    const auto w = static_cast<std::int32_t>(x1f - x0f);
+                                    const auto h = static_cast<std::int32_t>(y1f - y0f);
+                                    if (w <= 1 || h <= 1) continue;
+                                    axvsdk::common::DrawRect r{};
+                                    r.x = static_cast<std::int32_t>(x0f);
+                                    r.y = static_cast<std::int32_t>(y0f);
+                                    r.width = static_cast<std::uint32_t>(w);
+                                    r.height = static_cast<std::uint32_t>(h);
+                                    r.thickness = 2;
+                                    r.alpha = 255;
+                                    r.color = axpipeline::tracking::ByteTrack::ColorForTrackId(
+                                        static_cast<std::uint64_t>(t.track_id));
+                                    osd.rects.push_back(r);
+                                }
+                            } else {
+                                osd.rects.reserve(dets.size());
+                                for (const auto& d : dets) {
+                                    if (d.score < 0.01F) continue;
+                                    float x0f = d.x0;
+                                    float y0f = d.y0;
+                                    float x1f = d.x1;
+                                    float y1f = d.y1;
+                                    if (x1f < x0f) std::swap(x0f, x1f);
+                                    if (y1f < y0f) std::swap(y0f, y1f);
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
+                                    const auto w = static_cast<std::int32_t>(x1f - x0f);
+                                    const auto h = static_cast<std::int32_t>(y1f - y0f);
+                                    if (w <= 1 || h <= 1) continue;
+                                    axvsdk::common::DrawRect r{};
+                                    r.x = static_cast<std::int32_t>(x0f);
+                                    r.y = static_cast<std::int32_t>(y0f);
+                                    r.width = static_cast<std::uint32_t>(w);
+                                    r.height = static_cast<std::uint32_t>(h);
+                                    r.thickness = 2;
+                                    r.alpha = 255;
+                                    r.color = 0x00FF00;
+                                    osd.rects.push_back(r);
+                                }
+                            }
+                        }
+                        if (!osd.rects.empty()) {
+                            (void)pipe_ptr->SetOsd(osd);
+                        }
+                    }
+                    if ((seq % 30) == 0) {
+                        std::cout << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
+                                  << " dets=" << dets.size() << "\n";
+                        if (EnvFlagEnabled("AXP_NPU_INFO")) {
+                            const std::size_t limit = std::min<std::size_t>(dets.size(), 5U);
+                            for (std::size_t di = 0; di < limit; ++di) {
+                                const auto& d = dets[di];
+                                std::cout << "  det" << di
+                                          << " cls=" << d.class_id
+                                          << " score=" << d.score
+                                          << " box=(" << d.x0 << "," << d.y0 << ")-(" << d.x1 << "," << d.y1 << ")\n";
+                            }
+                        }
+                    }
+                },
+                [name = p.name, idx = i](const std::string& e, std::uint64_t seq) {
+                    std::cerr << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
+                              << " error=" << e << "\n";
+                });
+        }
+        npu_workers.push_back(npu_worker);
+        frame_infos.push_back(fi);
+        auto dumped = std::make_shared<std::atomic<bool>>(false);
+        dumped_first_frames.push_back(dumped);
+
         auto counter = std::make_shared<std::atomic<std::uint64_t>>(0);
         counters.push_back(counter);
-        auto fps = std::make_shared<FpsController>(p.npu_max_fps);
 
-        pipe->SetFrameCallback([p, idx = i, counter = std::move(counter), fps = std::move(fps)](axvsdk::common::AxImage::Ptr frame) {
+        {
+            const auto stream = pipe->GetInputStreamInfo();
+            if (stream.width != 0 && stream.height != 0) {
+                fi->w.store(stream.width, std::memory_order_relaxed);
+                fi->h.store(stream.height, std::memory_order_relaxed);
+            }
+        }
+
+        pipe->SetFrameCallback([p, idx = i, counter = std::move(counter), npu_worker, fi, dumped](axvsdk::common::AxImage::Ptr frame) {
             if (!frame) return;
+            if (fi->w.load(std::memory_order_relaxed) == 0) {
+                fi->w.store(frame->width(), std::memory_order_relaxed);
+            }
+            if (fi->h.load(std::memory_order_relaxed) == 0) {
+                fi->h.store(frame->height(), std::memory_order_relaxed);
+            }
             const auto n = counter->fetch_add(1, std::memory_order_relaxed) + 1;
+
             const auto every = p.log_every_n_frames == 0 ? 30U : p.log_every_n_frames;
             if ((n % every) == 0) {
                 std::cout << "[pipeline=" << p.name << " idx=" << idx << " dev=" << p.device_id << "] "
@@ -106,12 +293,23 @@ int main(int argc, char** argv) {
                           << " w=" << frame->width()
                           << " h=" << frame->height()
                           << " stride0=" << frame->stride(0)
+                          << " stride1=" << frame->stride(1)
                           << " mem=" << static_cast<int>(frame->memory_type())
                           << " phy0=0x" << std::hex << frame->physical_address(0) << std::dec
-                          << "\n";
+                          << " phy1=0x" << std::hex << frame->physical_address(1) << std::dec;
+                if (EnvFlagEnabled("AXP_NPU_INFO")) {
+                    std::cout << " vir0=0x" << std::hex
+                              << reinterpret_cast<std::uintptr_t>(frame->virtual_address(0))
+                              << " vir1=0x"
+                              << reinterpret_cast<std::uintptr_t>(frame->virtual_address(1))
+                              << std::dec;
+                }
+                std::cout << "\n";
             }
 
-            fps->Throttle();
+            if (npu_worker) {
+                npu_worker->Submit(std::move(frame), n);
+            }
         });
 
         pipelines.push_back(std::move(pipe));
@@ -154,6 +352,9 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
+    for (auto& w : npu_workers) {
+        if (w) w->Stop();
+    }
     for (auto& p : pipelines) p->Stop();
     for (auto& p : pipelines) p->Close();
     return 0;

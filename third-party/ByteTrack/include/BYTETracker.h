@@ -20,7 +20,7 @@ public:
 	BYTETracker(int frame_rate = 30, int track_buffer = 30);
 	~BYTETracker();
 
-	std::vector<STrack> update(track_object_t *objects, int len);
+	std::vector<STrack> update(const track_object_t *objects, int len);
 
 private:
 	std::vector<STrack *> joint_stracks(std::vector<STrack *> &tlista, std::vector<STrack> &tlistb);
@@ -47,6 +47,5 @@ private:
 
 	std::vector<STrack> tracked_stracks;
 	std::vector<STrack> lost_stracks;
-	std::vector<STrack> removed_stracks;
 	byte_kalman::KalmanFilter kalman_filter;
 };
