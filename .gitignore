@@ -39,8 +39,8 @@ build*/
 *bsp*
 .ci/
 artifacts/
-tmp/
-models/
+/tmp/
+/models/
 
 # Local test/demo configs (keep the shipped example.json tracked)
 configs/test_*.json
