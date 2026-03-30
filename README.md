@@ -80,6 +80,52 @@
   - `inproc` 通常最佳。
   - `process` 通常更稳但会慢一些，具体取决于你的插件实现是否发生了额外拷贝。
 
+## 参考流程图
+
+### 单模型插件 + 主程序 ByteTrack/OSD
+
+适用场景：插件只做单模型推理(如 YOLOv5/v8 检测)，跟踪与 OSD 由主程序完成(可开关)。
+
+```mermaid
+flowchart LR
+  A[Input URI] --> B[Demux]
+  B --> C[VDEC decode]
+  C --> D[IVPS frame_output]
+  D --> E[AsyncInfer worker]
+  E --> F[Plugin so inproc or process]
+  F --> G[Detections dets]
+  G --> H[ByteTrack in main optional]
+  H --> I[Tracks track_id boxes]
+  I --> J[OSD draw SetOsd async]
+  C --> K[Fanout to N branches]
+  J --> K
+  K --> L[VENC encode]
+  L --> M[Mux mp4 or rtsp]
+```
+
+### 关闭主程序 Track：插件内部实现算法链路
+
+适用场景：用户希望在插件内做完整链路(检测 + 跟踪 + 分类/属性等)，主程序只负责媒体链路与可选的 OSD 展示。
+
+```mermaid
+flowchart LR
+  A[Input URI] --> B[Demux]
+  B --> C[VDEC decode]
+  C --> D[IVPS frame_output]
+  D --> E[AsyncInfer worker]
+  E --> F[Plugin so algorithm pipeline]
+  F --> G1[Det]
+  G1 --> G2[Track inside plugin]
+  G2 --> G3[Crop resize device preferred]
+  G3 --> G4[Cls Attr]
+  G4 --> R[Result tracks with id label score box]
+  R --> O[Optional OSD in main]
+  C --> K[Fanout to N branches]
+  O --> K
+  K --> L[VENC encode]
+  L --> M[Mux mp4 or rtsp]
+```
+
 ## 配置格式（简化）
 
 ```json
