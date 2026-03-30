@@ -8,6 +8,7 @@ fi
 
 CHIP="$1"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HOST_ARCH="$(uname -m)"
 
 mkdir -p "${ROOT_DIR}/.ci/downloads" "${ROOT_DIR}/.ci/toolchains"
 
@@ -86,6 +87,14 @@ case "${CHIP}" in
     TOOLCHAIN_BIN="${TOOLCHAIN_DIR}/bin"
     COMPILER_CHECK="aarch64-none-linux-gnu-g++"
     AXCL_SUBDIR_NAME="axcl_linux_arm64"
+
+    # Native build on an aarch64 host (e.g. Raspberry Pi):
+    # do NOT download/use the x86_64 cross toolchain archive.
+    if [[ "${HOST_ARCH}" == "aarch64" || "${HOST_ARCH}" == "arm64" ]]; then
+      TOOLCHAIN_FILE=""
+      TOOLCHAIN_BIN=""
+      COMPILER_CHECK="g++"
+    fi
     ;;
   *)
     echo "unsupported chip: ${CHIP}" >&2

@@ -37,6 +37,9 @@
 # AXCL x86_64 (本机)
 ./build_axcl_x86.sh
 
+# AXCL aarch64 (本机，例如树莓派 64 位)
+./build_axcl_aarch64.sh
+
 # AX650 (交叉编译)
 ./build_ax650.sh
 
