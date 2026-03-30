@@ -22,7 +22,8 @@
 #include "common/ax_system.h"
 #include "pipeline/ax_pipeline.h"
 
-#include "npu/async_detector.hpp"
+#include "ai/async_infer.hpp"
+#include "ai/ax_resize_map.hpp"
 #include "tracking/ax_bytetrack.hpp"
 
 namespace {
@@ -30,8 +31,12 @@ namespace {
 std::atomic<bool> g_stop{false};
 
 struct FrameInfo {
-    std::atomic<std::uint32_t> w{0};
-    std::atomic<std::uint32_t> h{0};
+    // Decoder/source space (OSD drawing space).
+    std::atomic<std::uint32_t> source_w{0};
+    std::atomic<std::uint32_t> source_h{0};
+    // Inference input space (frame_output callback space).
+    std::atomic<std::uint32_t> infer_w{0};
+    std::atomic<std::uint32_t> infer_h{0};
 };
 
 bool EnvFlagEnabled(const char* name) {
@@ -99,7 +104,7 @@ int main(int argc, char** argv) {
     pipelines.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> counters;
     counters.reserve(cfg.pipelines.size());
-    std::vector<std::shared_ptr<axpipeline::npu::AsyncDetector>> npu_workers;
+    std::vector<std::shared_ptr<axpipeline::ai::AsyncInfer>> npu_workers;
     npu_workers.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<FrameInfo>> frame_infos;
     frame_infos.reserve(cfg.pipelines.size());
@@ -119,65 +124,61 @@ int main(int argc, char** argv) {
             return 6;
         }
 
-        std::shared_ptr<axpipeline::npu::AsyncDetector> npu_worker;
+        std::shared_ptr<axpipeline::ai::AsyncInfer> npu_worker;
         std::shared_ptr<axpipeline::tracking::ByteTrack> tracker;
         auto fi = std::make_shared<FrameInfo>();
         if (p.npu.enable) {
-            axpipeline::npu::AsyncDetectorOptions nopt{};
-            nopt.yolo.base.device_id = p.device_id;
-            nopt.yolo.base.model_path = p.npu.model_path;
-            nopt.yolo.base.resize_mode = axvsdk::common::ResizeMode::kKeepAspectRatio;
-            nopt.yolo.base.h_align = axvsdk::common::ResizeAlign::kCenter;
-            nopt.yolo.base.v_align = axvsdk::common::ResizeAlign::kCenter;
-            nopt.yolo.base.background_color = 0;
-            nopt.yolo.num_classes = static_cast<int>(p.npu.num_classes);
-            nopt.yolo.conf_threshold = static_cast<float>(p.npu.conf_threshold);
-            nopt.yolo.nms_threshold = static_cast<float>(p.npu.nms_threshold);
-            if (p.npu.model_type == "yolov5" || p.npu.model_type == "YOLOV5") {
-                nopt.model_type = axpipeline::npu::DetModelType::kYoloV5;
+            axpipeline::ai::AsyncInferOptions nopt{};
+            nopt.device_id = p.device_id;
+            nopt.plugin_path = p.npu.ax_plugin_path;
+            nopt.plugin_init_json = p.npu.ax_plugin_init_json;
+            if (p.npu.ax_plugin_isolation == "process") {
+                nopt.plugin_isolation = axpipeline::plugin::AxPluginIsolationMode::kSubprocess;
             } else {
-                nopt.model_type = axpipeline::npu::DetModelType::kYoloV8Native;
+                nopt.plugin_isolation = axpipeline::plugin::AxPluginIsolationMode::kInProcess;
             }
 
-            npu_worker = std::make_shared<axpipeline::npu::AsyncDetector>(p.npu_max_fps);
+            npu_worker = std::make_shared<axpipeline::ai::AsyncInfer>(p.npu_max_fps);
             if (!npu_worker->Init(nopt, &err)) {
-                std::cerr << "NPU init failed: pipeline=" << p.name << " err=" << err << "\n";
-                return 5;
+                std::cerr << "NPU init failed (ignored): pipeline=" << p.name << " err=" << err << "\n";
+                npu_worker.reset();
             }
 
-            if (p.npu.enable_tracking) {
+            if (npu_worker && p.npu.enable_tracking) {
                 const auto stream = pipe->GetInputStreamInfo();
                 const int fps = stream.frame_rate > 0.0 ? static_cast<int>(std::lround(stream.frame_rate)) : 30;
                 axpipeline::tracking::ByteTrackOptions topt{};
                 topt.frame_rate = fps > 0 ? fps : 30;
                 topt.track_buffer = p.npu.track_buffer > 0 ? static_cast<int>(p.npu.track_buffer) : 30;
-                topt.min_score = static_cast<float>(p.npu.conf_threshold);
+                topt.min_score = 0.0F;
                 tracker = std::make_shared<axpipeline::tracking::ByteTrack>(topt);
             }
-            if (EnvFlagEnabled("AXP_NPU_INFO")) {
-                const auto& in = npu_worker->input_spec();
-                std::cout << "[npu init pipeline=" << p.name << " dev=" << p.device_id << "] input{fmt="
-                          << static_cast<int>(in.format)
-                          << " w=" << in.width
-                          << " h=" << in.height
-                          << "}\n";
-            }
 
-            auto* pipe_ptr = pipe.get();
-            npu_worker->SetCallbacks(
+            if (npu_worker) {
+                auto* pipe_ptr = pipe.get();
+                const auto resize_opts = p.sdk.frame_output.resize;
+                npu_worker->SetCallbacks(
                 [name = p.name,
                  idx = i,
                  pipe_ptr,
                  fi,
+                 resize_opts,
                  enable_osd = p.npu.enable_osd,
-                 tracker](const std::vector<axpipeline::npu::Detection>& dets, std::uint64_t seq) {
+                 tracker](const std::vector<axpipeline::ai::Detection>& dets_infer, std::uint64_t seq) {
+                    std::vector<axpipeline::ai::Detection> dets = dets_infer;
+                    const auto sw = fi->source_w.load(std::memory_order_relaxed);
+                    const auto sh = fi->source_h.load(std::memory_order_relaxed);
+                    const auto iw = fi->infer_w.load(std::memory_order_relaxed);
+                    const auto ih = fi->infer_h.load(std::memory_order_relaxed);
+                    if (sw != 0 && sh != 0 && iw != 0 && ih != 0) {
+                        const auto map = axpipeline::ai::ComputeInferToSourceMap(sw, sh, iw, ih, resize_opts);
+                        axpipeline::ai::MapDetectionsInferToSource(map, sw, sh, &dets);
+                    }
                     if (enable_osd && pipe_ptr) {
-                        const auto fw = fi->w.load(std::memory_order_relaxed);
-                        const auto fh = fi->h.load(std::memory_order_relaxed);
                         axvsdk::common::DrawFrame osd{};
                         // Keep OSD visible for multiple frames to avoid "blinking" when NPU runs slower than video.
                         osd.hold_frames = 10;
-                        if (fw != 0 && fh != 0) {
+                        if (sw != 0 && sh != 0) {
                             if (tracker) {
                                 const auto tracks = tracker->Update(dets);
                                 osd.rects.reserve(tracks.size());
@@ -188,10 +189,10 @@ int main(int argc, char** argv) {
                                     float y1f = t.y1;
                                     if (x1f < x0f) std::swap(x0f, x1f);
                                     if (y1f < y0f) std::swap(y0f, y1f);
-                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
-                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
-                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
-                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(sw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(sh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(sw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(sh - 1)));
                                     const auto w = static_cast<std::int32_t>(x1f - x0f);
                                     const auto h = static_cast<std::int32_t>(y1f - y0f);
                                     if (w <= 1 || h <= 1) continue;
@@ -216,10 +217,10 @@ int main(int argc, char** argv) {
                                     float y1f = d.y1;
                                     if (x1f < x0f) std::swap(x0f, x1f);
                                     if (y1f < y0f) std::swap(y0f, y1f);
-                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
-                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
-                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
-                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(sw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(sh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(sw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(sh - 1)));
                                     const auto w = static_cast<std::int32_t>(x1f - x0f);
                                     const auto h = static_cast<std::int32_t>(y1f - y0f);
                                     if (w <= 1 || h <= 1) continue;
@@ -241,7 +242,7 @@ int main(int argc, char** argv) {
                     }
                     if ((seq % 30) == 0) {
                         std::cout << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
-                                  << " dets=" << dets.size() << "\n";
+                                  << " dets=" << dets_infer.size() << "\n";
                         if (EnvFlagEnabled("AXP_NPU_INFO")) {
                             const std::size_t limit = std::min<std::size_t>(dets.size(), 5U);
                             for (std::size_t di = 0; di < limit; ++di) {
@@ -258,6 +259,7 @@ int main(int argc, char** argv) {
                     std::cerr << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
                               << " error=" << e << "\n";
                 });
+            }
         }
         npu_workers.push_back(npu_worker);
         frame_infos.push_back(fi);
@@ -270,18 +272,22 @@ int main(int argc, char** argv) {
         {
             const auto stream = pipe->GetInputStreamInfo();
             if (stream.width != 0 && stream.height != 0) {
-                fi->w.store(stream.width, std::memory_order_relaxed);
-                fi->h.store(stream.height, std::memory_order_relaxed);
+                fi->source_w.store(stream.width, std::memory_order_relaxed);
+                fi->source_h.store(stream.height, std::memory_order_relaxed);
             }
         }
 
         pipe->SetFrameCallback([p, idx = i, counter = std::move(counter), npu_worker, fi, dumped](axvsdk::common::AxImage::Ptr frame) {
             if (!frame) return;
-            if (fi->w.load(std::memory_order_relaxed) == 0) {
-                fi->w.store(frame->width(), std::memory_order_relaxed);
-            }
-            if (fi->h.load(std::memory_order_relaxed) == 0) {
-                fi->h.store(frame->height(), std::memory_order_relaxed);
+            fi->infer_w.store(frame->width(), std::memory_order_relaxed);
+            fi->infer_h.store(frame->height(), std::memory_order_relaxed);
+            if (fi->source_w.load(std::memory_order_relaxed) == 0 &&
+                p.sdk.frame_output.output_image.width == 0 &&
+                p.sdk.frame_output.output_image.height == 0) {
+                // Fallback: if demux didn't provide stream geometry yet and frame_output follows source,
+                // treat callback frame as source space.
+                fi->source_w.store(frame->width(), std::memory_order_relaxed);
+                fi->source_h.store(frame->height(), std::memory_order_relaxed);
             }
             const auto n = counter->fetch_add(1, std::memory_order_relaxed) + 1;
 

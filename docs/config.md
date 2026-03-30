@@ -69,11 +69,14 @@
     "enable_osd": true,
     "enable_tracking": true,
     "track_buffer": 30,
-    "model_path": "models/ax650/yolov8s.axmodel",
-    "model_type": "yolov8",
-    "num_classes": 80,
-    "conf_threshold": 0.25,
-    "nms_threshold": 0.45
+    "ax_plugin_path": "/path/to/libax_plugin_yolov8.so",
+    "ax_plugin_isolation": "inproc",
+    "ax_plugin_init_info": {
+      "model_path": "models/ax650/yolov8s.axmodel",
+      "num_classes": 80,
+      "conf_threshold": 0.25,
+      "nms_threshold": 0.45
+    }
   },
 
   "log_every_n_frames": 300
@@ -106,5 +109,13 @@
 
 注意:
 
-- 当 `npu.enable && npu.enable_osd` 时，示例程序会强制让 frame_output 跟随解码原图，以保证检测坐标与 OSD 绘制坐标一致。
+- `frame_output` 同时决定推理输入与对外回调的图像空间；当启用 `npu.enable_osd` 时，示例程序会把检测框从 `frame_output` 空间映射回解码原图空间再绘制 OSD。
 
+### `npu.ax_plugin_isolation`
+
+- `"inproc"`: 在当前进程 `dlopen` 插件运行(最快)
+  - 插件返回错误/抛异常不会影响 pipeline(只会导致该帧推理失败)
+  - 但如果插件发生 `segfault/abort`，会导致整个 `ax_pipeline_app` 进程退出
+- `"process"`: 在子进程运行插件(崩溃隔离)
+  - 子进程崩溃时主 pipeline 会继续跑，只是短时间没有检测结果；随后会自动重启插件子进程
+  - 可能有额外拷贝开销(例如 AXCL device->host)，性能可能低于 `"inproc"`

@@ -76,7 +76,7 @@ ByteTrack::~ByteTrack() {
     }
 }
 
-std::vector<TrackedObject> ByteTrack::Update(const std::vector<axpipeline::npu::Detection>& dets) {
+std::vector<TrackedObject> ByteTrack::Update(const std::vector<axpipeline::ai::Detection>& dets) {
     std::vector<TrackedObject> out;
     if (handle_ == nullptr) {
         return out;
@@ -132,4 +132,3 @@ std::uint32_t ByteTrack::ColorForTrackId(std::uint64_t track_id) noexcept {
 }
 
 }  // namespace axpipeline::tracking
-

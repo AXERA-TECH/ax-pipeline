@@ -39,7 +39,9 @@ AX630C:
 解压后包含:
 
 - `bin/ax_pipeline_app`
+- `bin/ax_plugin_host`(当 `npu.ax_plugin_isolation="process"` 时需要)
 - `lib/libax_video_sdk.so`
+- `lib/plugins/libax_plugin_*.so`(内置推理插件)
 - `configs/`(示例配置)
 
 ## 上板运行(示例)

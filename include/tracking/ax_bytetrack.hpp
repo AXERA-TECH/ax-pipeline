@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "npu/models/ax_model_base.hpp"
+#include "ai/ax_detection.hpp"
 
 namespace axpipeline::tracking {
 
@@ -32,7 +32,7 @@ public:
     ByteTrack(const ByteTrack&) = delete;
     ByteTrack& operator=(const ByteTrack&) = delete;
 
-    std::vector<TrackedObject> Update(const std::vector<axpipeline::npu::Detection>& dets);
+    std::vector<TrackedObject> Update(const std::vector<axpipeline::ai::Detection>& dets);
 
     // 0xRRGGBB (bright + deterministic).
     static std::uint32_t ColorForTrackId(std::uint64_t track_id) noexcept;
@@ -43,4 +43,3 @@ private:
 };
 
 }  // namespace axpipeline::tracking
-

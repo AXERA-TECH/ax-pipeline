@@ -36,11 +36,14 @@ public:
             bool enable_tracking{true};
             // Track buffer in frames (roughly: how long a lost track is kept before removal).
             std::int32_t track_buffer{30};
-            std::string model_path;
-            std::string model_type;  // yolov5 / yolov8
-            std::int32_t num_classes{80};
-            double conf_threshold{0.25};
-            double nms_threshold{0.45};
+            // Plugin .so path.
+            std::string ax_plugin_path;
+            // Plugin isolation mode:
+            // - "inproc": dlopen and run in current process (fastest, but plugin crash kills pipeline)
+            // - "process": run plugin in a subprocess (crash-isolated; may add copies/overhead)
+            std::string ax_plugin_isolation{"inproc"};
+            // Plugin init JSON string (the value of npu.ax_plugin_init_info dumped to a string).
+            std::string ax_plugin_init_json;
         } npu{};
         std::uint32_t log_every_n_frames{30};
     };
@@ -124,7 +127,21 @@ private:
             }
         };
 
-        resolve(&cfg->npu.model_path);
+        resolve(&cfg->npu.ax_plugin_path);
+        if (!cfg->npu.ax_plugin_init_json.empty() && !base_dir.empty()) {
+            try {
+                auto j = json::parse(cfg->npu.ax_plugin_init_json);
+                if (j.is_object() && j.contains("model_path") && j["model_path"].is_string()) {
+                    std::string mp = j["model_path"].get<std::string>();
+                    std::filesystem::path pp(mp);
+                    if (pp.is_relative()) {
+                        j["model_path"] = (base_dir / pp).lexically_normal().string();
+                        cfg->npu.ax_plugin_init_json = j.dump();
+                    }
+                }
+            } catch (...) {
+            }
+        }
 
         // Input URI: resolve only for local-file inputs.
         if (cfg->sdk.input.uri.rfind("rtsp://", 0) != 0 && cfg->sdk.input.uri.rfind("rtsps://", 0) != 0) {
@@ -271,11 +288,13 @@ private:
             if (!GetOptBool(n, "enable_osd", &out->npu.enable_osd)) return false;
             if (!GetOptBool(n, "enable_tracking", &out->npu.enable_tracking)) return false;
             if (!GetOptI32(n, "track_buffer", &out->npu.track_buffer)) return false;
-            if (!GetOptString(n, "model_path", &out->npu.model_path)) return false;
-            if (!GetOptString(n, "model_type", &out->npu.model_type)) return false;
-            if (!GetOptI32(n, "num_classes", &out->npu.num_classes)) return false;
-            if (!GetOptDouble(n, "conf_threshold", &out->npu.conf_threshold)) return false;
-            if (!GetOptDouble(n, "nms_threshold", &out->npu.nms_threshold)) return false;
+            if (!GetOptString(n, "ax_plugin_path", &out->npu.ax_plugin_path)) return false;
+            if (!GetOptString(n, "ax_plugin_isolation", &out->npu.ax_plugin_isolation)) return false;
+            if (n.contains("ax_plugin_init_info")) {
+                const auto& init = n["ax_plugin_init_info"];
+                if (!init.is_object()) return false;
+                out->npu.ax_plugin_init_json = init.dump();
+            }
         }
 
         out->sdk.device_id = out->device_id;
@@ -307,12 +326,8 @@ private:
             }
         }
 
-        // For ax-pipeline sample: when NPU + OSD is enabled, force callback/latest-frame to follow decoder source
-        // to keep detection coordinates consistent with OSD drawing space.
-        if (out->npu.enable && out->npu.enable_osd) {
-            out->sdk.frame_output.output_image = {};
-            out->sdk.frame_output.resize = {};
-        }
+        // frame_output is always honored. When NPU input differs from the decoder source space,
+        // ax-pipeline should map detections back to source coordinates before OSD/tracking.
 
         if (!j.contains("outputs") || !j["outputs"].is_array() || j["outputs"].empty()) return false;
         out->sdk.outputs.clear();

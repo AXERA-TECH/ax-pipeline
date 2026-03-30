@@ -13,6 +13,9 @@
   - `npu_max_fps` 限速(传 `0/-1` 关闭)
   - OSD 画框
   - ByteTrack 跟踪(按 `track_id` 固定亮色)
+  - 插件隔离模式:
+    - `inproc`: 进程内运行(最快)
+    - `process`: 子进程运行(插件崩溃不影响 pipeline)
 - 通过 JSON 配置定义 pipeline 行为
 - 命令行参数使用 `cmdline`
 
@@ -59,6 +62,24 @@
 
 `configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的 `mp4` 文件路径或 `rtsp://` 地址。
 
+## 插件隔离模式：性能取舍
+
+`npu.ax_plugin_isolation` 可选：
+
+- `inproc`：插件在主进程 `dlopen` 并直接调用 C API。
+  - 优点：额外开销几乎为 0，延迟最低。
+  - 风险：插件崩溃会带崩主进程。
+- `process`：插件在子进程执行，主进程通过 IPC 交互。
+  - 优点：插件崩溃可隔离，主进程可继续转码/推流(最多丢失 AI 结果)。
+  - 代价：有 IPC 开销，并可能引入额外排队延迟；如果需要把大块数据搬到 host，开销会更明显。
+
+建议把 `inproc vs process` 纳入压测：
+
+- 同一输入视频、相同 `frame_output`、相同 `npu_max_fps`，分别跑两种隔离模式。
+- 对比 NPU 吞吐(单位时间内推理次数)和端到端 RTSP 卡顿/延迟。
+  - `inproc` 通常最佳。
+  - `process` 通常更稳但会慢一些，具体取决于你的插件实现是否发生了额外拷贝。
+
 ## 配置格式（简化）
 
 ```json
@@ -86,14 +107,25 @@
         "enable_osd": true,
         "enable_tracking": true,
         "track_buffer": 30,
-        "model_path": "models/ax650/yolov8s.axmodel",
-        "model_type": "yolov8",
-        "num_classes": 80,
-        "conf_threshold": 0.25,
-        "nms_threshold": 0.45
+        "ax_plugin_path": "/path/to/libax_plugin_yolov8.so",
+        "ax_plugin_isolation": "inproc",
+        "ax_plugin_init_info": {
+          "model_path": "models/ax650/yolov8s.axmodel",
+          "num_classes": 80,
+          "conf_threshold": 0.25,
+          "nms_threshold": 0.45
+        }
       },
       "log_every_n_frames": 30
     }
   ]
 }
+```
+
+## 测试
+
+```bash
+cmake -S . -B build -DAXSDK_CHIP_TYPE=axcl -DAXSDK_AXCL_DIR=/usr
+cmake --build build -j
+ctest --test-dir build -V
 ```
