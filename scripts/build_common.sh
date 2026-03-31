@@ -8,7 +8,6 @@ fi
 
 CHIP="$1"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOST_ARCH="$(uname -m)"
 
 mkdir -p "${ROOT_DIR}/.ci/downloads" "${ROOT_DIR}/.ci/toolchains"
 
@@ -87,14 +86,6 @@ case "${CHIP}" in
     TOOLCHAIN_BIN="${TOOLCHAIN_DIR}/bin"
     COMPILER_CHECK="aarch64-none-linux-gnu-g++"
     AXCL_SUBDIR_NAME="axcl_linux_arm64"
-
-    # Native build on an aarch64 host (e.g. Raspberry Pi):
-    # do NOT download/use the x86_64 cross toolchain archive.
-    if [[ "${HOST_ARCH}" == "aarch64" || "${HOST_ARCH}" == "arm64" ]]; then
-      TOOLCHAIN_FILE=""
-      TOOLCHAIN_BIN=""
-      COMPILER_CHECK="g++"
-    fi
     ;;
   *)
     echo "unsupported chip: ${CHIP}" >&2
@@ -236,7 +227,7 @@ else
 fi
 
 cmake "${CMAKE_ARGS[@]}"
-cmake --build "${BUILD_DIR}" -j"$(getconf _NPROCESSORS_ONLN)" --target ax_pipeline_app ax_plugin_host ax_mp4_dump_annexb ax_pipeline_plugins
+cmake --build "${BUILD_DIR}" -j"$(getconf _NPROCESSORS_ONLN)" --target ax_pipeline_app ax_mp4_dump_annexb
 
 mkdir -p "${STAGE_DIR}"
 PACKAGE_BASENAME="ax_pipeline_${CHIP}"
@@ -245,7 +236,6 @@ rm -rf "${PACKAGE_DIR}"
 mkdir -p "${PACKAGE_DIR}/bin" "${PACKAGE_DIR}/lib"
 
 cp -a "${BUILD_DIR}/ax_pipeline_app" "${PACKAGE_DIR}/bin/"
-cp -a "${BUILD_DIR}/ax_plugin_host" "${PACKAGE_DIR}/bin/"
 cp -a "${BUILD_DIR}/ax_mp4_dump_annexb" "${PACKAGE_DIR}/bin/"
 
 SDK_SO="$(find "${BUILD_DIR}" -maxdepth 6 -name 'libax_video_sdk.so' | head -n 1 || true)"
@@ -254,14 +244,6 @@ if [[ -z "${SDK_SO}" ]]; then
   exit 1
 fi
 cp -a "${SDK_SO}" "${PACKAGE_DIR}/lib/"
-
-# Bundle built-in inference plugins (loaded by ax_pipeline_app via dlopen).
-mkdir -p "${PACKAGE_DIR}/lib/plugins"
-while IFS= read -r so; do
-  [[ -n "${so}" ]] || continue
-  cp -a "${so}" "${PACKAGE_DIR}/lib/plugins/"
-done < <(find "${BUILD_DIR}" -maxdepth 6 -name 'libax_plugin_*.so' | sort || true)
-
 cp -a "${ROOT_DIR}/configs" "${PACKAGE_DIR}/"
 
 cat > "${PACKAGE_DIR}/BUILD_INFO.txt" <<EOF

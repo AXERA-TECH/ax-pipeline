@@ -34,16 +34,63 @@ else()
     message(FATAL_ERROR "Missing third-party/ByteTrack")
 endif()
 
-# ---- plugins ----
-add_subdirectory(plugins)
-
 # ---- app ----
+set(AXP_NPU_SOURCES
+    src/npu/async_detector.cpp
+    src/npu/models/ax_model_base.cpp
+    src/npu/models/ax_model_det.cpp
+    src/npu/runner/logger.cpp
+)
+
+if(DEFINED AXSDK_CHIP_TYPE)
+    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_FOR_NPU)
+    if(AXP_CHIP_FOR_NPU STREQUAL "axcl")
+        list(APPEND AXP_NPU_SOURCES
+            src/npu/runner/axcl/ax_model_runner_axcl.cpp
+            src/npu/runner/axcl/axcl_manager.cpp
+        )
+    else()
+        list(APPEND AXP_NPU_SOURCES
+            src/npu/runner/ax650/ax_model_runner_ax650.cpp
+        )
+    endif()
+else()
+    list(APPEND AXP_NPU_SOURCES
+        src/npu/runner/ax650/ax_model_runner_ax650.cpp
+    )
+endif()
+
+add_library(ax_pipeline_npu STATIC ${AXP_NPU_SOURCES})
+target_include_directories(ax_pipeline_npu
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/npu
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/npu/runner
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/npu/runner/utils
+)
+target_compile_options(ax_pipeline_npu PRIVATE
+    -Wall -Wextra -Wno-unused-parameter
+)
+target_link_libraries(ax_pipeline_npu PUBLIC ax_video_sdk ax_video_sdk::ax_msp)
+
+if(DEFINED AXSDK_CHIP_TYPE)
+    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_NORMALIZED_NPU)
+    if(AXP_CHIP_NORMALIZED_NPU STREQUAL "axcl")
+        target_compile_definitions(ax_pipeline_npu PUBLIC AXPIPELINE_HAVE_AXCL=1 AXPIPELINE_DEFAULT_BACKEND_AXCL=1)
+        target_link_libraries(ax_pipeline_npu PUBLIC axcl_rt)
+    else()
+        target_compile_definitions(ax_pipeline_npu PUBLIC AXPIPELINE_HAVE_MSP=1)
+        target_link_libraries(ax_pipeline_npu PUBLIC ax_engine ax_sys)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_pipeline_npu PUBLIC -Wl,--allow-shlib-undefined)
+        endif()
+    endif()
+endif()
+
 add_executable(ax_pipeline_app
     src/main.cpp
-    src/ai/async_infer.cpp
-    src/ax_plugin/ax_plugin_client.cpp
-    src/ax_plugin/ax_plugin_loader.cpp
-    src/ax_plugin/ax_plugin_process.cpp
     src/tracking/ax_bytetrack.cpp
 )
 
@@ -60,47 +107,9 @@ target_compile_options(ax_pipeline_app PRIVATE
     -Wall -Wextra -Wno-unused-parameter
 )
 
-if(UNIX AND NOT APPLE)
-    target_link_libraries(ax_pipeline_app PRIVATE dl)
-endif()
-
-target_link_libraries(ax_pipeline_app PRIVATE ax_video_sdk ax_video_sdk::ax_msp ByteTrack)
-
-if(DEFINED AXSDK_CHIP_TYPE)
-    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_APP_PLATFORM)
-    if(AXP_CHIP_APP_PLATFORM STREQUAL "axcl")
-        target_compile_definitions(ax_pipeline_app PRIVATE AXPIPELINE_APP_PLATFORM_AXCL=1)
-        # Needed by subprocess isolation path to copy AXCL device frames to host.
-        target_link_libraries(ax_pipeline_app PRIVATE axcl_rt)
-    else()
-        # When cross-building, allow unresolved MSP symbols inside dependent shared objects.
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_link_options(ax_pipeline_app PRIVATE -Wl,--allow-shlib-undefined)
-        endif()
-    endif()
-endif()
+target_link_libraries(ax_pipeline_app PRIVATE ax_pipeline_npu ByteTrack)
 
 install(TARGETS ax_pipeline_app RUNTIME DESTINATION bin)
-
-# ---- plugin host (subprocess isolation) ----
-add_executable(ax_plugin_host
-    src/ax_plugin/ax_plugin_host.cpp
-)
-
-target_include_directories(ax_plugin_host
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_compile_options(ax_plugin_host PRIVATE
-    -Wall -Wextra -Wno-unused-parameter
-)
-
-if(UNIX AND NOT APPLE)
-    target_link_libraries(ax_plugin_host PRIVATE dl)
-endif()
-
-install(TARGETS ax_plugin_host RUNTIME DESTINATION bin)
 install(DIRECTORY configs DESTINATION .)
 
 # ---- model runtime test (requires HW at runtime) ----
@@ -116,7 +125,7 @@ target_include_directories(ax_pipeline_model_test
 target_compile_options(ax_pipeline_model_test PRIVATE
     -Wall -Wextra -Wno-unused-parameter
 )
-target_link_libraries(ax_pipeline_model_test PRIVATE ax_plugin_npu_common)
+target_link_libraries(ax_pipeline_model_test PRIVATE ax_pipeline_npu)
 
 # ---- debug tool: dump MP4 video samples to AnnexB elementary stream ----
 # Used to validate demux output against board samples (e.g. /opt/bin/sample_vdec).
@@ -149,75 +158,3 @@ if(DEFINED AXSDK_CHIP_TYPE)
 endif()
 
 install(TARGETS ax_mp4_dump_annexb RUNTIME DESTINATION bin)
-
-# ---- unit tests (host-only) ----
-enable_testing()
-
-add_executable(ax_plugin_client_test
-    src/tests/test_plugin_client.cpp
-    src/ax_plugin/ax_plugin_client.cpp
-    src/ax_plugin/ax_plugin_loader.cpp
-    src/ax_plugin/ax_plugin_process.cpp
-)
-
-target_include_directories(ax_plugin_client_test
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
-)
-
-target_compile_options(ax_plugin_client_test PRIVATE
-    -Wall -Wextra -Wno-unused-parameter
-)
-
-if(UNIX AND NOT APPLE)
-    target_link_libraries(ax_plugin_client_test PRIVATE dl)
-endif()
-
-target_link_libraries(ax_plugin_client_test PRIVATE ax_video_sdk ax_video_sdk::ax_msp)
-
-# AXCL: test binary links axcl_rt for device->host copy helper when built for AXCL.
-if(DEFINED AXSDK_CHIP_TYPE)
-    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_TEST_PLATFORM)
-    if(AXP_CHIP_TEST_PLATFORM STREQUAL "axcl")
-        target_link_libraries(ax_plugin_client_test PRIVATE axcl_rt)
-    endif()
-endif()
-
-# In-proc plugin smoke: should work everywhere.
-add_test(NAME plugin_blank_inproc
-    COMMAND ax_plugin_client_test
-        --mode=inproc
-        --so=$<TARGET_FILE:ax_plugin_blank>
-)
-
-add_test(NAME plugin_blank_inproc_reopen
-    COMMAND ax_plugin_client_test
-        --mode=inproc
-        --iters=10
-        --so=$<TARGET_FILE:ax_plugin_blank>
-)
-
-# Subprocess plugin smoke (unix only).
-if(UNIX AND NOT APPLE)
-    add_test(NAME plugin_blank_process
-        COMMAND ax_plugin_client_test
-            --mode=process
-            --so=$<TARGET_FILE:ax_plugin_blank>
-    )
-
-    add_test(NAME plugin_blank_process_reopen
-        COMMAND ax_plugin_client_test
-            --mode=process
-            --iters=5
-            --so=$<TARGET_FILE:ax_plugin_blank>
-    )
-
-    # Crash isolation: blank plugin aborts under env var; main test process should survive and recover.
-    add_test(NAME plugin_blank_process_crash_isolated
-        COMMAND ax_plugin_client_test
-            --mode=process
-            --crash-test=1
-            --so=$<TARGET_FILE:ax_plugin_blank>
-    )
-endif()

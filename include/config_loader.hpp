@@ -15,15 +15,27 @@
 #include "common/ax_image_processor.h"
 #include "common/ax_system.h"
 #include "pipeline/ax_pipeline.h"
+#include "pipeline/ax_camera_pipeline.h"
 
 namespace axpipeline {
 
 class ConfigLoader {
 public:
+    enum class InputType {
+        kAuto,      // 根据 URI 自动检测
+        kFile,      // MP4 文件
+        kRtsp,      // RTSP 流
+        kCamera,    // V4L2 摄像头
+    };
+
     struct PipelineCfg {
         std::string name;
         std::int32_t device_id{-1};
+        InputType input_type{InputType::kAuto};
+        // 传统 Pipeline 配置（用于 file/rtsp）
         axvsdk::pipeline::PipelineConfig sdk{};
+        // 摄像头配置（用于 camera）
+        axvsdk::pipeline::CameraPipelineConfig camera_sdk{};
         // Max NPU processing FPS:
         // - > 0: limit NPU processing rate (best-effort).
         // - 0 or -1: no limit (disable limiter).
@@ -36,14 +48,11 @@ public:
             bool enable_tracking{true};
             // Track buffer in frames (roughly: how long a lost track is kept before removal).
             std::int32_t track_buffer{30};
-            // Plugin .so path.
-            std::string ax_plugin_path;
-            // Plugin isolation mode:
-            // - "inproc": dlopen and run in current process (fastest, but plugin crash kills pipeline)
-            // - "process": run plugin in a subprocess (crash-isolated; may add copies/overhead)
-            std::string ax_plugin_isolation{"inproc"};
-            // Plugin init JSON string (the value of npu.ax_plugin_init_info dumped to a string).
-            std::string ax_plugin_init_json;
+            std::string model_path;
+            std::string model_type;  // yolov5 / yolov8
+            std::int32_t num_classes{80};
+            double conf_threshold{0.25};
+            double nms_threshold{0.45};
         } npu{};
         std::uint32_t log_every_n_frames{30};
     };
@@ -127,20 +136,18 @@ private:
             }
         };
 
-        resolve(&cfg->npu.ax_plugin_path);
-        if (!cfg->npu.ax_plugin_init_json.empty() && !base_dir.empty()) {
-            try {
-                auto j = json::parse(cfg->npu.ax_plugin_init_json);
-                if (j.is_object() && j.contains("model_path") && j["model_path"].is_string()) {
-                    std::string mp = j["model_path"].get<std::string>();
-                    std::filesystem::path pp(mp);
-                    if (pp.is_relative()) {
-                        j["model_path"] = (base_dir / pp).lexically_normal().string();
-                        cfg->npu.ax_plugin_init_json = j.dump();
-                    }
+        resolve(&cfg->npu.model_path);
+
+        // Camera 输入不需要解析路径
+        if (cfg->input_type == InputType::kCamera) {
+            // Output URIs: resolve file targets; keep RTSP URIs unchanged.
+            for (auto& u : cfg->camera_sdk.outputs) {
+                for (auto& uri : u.uris) {
+                    if (uri.rfind("rtsp://", 0) == 0 || uri.rfind("rtsps://", 0) == 0) continue;
+                    resolve(&uri);
                 }
-            } catch (...) {
             }
+            return;
         }
 
         // Input URI: resolve only for local-file inputs.
@@ -244,6 +251,13 @@ private:
         return axvsdk::common::ResizeAlign::kCenter;
     }
 
+    static InputType ParseInputType(const std::string& s) {
+        if (s == "camera" || s == "CAMERA") return InputType::kCamera;
+        if (s == "rtsp" || s == "RTSP") return InputType::kRtsp;
+        if (s == "file" || s == "FILE") return InputType::kFile;
+        return InputType::kAuto;
+    }
+
     static bool ParseResizeOptions(const json& j, axvsdk::common::ResizeOptions* out) {
         if (!out || !j.is_object()) return false;
         std::string mode;
@@ -269,16 +283,14 @@ private:
 
         if (!GetOptI32(j, "device_id", &out->device_id)) return false;
 
-        std::string uri;
-        if (!GetOptString(j, "uri", &uri) || uri.empty()) return false;
-
-        bool realtime = true;
-        bool loop = false;
-        if (!GetOptBool(j, "realtime_playback", &realtime)) return false;
-        if (!GetOptBool(j, "loop_playback", &loop)) return false;
+        // 解析输入类型
+        std::string input_type_str;
+        if (!GetOptString(j, "input_type", &input_type_str)) return false;
+        if (!input_type_str.empty()) {
+            out->input_type = ParseInputType(input_type_str);
+        }
 
         if (!GetOptDouble(j, "npu_max_fps", &out->npu_max_fps)) return false;
-
         if (!GetOptU32(j, "log_every_n_frames", &out->log_every_n_frames)) return false;
 
         if (j.contains("npu")) {
@@ -288,14 +300,126 @@ private:
             if (!GetOptBool(n, "enable_osd", &out->npu.enable_osd)) return false;
             if (!GetOptBool(n, "enable_tracking", &out->npu.enable_tracking)) return false;
             if (!GetOptI32(n, "track_buffer", &out->npu.track_buffer)) return false;
-            if (!GetOptString(n, "ax_plugin_path", &out->npu.ax_plugin_path)) return false;
-            if (!GetOptString(n, "ax_plugin_isolation", &out->npu.ax_plugin_isolation)) return false;
-            if (n.contains("ax_plugin_init_info")) {
-                const auto& init = n["ax_plugin_init_info"];
-                if (!init.is_object()) return false;
-                out->npu.ax_plugin_init_json = init.dump();
+            if (!GetOptString(n, "model_path", &out->npu.model_path)) return false;
+            if (!GetOptString(n, "model_type", &out->npu.model_type)) return false;
+            if (!GetOptI32(n, "num_classes", &out->npu.num_classes)) return false;
+            if (!GetOptDouble(n, "conf_threshold", &out->npu.conf_threshold)) return false;
+            if (!GetOptDouble(n, "nms_threshold", &out->npu.nms_threshold)) return false;
+        }
+
+        // 根据输入类型解析不同配置
+        if (out->input_type == InputType::kCamera) {
+            return ParseCameraPipeline(j, out);
+        } else {
+            return ParseStandardPipeline(j, out);
+        }
+    }
+
+    static bool ParseCameraPipeline(const json& j, PipelineCfg* out) {
+        // 解析摄像头配置
+        out->camera_sdk.device_id = out->device_id;
+        
+        if (j.contains("camera")) {
+            const auto& cam = j["camera"];
+            if (!cam.is_object()) return false;
+            
+            std::string device;
+            if (!GetOptString(cam, "device", &device)) return false;
+            if (!device.empty()) out->camera_sdk.device_path = device;
+            
+            std::uint32_t w = out->camera_sdk.width;
+            std::uint32_t h = out->camera_sdk.height;
+            if (!GetOptU32(cam, "width", &w) || !GetOptU32(cam, "height", &h)) return false;
+            out->camera_sdk.width = w;
+            out->camera_sdk.height = h;
+            
+            double fps = out->camera_sdk.fps;
+            if (!GetOptDouble(cam, "fps", &fps)) return false;
+            out->camera_sdk.fps = fps;
+        }
+
+        // 解析 frame_output
+        out->camera_sdk.frame_output = {};
+        if (j.contains("frame_output")) {
+            const auto& fo = j["frame_output"];
+            if (!fo.is_object()) return false;
+            std::string fmt;
+            if (!GetOptString(fo, "format", &fmt)) return false;
+            if (!fmt.empty()) {
+                const auto pf = ParsePixelFormat(fmt);
+                if (pf == axvsdk::common::PixelFormat::kUnknown) return false;
+                out->camera_sdk.frame_output.output_image.format = pf;
+            }
+            std::uint32_t w = out->camera_sdk.frame_output.output_image.width;
+            std::uint32_t h = out->camera_sdk.frame_output.output_image.height;
+            if (!GetOptU32(fo, "width", &w) || !GetOptU32(fo, "height", &h)) return false;
+            out->camera_sdk.frame_output.output_image.width = w;
+            out->camera_sdk.frame_output.output_image.height = h;
+            if (fo.contains("resize")) {
+                if (!ParseResizeOptions(fo["resize"], &out->camera_sdk.frame_output.resize)) return false;
             }
         }
+
+        // NPU + OSD 时强制使用原始分辨率
+        if (out->npu.enable && out->npu.enable_osd) {
+            out->camera_sdk.frame_output.output_image = {};
+            out->camera_sdk.frame_output.resize = {};
+        }
+
+        // 解析 outputs
+        if (!j.contains("outputs") || !j["outputs"].is_array() || j["outputs"].empty()) return false;
+        out->camera_sdk.outputs.clear();
+        for (const auto& o : j["outputs"]) {
+            if (!o.is_object()) return false;
+            axvsdk::pipeline::CameraPipelineOutputConfig oc{};
+
+            std::string codec;
+            if (!GetOptString(o, "codec", &codec)) return false;
+            if (!codec.empty()) {
+                oc.codec = ParseVideoCodec(codec);
+                if (oc.codec == axvsdk::codec::VideoCodecType::kUnknown) return false;
+            }
+
+            if (!GetOptU32(o, "width", &oc.width) ||
+                !GetOptU32(o, "height", &oc.height) ||
+                !GetOptDouble(o, "frame_rate", &oc.frame_rate) ||
+                !GetOptU32(o, "bitrate_kbps", &oc.bitrate_kbps) ||
+                !GetOptU32(o, "gop", &oc.gop) ||
+                !GetOptSizeT(o, "input_queue_depth", &oc.input_queue_depth)) {
+                return false;
+            }
+
+            std::string overflow;
+            if (!GetOptString(o, "overflow_policy", &overflow)) return false;
+            if (!overflow.empty()) oc.overflow_policy = ParseOverflowPolicy(overflow);
+
+            if (o.contains("resize")) {
+                if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
+            }
+
+            if (o.contains("uris")) {
+                if (!o["uris"].is_array()) return false;
+                for (const auto& u : o["uris"]) {
+                    if (!u.is_string()) return false;
+                    oc.uris.push_back(u.get<std::string>());
+                }
+            }
+
+            out->camera_sdk.outputs.push_back(std::move(oc));
+        }
+
+        return true;
+    }
+
+    static bool ParseStandardPipeline(const json& j, PipelineCfg* out) {
+        // 自动检测输入类型
+        std::string uri;
+        if (!GetOptString(j, "uri", &uri) || uri.empty()) return false;
+
+        bool realtime = true;
+        bool loop = false;
+        if (!GetOptBool(j, "realtime_playback", &realtime)) return false;
+        if (!GetOptBool(j, "loop_playback", &loop)) return false;
 
         out->sdk.device_id = out->device_id;
         out->sdk.input.uri = uri;
@@ -326,8 +450,12 @@ private:
             }
         }
 
-        // frame_output is always honored. When NPU input differs from the decoder source space,
-        // ax-pipeline should map detections back to source coordinates before OSD/tracking.
+        // For ax-pipeline sample: when NPU + OSD is enabled, force callback/latest-frame to follow decoder source
+        // to keep detection coordinates consistent with OSD drawing space.
+        if (out->npu.enable && out->npu.enable_osd) {
+            out->sdk.frame_output.output_image = {};
+            out->sdk.frame_output.resize = {};
+        }
 
         if (!j.contains("outputs") || !j["outputs"].is_array() || j["outputs"].empty()) return false;
         out->sdk.outputs.clear();

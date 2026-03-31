@@ -21,9 +21,9 @@
 
 #include "common/ax_system.h"
 #include "pipeline/ax_pipeline.h"
+#include "pipeline/ax_camera_pipeline.h"
 
-#include "ai/async_infer.hpp"
-#include "ai/ax_resize_map.hpp"
+#include "npu/async_detector.hpp"
 #include "tracking/ax_bytetrack.hpp"
 
 namespace {
@@ -31,12 +31,8 @@ namespace {
 std::atomic<bool> g_stop{false};
 
 struct FrameInfo {
-    // Decoder/source space (OSD drawing space).
-    std::atomic<std::uint32_t> source_w{0};
-    std::atomic<std::uint32_t> source_h{0};
-    // Inference input space (frame_output callback space).
-    std::atomic<std::uint32_t> infer_w{0};
-    std::atomic<std::uint32_t> infer_h{0};
+    std::atomic<std::uint32_t> w{0};
+    std::atomic<std::uint32_t> h{0};
 };
 
 bool EnvFlagEnabled(const char* name) {
@@ -50,7 +46,15 @@ void HandleSignal(int) {
     g_stop.store(true, std::memory_order_relaxed);
 }
 
-bool CheckInputUri(const std::string& uri, std::string* error) {
+bool CheckInputUri(axpipeline::ConfigLoader::InputType type, const std::string& uri, std::string* error) {
+    if (type == axpipeline::ConfigLoader::InputType::kCamera) {
+        std::error_code ec;
+        if (!std::filesystem::exists(uri, ec)) {
+            if (error) *error = "camera device not found: " + uri;
+            return false;
+        }
+        return true;
+    }
     if (uri.rfind("rtsp://", 0) == 0 || uri.rfind("rtsps://", 0) == 0) return true;
     std::error_code ec;
     if (!std::filesystem::exists(uri, ec)) {
@@ -59,6 +63,129 @@ bool CheckInputUri(const std::string& uri, std::string* error) {
     }
     return true;
 }
+
+// Pipeline 统一接口包装
+class PipelineWrapper {
+public:
+    virtual ~PipelineWrapper() = default;
+    virtual bool Open() = 0;
+    virtual bool Start() = 0;
+    virtual void Stop() = 0;
+    virtual void Close() = 0;
+    virtual void SetFrameCallback(axvsdk::pipeline::FrameCallback cb) = 0;
+    virtual bool SetOsd(const axvsdk::common::DrawFrame& osd) = 0;
+    virtual axvsdk::pipeline::PipelineStats GetStats() = 0;
+    virtual axvsdk::pipeline::CameraPipelineStats GetCameraStats() = 0;
+    virtual std::uint32_t GetWidth() = 0;
+    virtual std::uint32_t GetHeight() = 0;
+    virtual double GetFps() = 0;
+    virtual bool IsCamera() const = 0;
+};
+
+// 标准 Pipeline 包装
+class StandardPipelineWrapper : public PipelineWrapper {
+public:
+    StandardPipelineWrapper(axvsdk::pipeline::PipelineConfig cfg) : config_(std::move(cfg)) {}
+
+    bool Open() override {
+        pipeline_ = axvsdk::pipeline::CreatePipeline();
+        if (!pipeline_) return false;
+        return pipeline_->Open(config_);
+    }
+
+    bool Start() override { return pipeline_->Start(); }
+    void Stop() override { pipeline_->Stop(); }
+    void Close() override { pipeline_->Close(); }
+
+    void SetFrameCallback(axvsdk::pipeline::FrameCallback cb) override {
+        pipeline_->SetFrameCallback(std::move(cb));
+    }
+
+    bool SetOsd(const axvsdk::common::DrawFrame& osd) override {
+        return pipeline_->SetOsd(osd);
+    }
+
+    axvsdk::pipeline::PipelineStats GetStats() override {
+        return pipeline_->GetStats();
+    }
+
+    axvsdk::pipeline::CameraPipelineStats GetCameraStats() override {
+        return {};  // 不适用
+    }
+
+    std::uint32_t GetWidth() override {
+        auto info = pipeline_->GetInputStreamInfo();
+        return info.width;
+    }
+
+    std::uint32_t GetHeight() override {
+        auto info = pipeline_->GetInputStreamInfo();
+        return info.height;
+    }
+
+    double GetFps() override {
+        auto info = pipeline_->GetInputStreamInfo();
+        return info.frame_rate;
+    }
+
+    bool IsCamera() const override { return false; }
+
+private:
+    axvsdk::pipeline::PipelineConfig config_;
+    std::unique_ptr<axvsdk::pipeline::Pipeline> pipeline_;
+};
+
+// 摄像头 Pipeline 包装
+class CameraPipelineWrapper : public PipelineWrapper {
+public:
+    CameraPipelineWrapper(axvsdk::pipeline::CameraPipelineConfig cfg) : config_(std::move(cfg)) {}
+
+    bool Open() override {
+        pipeline_ = axvsdk::pipeline::CreateCameraPipeline();
+        if (!pipeline_) return false;
+        return pipeline_->Open(config_);
+    }
+
+    bool Start() override { return pipeline_->Start(); }
+    void Stop() override { pipeline_->Stop(); }
+    void Close() override { pipeline_->Close(); }
+
+    void SetFrameCallback(axvsdk::pipeline::FrameCallback cb) override {
+        pipeline_->SetFrameCallback([cb](axvsdk::common::AxImage::Ptr frame) {
+            if (cb) cb(std::move(frame));
+        });
+    }
+
+    bool SetOsd(const axvsdk::common::DrawFrame& osd) override {
+        return pipeline_->SetOsd(osd);
+    }
+
+    axvsdk::pipeline::PipelineStats GetStats() override {
+        return {};  // 不适用
+    }
+
+    axvsdk::pipeline::CameraPipelineStats GetCameraStats() override {
+        return pipeline_->GetStats();
+    }
+
+    std::uint32_t GetWidth() override {
+        return pipeline_->GetWidth();
+    }
+
+    std::uint32_t GetHeight() override {
+        return pipeline_->GetHeight();
+    }
+
+    double GetFps() override {
+        return pipeline_->GetFps();
+    }
+
+    bool IsCamera() const override { return true; }
+
+private:
+    axvsdk::pipeline::CameraPipelineConfig config_;
+    std::unique_ptr<axvsdk::pipeline::CameraPipeline> pipeline_;
+};
 
 }  // namespace
 
@@ -81,7 +208,9 @@ int main(int argc, char** argv) {
     }
 
     for (const auto& p : cfg.pipelines) {
-        if (!CheckInputUri(p.sdk.input.uri, &err)) {
+        std::string input_uri = (p.input_type == axpipeline::ConfigLoader::InputType::kCamera) 
+            ? p.camera_sdk.device_path : p.sdk.input.uri;
+        if (!CheckInputUri(p.input_type, input_uri, &err)) {
             std::cerr << err << "\n";
             return 3;
         }
@@ -90,7 +219,6 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, HandleSignal);
     std::signal(SIGTERM, HandleSignal);
 #ifdef SIGPIPE
-    // RTSP clients may disconnect at any time; avoid process termination on SIGPIPE.
     std::signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -100,11 +228,11 @@ int main(int argc, char** argv) {
     }
     struct Guard { ~Guard() { axvsdk::common::ShutdownSystem(); } } guard;
 
-    std::vector<std::unique_ptr<axvsdk::pipeline::Pipeline>> pipelines;
+    std::vector<std::unique_ptr<PipelineWrapper>> pipelines;
     pipelines.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> counters;
     counters.reserve(cfg.pipelines.size());
-    std::vector<std::shared_ptr<axpipeline::ai::AsyncInfer>> npu_workers;
+    std::vector<std::shared_ptr<axpipeline::npu::AsyncDetector>> npu_workers;
     npu_workers.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<FrameInfo>> frame_infos;
     frame_infos.reserve(cfg.pipelines.size());
@@ -114,85 +242,84 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < cfg.pipelines.size(); ++i) {
         auto& p = cfg.pipelines[i];
 
-        auto pipe = axvsdk::pipeline::CreatePipeline();
-        if (!pipe) {
-            std::cerr << "CreatePipeline failed\n";
-            return 5;
+        // 创建对应的 Pipeline 包装
+        std::unique_ptr<PipelineWrapper> wrapper;
+        if (p.input_type == axpipeline::ConfigLoader::InputType::kCamera) {
+            wrapper = std::make_unique<CameraPipelineWrapper>(p.camera_sdk);
+        } else {
+            wrapper = std::make_unique<StandardPipelineWrapper>(p.sdk);
         }
-        if (!pipe->Open(p.sdk)) {
-            std::cerr << "pipeline Open failed: name=" << p.name << " idx=" << i << "\n";
+
+        if (!wrapper->Open()) {
+            std::cerr << "pipeline Open failed: name=" << p.name << " idx=" << i << " type=" 
+                      << (p.input_type == axpipeline::ConfigLoader::InputType::kCamera ? "camera" : "standard") << "\n";
             return 6;
         }
 
-        std::shared_ptr<axpipeline::ai::AsyncInfer> npu_worker;
+        std::shared_ptr<axpipeline::npu::AsyncDetector> npu_worker;
         std::shared_ptr<axpipeline::tracking::ByteTrack> tracker;
         auto fi = std::make_shared<FrameInfo>();
         if (p.npu.enable) {
-            axpipeline::ai::AsyncInferOptions nopt{};
-            nopt.device_id = p.device_id;
-            nopt.plugin_path = p.npu.ax_plugin_path;
-            nopt.plugin_init_json = p.npu.ax_plugin_init_json;
-            if (p.npu.ax_plugin_isolation == "process") {
-                nopt.plugin_isolation = axpipeline::plugin::AxPluginIsolationMode::kSubprocess;
+            axpipeline::npu::AsyncDetectorOptions nopt{};
+            nopt.yolo.base.device_id = p.device_id;
+            nopt.yolo.base.model_path = p.npu.model_path;
+            nopt.yolo.base.resize_mode = axvsdk::common::ResizeMode::kKeepAspectRatio;
+            nopt.yolo.base.h_align = axvsdk::common::ResizeAlign::kCenter;
+            nopt.yolo.base.v_align = axvsdk::common::ResizeAlign::kCenter;
+            nopt.yolo.base.background_color = 0;
+            nopt.yolo.num_classes = static_cast<int>(p.npu.num_classes);
+            nopt.yolo.conf_threshold = static_cast<float>(p.npu.conf_threshold);
+            nopt.yolo.nms_threshold = static_cast<float>(p.npu.nms_threshold);
+            if (p.npu.model_type == "yolov5" || p.npu.model_type == "YOLOV5") {
+                nopt.model_type = axpipeline::npu::DetModelType::kYoloV5;
             } else {
-                nopt.plugin_isolation = axpipeline::plugin::AxPluginIsolationMode::kInProcess;
+                nopt.model_type = axpipeline::npu::DetModelType::kYoloV8Native;
             }
 
-            npu_worker = std::make_shared<axpipeline::ai::AsyncInfer>(p.npu_max_fps);
+            npu_worker = std::make_shared<axpipeline::npu::AsyncDetector>(p.npu_max_fps);
             if (!npu_worker->Init(nopt, &err)) {
-                std::cerr << "NPU init failed (ignored): pipeline=" << p.name << " err=" << err << "\n";
-                npu_worker.reset();
+                std::cerr << "NPU init failed: pipeline=" << p.name << " err=" << err << "\n";
+                return 5;
             }
 
-            if (npu_worker && p.npu.enable_tracking) {
-                const auto stream = pipe->GetInputStreamInfo();
-                const int fps = stream.frame_rate > 0.0 ? static_cast<int>(std::lround(stream.frame_rate)) : 30;
+            if (p.npu.enable_tracking) {
+                const int fps = wrapper->GetFps() > 0.0 ? static_cast<int>(std::lround(wrapper->GetFps())) : 30;
                 axpipeline::tracking::ByteTrackOptions topt{};
                 topt.frame_rate = fps > 0 ? fps : 30;
                 topt.track_buffer = p.npu.track_buffer > 0 ? static_cast<int>(p.npu.track_buffer) : 30;
-                topt.min_score = 0.0F;
+                topt.min_score = static_cast<float>(p.npu.conf_threshold);
                 tracker = std::make_shared<axpipeline::tracking::ByteTrack>(topt);
             }
+            if (EnvFlagEnabled("AXP_NPU_INFO")) {
+                const auto& in = npu_worker->input_spec();
+                std::cout << "[npu init pipeline=" << p.name << " dev=" << p.device_id << "] input{fmt="
+                          << static_cast<int>(in.format)
+                          << " w=" << in.width
+                          << " h=" << in.height
+                          << "}\n";
+            }
 
-            if (npu_worker) {
-                auto* pipe_ptr = pipe.get();
-                const auto resize_opts = p.sdk.frame_output.resize;
-                npu_worker->SetCallbacks(
-                [name = p.name,
-                 idx = i,
-                 pipe_ptr,
-                 fi,
-                 resize_opts,
-                 enable_osd = p.npu.enable_osd,
-                 tracker](const std::vector<axpipeline::ai::Detection>& dets_infer, std::uint64_t seq) {
-                    std::vector<axpipeline::ai::Detection> dets = dets_infer;
-                    const auto sw = fi->source_w.load(std::memory_order_relaxed);
-                    const auto sh = fi->source_h.load(std::memory_order_relaxed);
-                    const auto iw = fi->infer_w.load(std::memory_order_relaxed);
-                    const auto ih = fi->infer_h.load(std::memory_order_relaxed);
-                    if (sw != 0 && sh != 0 && iw != 0 && ih != 0) {
-                        const auto map = axpipeline::ai::ComputeInferToSourceMap(sw, sh, iw, ih, resize_opts);
-                        axpipeline::ai::MapDetectionsInferToSource(map, sw, sh, &dets);
-                    }
-                    if (enable_osd && pipe_ptr) {
+            auto* wrapper_ptr = wrapper.get();
+            npu_worker->SetCallbacks(
+                [name = p.name, idx = i, wrapper_ptr, fi, enable_osd = p.npu.enable_osd, tracker]
+                (const std::vector<axpipeline::npu::Detection>& dets, std::uint64_t seq) {
+                    if (enable_osd && wrapper_ptr) {
+                        const auto fw = fi->w.load(std::memory_order_relaxed);
+                        const auto fh = fi->h.load(std::memory_order_relaxed);
                         axvsdk::common::DrawFrame osd{};
-                        // Keep OSD visible for multiple frames to avoid "blinking" when NPU runs slower than video.
                         osd.hold_frames = 10;
-                        if (sw != 0 && sh != 0) {
+                        if (fw != 0 && fh != 0) {
                             if (tracker) {
                                 const auto tracks = tracker->Update(dets);
                                 osd.rects.reserve(tracks.size());
                                 for (const auto& t : tracks) {
-                                    float x0f = t.x0;
-                                    float y0f = t.y0;
-                                    float x1f = t.x1;
-                                    float y1f = t.y1;
+                                    float x0f = t.x0, y0f = t.y0, x1f = t.x1, y1f = t.y1;
                                     if (x1f < x0f) std::swap(x0f, x1f);
                                     if (y1f < y0f) std::swap(y0f, y1f);
-                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(sw - 1)));
-                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(sh - 1)));
-                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(sw - 1)));
-                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(sh - 1)));
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
                                     const auto w = static_cast<std::int32_t>(x1f - x0f);
                                     const auto h = static_cast<std::int32_t>(y1f - y0f);
                                     if (w <= 1 || h <= 1) continue;
@@ -211,16 +338,13 @@ int main(int argc, char** argv) {
                                 osd.rects.reserve(dets.size());
                                 for (const auto& d : dets) {
                                     if (d.score < 0.01F) continue;
-                                    float x0f = d.x0;
-                                    float y0f = d.y0;
-                                    float x1f = d.x1;
-                                    float y1f = d.y1;
+                                    float x0f = d.x0, y0f = d.y0, x1f = d.x1, y1f = d.y1;
                                     if (x1f < x0f) std::swap(x0f, x1f);
                                     if (y1f < y0f) std::swap(y0f, y1f);
-                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(sw - 1)));
-                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(sh - 1)));
-                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(sw - 1)));
-                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(sh - 1)));
+                                    x0f = std::max(0.0F, std::min(x0f, static_cast<float>(fw - 1)));
+                                    y0f = std::max(0.0F, std::min(y0f, static_cast<float>(fh - 1)));
+                                    x1f = std::max(0.0F, std::min(x1f, static_cast<float>(fw - 1)));
+                                    y1f = std::max(0.0F, std::min(y1f, static_cast<float>(fh - 1)));
                                     const auto w = static_cast<std::int32_t>(x1f - x0f);
                                     const auto h = static_cast<std::int32_t>(y1f - y0f);
                                     if (w <= 1 || h <= 1) continue;
@@ -237,29 +361,18 @@ int main(int argc, char** argv) {
                             }
                         }
                         if (!osd.rects.empty()) {
-                            (void)pipe_ptr->SetOsd(osd);
+                            (void)wrapper_ptr->SetOsd(osd);
                         }
                     }
                     if ((seq % 30) == 0) {
                         std::cout << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
-                                  << " dets=" << dets_infer.size() << "\n";
-                        if (EnvFlagEnabled("AXP_NPU_INFO")) {
-                            const std::size_t limit = std::min<std::size_t>(dets.size(), 5U);
-                            for (std::size_t di = 0; di < limit; ++di) {
-                                const auto& d = dets[di];
-                                std::cout << "  det" << di
-                                          << " cls=" << d.class_id
-                                          << " score=" << d.score
-                                          << " box=(" << d.x0 << "," << d.y0 << ")-(" << d.x1 << "," << d.y1 << ")\n";
-                            }
-                        }
+                                  << " dets=" << dets.size() << "\n";
                     }
                 },
                 [name = p.name, idx = i](const std::string& e, std::uint64_t seq) {
                     std::cerr << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
                               << " error=" << e << "\n";
                 });
-            }
         }
         npu_workers.push_back(npu_worker);
         frame_infos.push_back(fi);
@@ -270,24 +383,22 @@ int main(int argc, char** argv) {
         counters.push_back(counter);
 
         {
-            const auto stream = pipe->GetInputStreamInfo();
-            if (stream.width != 0 && stream.height != 0) {
-                fi->source_w.store(stream.width, std::memory_order_relaxed);
-                fi->source_h.store(stream.height, std::memory_order_relaxed);
+            const auto w = wrapper->GetWidth();
+            const auto h = wrapper->GetHeight();
+            if (w != 0 && h != 0) {
+                fi->w.store(w, std::memory_order_relaxed);
+                fi->h.store(h, std::memory_order_relaxed);
             }
         }
 
-        pipe->SetFrameCallback([p, idx = i, counter = std::move(counter), npu_worker, fi, dumped](axvsdk::common::AxImage::Ptr frame) {
+        wrapper->SetFrameCallback([p, idx = i, counter = std::move(counter), npu_worker, fi, dumped]
+            (axvsdk::common::AxImage::Ptr frame) {
             if (!frame) return;
-            fi->infer_w.store(frame->width(), std::memory_order_relaxed);
-            fi->infer_h.store(frame->height(), std::memory_order_relaxed);
-            if (fi->source_w.load(std::memory_order_relaxed) == 0 &&
-                p.sdk.frame_output.output_image.width == 0 &&
-                p.sdk.frame_output.output_image.height == 0) {
-                // Fallback: if demux didn't provide stream geometry yet and frame_output follows source,
-                // treat callback frame as source space.
-                fi->source_w.store(frame->width(), std::memory_order_relaxed);
-                fi->source_h.store(frame->height(), std::memory_order_relaxed);
+            if (fi->w.load(std::memory_order_relaxed) == 0) {
+                fi->w.store(frame->width(), std::memory_order_relaxed);
+            }
+            if (fi->h.load(std::memory_order_relaxed) == 0) {
+                fi->h.store(frame->height(), std::memory_order_relaxed);
             }
             const auto n = counter->fetch_add(1, std::memory_order_relaxed) + 1;
 
@@ -302,15 +413,8 @@ int main(int argc, char** argv) {
                           << " stride1=" << frame->stride(1)
                           << " mem=" << static_cast<int>(frame->memory_type())
                           << " phy0=0x" << std::hex << frame->physical_address(0) << std::dec
-                          << " phy1=0x" << std::hex << frame->physical_address(1) << std::dec;
-                if (EnvFlagEnabled("AXP_NPU_INFO")) {
-                    std::cout << " vir0=0x" << std::hex
-                              << reinterpret_cast<std::uintptr_t>(frame->virtual_address(0))
-                              << " vir1=0x"
-                              << reinterpret_cast<std::uintptr_t>(frame->virtual_address(1))
-                              << std::dec;
-                }
-                std::cout << "\n";
+                          << " phy1=0x" << std::hex << frame->physical_address(1) << std::dec
+                          << "\n";
             }
 
             if (npu_worker) {
@@ -318,7 +422,7 @@ int main(int argc, char** argv) {
             }
         });
 
-        pipelines.push_back(std::move(pipe));
+        pipelines.push_back(std::move(wrapper));
     }
 
     for (std::size_t i = 0; i < pipelines.size(); ++i) {
@@ -339,20 +443,37 @@ int main(int argc, char** argv) {
         if (now - last_stats >= std::chrono::seconds(1)) {
             last_stats = now;
             for (std::size_t i = 0; i < pipelines.size(); ++i) {
-                const auto st = pipelines[i]->GetStats();
-                std::cout << "[stats idx=" << i << "] decoded=" << st.decoded_frames
-                          << " submit_fail=" << st.branch_submit_failures;
-                for (std::size_t j = 0; j < st.output_stats.size(); ++j) {
-                    std::cout << " out" << j << "{"
-                              << "submitted=" << st.output_stats[j].submitted_frames
-                              << "dropped=" << st.output_stats[j].dropped_frames
-                              << "encoded_pkts=" << st.output_stats[j].encoded_packets
-                              << "key_pkts=" << st.output_stats[j].key_packets
-                              << "q=" << st.output_stats[j].current_queue_depth
-                              << "/" << st.output_stats[j].queue_capacity
-                              << "}";
+                if (pipelines[i]->IsCamera()) {
+                    const auto st = pipelines[i]->GetCameraStats();
+                    std::cout << "[stats idx=" << i << "] captured=" << st.captured_frames
+                              << " submit_fail=" << st.submit_failures;
+                    for (std::size_t j = 0; j < st.output_stats.size(); ++j) {
+                        std::cout << " out" << j << "{"
+                                  << "submitted=" << st.output_stats[j].submitted_frames
+                                  << "dropped=" << st.output_stats[j].dropped_frames
+                                  << "encoded_pkts=" << st.output_stats[j].encoded_packets
+                                  << "key_pkts=" << st.output_stats[j].key_packets
+                                  << "q=" << st.output_stats[j].current_queue_depth
+                                  << "/" << st.output_stats[j].queue_capacity
+                                  << "}";
+                    }
+                    std::cout << "\n";
+                } else {
+                    const auto st = pipelines[i]->GetStats();
+                    std::cout << "[stats idx=" << i << "] decoded=" << st.decoded_frames
+                              << " submit_fail=" << st.branch_submit_failures;
+                    for (std::size_t j = 0; j < st.output_stats.size(); ++j) {
+                        std::cout << " out" << j << "{"
+                                  << "submitted=" << st.output_stats[j].submitted_frames
+                                  << "dropped=" << st.output_stats[j].dropped_frames
+                                  << "encoded_pkts=" << st.output_stats[j].encoded_packets
+                                  << "key_pkts=" << st.output_stats[j].key_packets
+                                  << "q=" << st.output_stats[j].current_queue_depth
+                                  << "/" << st.output_stats[j].queue_capacity
+                                  << "}";
+                    }
+                    std::cout << "\n";
                 }
-                std::cout << "\n";
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
