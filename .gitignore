@@ -46,3 +46,13 @@ artifacts/
 configs/test_*.json
 configs/demo_*.json
 .idea/
+
+# Local dev files
+AGENTS.md
+BUILD.md
+PULL.md
+build_axcl_native.sh
+configs/camera_*.json
+configs/file_to_rtsp.json
+configs/rtsp_to_rtsp.json
+configs/usv_test.json
