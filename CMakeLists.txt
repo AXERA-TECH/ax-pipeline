@@ -12,6 +12,29 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(AXP_BUILD_NPU_SMOKE_TESTS "Build NPU smoke tests (requires HW at runtime)" OFF)
 
+# ---- std::filesystem (toolchain compatibility) ----
+# Some older GCC/libstdc++ toolchains (notably arm/uclibc) still require linking
+# against libstdc++fs for std::filesystem symbols.
+include(CheckCXXSourceCompiles)
+set(_AXP_FILESYSTEM_TEST_SRC "
+  #include <filesystem>
+  int main() {
+    std::filesystem::path p{\".\"};
+    (void)p.is_absolute();
+    return 0;
+  }")
+set(_AXP_NEED_STDCXXFS OFF)
+set(CMAKE_REQUIRED_LIBRARIES "")
+check_cxx_source_compiles("${_AXP_FILESYSTEM_TEST_SRC}" _AXP_FILESYSTEM_LINKS)
+if(NOT _AXP_FILESYSTEM_LINKS)
+    set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
+    check_cxx_source_compiles("${_AXP_FILESYSTEM_TEST_SRC}" _AXP_FILESYSTEM_LINKS_WITH_STDCXXFS)
+    if(_AXP_FILESYSTEM_LINKS_WITH_STDCXXFS)
+        set(_AXP_NEED_STDCXXFS ON)
+    endif()
+endif()
+set(CMAKE_REQUIRED_LIBRARIES "")
+
 # ---- ax-video-sdk (submodule) ----
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/CMakeLists.txt")
     message(FATAL_ERROR "Missing submodule deps/ax-video-sdk. Run: git submodule update --init --recursive")
@@ -70,14 +93,30 @@ if(DEFINED AXSDK_CHIP_TYPE)
     string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_APP_PLATFORM)
     if(AXP_CHIP_APP_PLATFORM STREQUAL "axcl")
         target_compile_definitions(ax_pipeline_app PRIVATE AXPIPELINE_APP_PLATFORM_AXCL=1)
+        # AXCL: allow incomplete vendor .so dependencies (e.g. fmt/spdlog) at link time in CI/cross builds.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_pipeline_app PRIVATE -Wl,--allow-shlib-undefined)
+        endif()
         # Needed by subprocess isolation path to copy AXCL device frames to host.
-        target_link_libraries(ax_pipeline_app PRIVATE axcl_rt)
+        # Also link common AXCL module libs so ax-video-sdk's AXCL backend resolves at runtime.
+        target_link_libraries(ax_pipeline_app PRIVATE
+            axcl_rt
+            axcl_sys
+            axcl_ivps
+            axcl_vdec
+            axcl_venc
+            axcl_npu
+        )
     else()
         # When cross-building, allow unresolved MSP symbols inside dependent shared objects.
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
             target_link_options(ax_pipeline_app PRIVATE -Wl,--allow-shlib-undefined)
         endif()
     endif()
+endif()
+
+if(_AXP_NEED_STDCXXFS)
+    target_link_libraries(ax_pipeline_app PRIVATE stdc++fs)
 endif()
 
 install(TARGETS ax_pipeline_app RUNTIME DESTINATION bin)
