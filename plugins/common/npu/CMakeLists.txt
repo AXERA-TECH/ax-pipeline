@@ -44,6 +44,11 @@ if(DEFINED AXSDK_CHIP_TYPE)
     string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_NORMALIZED_PLUGIN_NPU)
     if(AXP_CHIP_NORMALIZED_PLUGIN_NPU STREQUAL "axcl")
         target_compile_definitions(ax_plugin_npu_common PUBLIC AXPIPELINE_HAVE_AXCL=1 AXPIPELINE_DEFAULT_BACKEND_AXCL=1)
+        # AXCL vendor .so may depend on optional fmt/spdlog symbols. Allow unresolved symbols at link time;
+        # they will be resolved by the runtime loader on a properly provisioned host.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_plugin_npu_common PUBLIC -Wl,--allow-shlib-undefined)
+        endif()
         # AXCL engine API (AXCL_ENGINE_*) lives in libaxcl_npu.so.
         target_link_libraries(ax_plugin_npu_common PUBLIC axcl_rt axcl_npu)
     else()

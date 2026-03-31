@@ -24,6 +24,13 @@ set(_AXP_FILESYSTEM_TEST_SRC "
     return 0;
   }")
 set(_AXP_NEED_STDCXXFS OFF)
+
+# GCC < 9 typically needs libstdc++fs. Make this the baseline, and then optionally
+# confirm via a compile+link probe (works for cross builds too).
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    set(_AXP_NEED_STDCXXFS ON)
+endif()
+
 set(CMAKE_REQUIRED_LIBRARIES "")
 check_cxx_source_compiles("${_AXP_FILESYSTEM_TEST_SRC}" _AXP_FILESYSTEM_LINKS)
 if(NOT _AXP_FILESYSTEM_LINKS)
@@ -179,7 +186,15 @@ target_link_libraries(ax_mp4_dump_annexb PRIVATE ax_video_sdk)
 
 if(DEFINED AXSDK_CHIP_TYPE)
     string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_NORMALIZED_TOOL)
-    if(NOT AXP_CHIP_NORMALIZED_TOOL STREQUAL "axcl")
+    if(AXP_CHIP_NORMALIZED_TOOL STREQUAL "axcl")
+        # Cross-linkers often do not follow DT_NEEDED dependencies when resolving symbols
+        # (no-copy-dt-needed-entries). libax_video_sdk.so is linked against AXCL libs,
+        # but the final executable still needs them on the link line to avoid undefined refs.
+        target_link_libraries(ax_mp4_dump_annexb PRIVATE ax_video_sdk::ax_msp axcl_rt axcl_sys axcl_vdec axcl_venc axcl_ivps)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_mp4_dump_annexb PRIVATE -Wl,--allow-shlib-undefined)
+        endif()
+    else()
         target_link_libraries(ax_mp4_dump_annexb PRIVATE ax_video_sdk::ax_msp)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
             target_link_options(ax_mp4_dump_annexb PRIVATE -Wl,--allow-shlib-undefined)
