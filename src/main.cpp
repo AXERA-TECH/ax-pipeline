@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <filesystem>
+#include "ax_fs.hpp"
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -53,7 +53,7 @@ void HandleSignal(int) {
 bool CheckInputUri(const std::string& uri, std::string* error) {
     if (uri.rfind("rtsp://", 0) == 0 || uri.rfind("rtsps://", 0) == 0) return true;
     std::error_code ec;
-    if (!std::filesystem::exists(uri, ec)) {
+    if (!axfs::exists(uri, ec)) {
         if (error) *error = "input path not found: " + uri;
         return false;
     }

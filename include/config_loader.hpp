@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
+#include "ax_fs.hpp"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -79,7 +79,7 @@ public:
         }
 
         AppCfg cfg{};
-        const std::filesystem::path base_dir = std::filesystem::path(path).parent_path();
+        const axfs::path base_dir = axfs::path(path).parent_path();
         if (j.contains("system")) {
             const auto& s = j["system"];
             if (!s.is_object()) return false;
@@ -114,14 +114,14 @@ public:
 private:
     using json = nlohmann::json;
 
-    static void ResolvePathsRelativeToBase(const std::filesystem::path& base_dir, PipelineCfg* cfg) {
+    static void ResolvePathsRelativeToBase(const axfs::path& base_dir, PipelineCfg* cfg) {
         if (cfg == nullptr) {
             return;
         }
 
         auto resolve = [&](std::string* p) {
             if (p == nullptr || p->empty()) return;
-            std::filesystem::path pp(*p);
+            axfs::path pp(*p);
             if (pp.is_relative() && !base_dir.empty()) {
                 *p = (base_dir / pp).lexically_normal().string();
             }
@@ -133,7 +133,7 @@ private:
                 auto j = json::parse(cfg->npu.ax_plugin_init_json);
                 if (j.is_object() && j.contains("model_path") && j["model_path"].is_string()) {
                     std::string mp = j["model_path"].get<std::string>();
-                    std::filesystem::path pp(mp);
+                    axfs::path pp(mp);
                     if (pp.is_relative()) {
                         j["model_path"] = (base_dir / pp).lexically_normal().string();
                         cfg->npu.ax_plugin_init_json = j.dump();

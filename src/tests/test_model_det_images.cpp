@@ -2,7 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
+#include "ax_fs.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -21,16 +21,16 @@ namespace {
 
 bool FileExists(const std::string& p) {
     std::error_code ec;
-    return std::filesystem::exists(p, ec);
+    return axfs::exists(p, ec);
 }
 
 std::string BasenameNoExt(const std::string& p) {
-    const std::filesystem::path pp(p);
+    const axfs::path pp(p);
     return pp.stem().string();
 }
 
 std::string JoinPath(const std::string& dir, const std::string& name) {
-    return (std::filesystem::path(dir) / name).string();
+    return (axfs::path(dir) / name).string();
 }
 
 std::string ToLower(std::string s) {
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
 
     if (save) {
         std::error_code ec;
-        std::filesystem::create_directories(out_dir, ec);
+        axfs::create_directories(out_dir, ec);
     }
 
     axvsdk::common::SystemOptions sys{};

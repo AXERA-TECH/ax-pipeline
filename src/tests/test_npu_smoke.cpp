@@ -1,6 +1,6 @@
 #include <array>
 #include <cstdint>
-#include <filesystem>
+#include "ax_fs.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -26,7 +26,7 @@ struct TestCase {
 
 bool FileExists(const std::string& p) {
     std::error_code ec;
-    return std::filesystem::exists(p, ec);
+    return axfs::exists(p, ec);
 }
 
 #if defined(AXSDK_PLATFORM_AXCL)
