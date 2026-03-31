@@ -1,61 +1,44 @@
-# This is a basic workflow to help you get started with Actions
+name: build
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: ["main"]
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chip: ax650
+            script: ./build_ax650.sh
+          - chip: ax630c
+            script: ./build_ax630c.sh
+          - chip: ax620q
+            script: ./build_ax620q.sh
+          - chip: ax620qp
+            script: ./build_ax620qp.sh
+          - chip: axcl-x86_64
+            script: ./build_axcl_x86.sh
+          - chip: axcl-aarch64
+            script: ./build_axcl_aarch64.sh
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: prepare 3rdparty
+      - name: Build (${{ matrix.chip }})
         run: |
-          git submodule update --init
+          chmod +x ./build_ax650.sh ./build_ax630c.sh ./build_ax620q.sh ./build_ax620qp.sh ./build_axcl_x86.sh ./build_axcl_aarch64.sh ./scripts/build_common.sh
+          ${{ matrix.script }}
 
-      # Runs a set of commands using the runners shell
-      - name: build for ax650
-        run: |
-          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/ax650n_bsp_sdk.tar.gz
-          tar xzvf ax650n_bsp_sdk.tar.gz && rm ax650n_bsp_sdk.tar.gz
-          cd ax650n_bsp_sdk/msp/out/
-          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/lib.tar.gz
-          tar xzvf lib.tar.gz && rm lib.tar.gz
-          cd ../../../
-          cd third-party
-          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/drm.tar.gz
-          tar xzvf drm.tar.gz && rm drm.tar.gz
-          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/libexif.tar.gz
-          tar xzvf libexif.tar.gz && rm libexif.tar.gz
-          cd ../
+      - name: Upload Artifacts (${{ matrix.chip }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: ax-pipeline-${{ matrix.chip }}
+          path: artifacts/${{ matrix.chip }}/*.tar.gz
 
-          mkdir 3rdparty && cd 3rdparty
-          wget https://github.com/ivanshi1108/assets/releases/download/3.6.2/opencv_4.5.5.tar.gz
-          tar xzvf opencv_4.5.5.tar.gz && rm opencv_4.5.5.tar.gz
-          cd ../
-
-          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
-          tar -xf gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
-          export PATH=$PATH:$PWD/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/
-          aarch64-none-linux-gnu-gcc -v
-
-          mkdir build && cd build
-          cmake -DAXERA_TARGET_CHIP=AX650 -DBSP_MSP_DIR=$PWD/../ax650n_bsp_sdk/msp/out -DOpenCV_DIR=$PWD/../3rdparty/opencv_4.5.5/lib/cmake/opencv4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-none-linux-gnu.toolchain.cmake -DCMAKE_INSTALL_PREFIX=install ..
-          make -j$(expr `nproc` - 2)
-          make install

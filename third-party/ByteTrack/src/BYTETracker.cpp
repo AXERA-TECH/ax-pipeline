@@ -9,14 +9,13 @@ BYTETracker::BYTETracker(int frame_rate, int track_buffer)
 
 	frame_id = 0;
 	max_time_lost = int(frame_rate / 30.0 * track_buffer);
-	std::cout << "Init ByteTrack!" << std::endl;
 }
 
 BYTETracker::~BYTETracker()
 {
 }
 
-std::vector<STrack> BYTETracker::update(track_object_t *objects, int len)
+std::vector<STrack> BYTETracker::update(const track_object_t *objects, int len)
 {
 
 	////////////////// Step 1: Get detections //////////////////
@@ -215,12 +214,9 @@ std::vector<STrack> BYTETracker::update(track_object_t *objects, int len)
 	{
 		this->lost_stracks.push_back(lost_stracks[i]);
 	}
-
-	this->lost_stracks = sub_stracks(this->lost_stracks, this->removed_stracks);
-	for (size_t i = 0; i < removed_stracks.size(); i++)
-	{
-		this->removed_stracks.push_back(removed_stracks[i]);
-	}
+	// Only subtract tracks removed in this frame.
+	// Keeping an unbounded removed_stracks history makes tracking slower over time.
+	this->lost_stracks = sub_stracks(this->lost_stracks, removed_stracks);
 
 	remove_duplicate_stracks(resa, resb, this->tracked_stracks, this->lost_stracks);
 

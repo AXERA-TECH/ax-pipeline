@@ -1,140 +1,177 @@
 # ax-pipeline
 
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/AXERA-TECH/ax-pipeline/main/LICENSE)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/AXERA-TECH/ax-pipeline/build.yml?branch=main)](https://github.com/AXERA-TECH/ax-pipeline/actions)
+基于 `ax-video-sdk` 的多路 pipeline 运行器示例工程(示例 app)，用于把以下链路快速跑起来:
 
-## 简介
+- `demux -> decode -> (npu + osd + tracking) -> N x (encode -> mux)`
 
-**AX-Pipeline** 由 **社区开发者友情** 开发。该项目基于 **AXera-Pi**系列社区板卡 展示 **NPU**、**编解码**、**显示** 等功能模块软件调用方法，方便社区开发者进行快速评估和二次开发自己的多媒体应用。
+本仓库目标是提供一个简单清晰的运行入口：
 
-### 已支持芯片
+- 多个 `pipeline` 并行运行
+- 每个 pipeline 固定为 `1 demux + N mux`
+- NPU 节点支持:
+  - `yolov5` / `yolov8` 检测
+  - `npu_max_fps` 限速(传 `0/-1` 关闭)
+  - OSD 画框
+  - ByteTrack 跟踪(按 `track_id` 固定亮色)
+  - 插件隔离模式:
+    - `inproc`: 进程内运行(最快)
+    - `process`: 子进程运行(插件崩溃不影响 pipeline)
+- 通过 JSON 配置定义 pipeline 行为
+- 命令行参数使用 `cmdline`
 
-- AX650A/AX650N
-- AX8850N/AX8850
+更详细文档见: [docs/README.md](docs/README.md)
 
-### 支持 SDK 版本
+## 依赖
 
-- AX650 Series
-  - v3.6.2([社区版本SDK获取方式](https://www.ebaina.com/down/240000038900))   
+- 子模块：`deps/ax-video-sdk`
+- JSON：`third-party/json/json.hpp`
+- cmdline：`third-party/cmdline/cmdline.hpp`
 
-### 已支持开发板
+## 构建
 
-- AX650N DEMO Board
-- [AXera-Pi Pro](https://wiki.sipeed.com/m4ndock)(AX650N)
+本项目构建方式对齐 `ax-video-sdk`：
 
-## 快速上手
+- 板端：`AX650`、`AX620E(AX630C/AX620Q/AX620QP)`
+- AXCL：x86_64 / aarch64
 
-### 文档
+构建脚本与 CI 会自动准备 MSP/AXCL SDK 和 toolchain。
 
-- [快速编译](docs/compile.md)  基于 cmake 实现简单的跨平台编译。
-- [如何更换自己训练的 yolov5 模型](docs/how_to_deploy_custom_yolov5_model.md)
-- [如何部署自己的其他模型](docs/how_to_deploy_custom_model.md)
-- [如何调整图像方向](docs/how_to_adjust_image_orientation.md)
-- [ModelZoo](docs/modelzoo.md) 一些支持或将支持的模型，和一些模型的说明
-- [配置文件说明](docs/config_file.md)
-- [简化版本 pipeline 构建 api](docs/new_pipeline.md)
-- [如何加速子模块的下载](docs/how_to_speed_up_submodule_init.md)
-  
-### 示例
+```bash
+# AXCL x86_64 (本机)
+./build_axcl_x86.sh
 
-| 示例 | 简介 | 流程图 |
-| - | - | - |
-| [sample_demux_ivps_npu_vo](examples/sample_demux_ivps_npu_vo) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出两路视频，一路用作屏幕显示，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_vo) |
-| [sample_demux_ivps_npu_rtsp](examples/sample_demux_ivps_npu_rtsp) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出两路视频，一路用作 RTSP 推流，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_rtsp) |
-| [sample_demux_ivps_npu_rtsp_vo](examples/sample_demux_ivps_npu_rtsp_vo) | 读取 h264/mp4/rtsp 解码，通过 IVPS 出三路视频，一路用作屏幕显示，一路用作 RTSP 推流，一路用作 NPU 推理 | [查看流程图](#sample_demux_ivps_npu_rtsp_vo) |
-| [sample_demux_ivps_npu_hdmi_vo](examples/sample_demux_ivps_npu_hdmi_vo) | 读取 h264/mp4/rtsp 解码，推理多个模型并进行 OSD 后，分屏（分屏数量等于指定模型个数）同时输出到 HDMI 屏幕 | [查看流程图](#sample_demux_ivps_npu_hdmi_vo) |
-| [sample_demux_ivps_npu_rtsp_hdmi_vo](examples/sample_demux_ivps_npu_rtsp_hdmi_vo) | 读取 h264/mp4/rtsp 解码，推理多个模型并进行 OSD 后，分屏（分屏数量等于指定模型个数）同时输出到 HDMI 屏幕和 RTSP 推流 | [查看流程图](#sample_demux_ivps_npu_rtsp_hdmi_vo) |
-| [sample_multi_demux_ivps_npu_multi_rtsp](examples/sample_multi_demux_ivps_npu_multi_rtsp) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，多路 RTSP 推流输出 | [查看流程图](#sample_multi_demux_ivps_npu_multi_rtsp) |
-| [sample_multi_demux_ivps_npu_hdmi_vo](examples/sample_multi_demux_ivps_npu_hdmi_vo) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，多路 HDMI 屏幕输出 | [查看流程图](#sample_multi_demux_ivps_npu_hdmi_vo) |
-| [sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo](examples/sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo) | 读取多路 h264/mp4/rtsp 解码，分别进行推理和 OSD 后，同时输出到多路 RTSP 推流和 HDMI 屏幕 | [查看流程图](#sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo) |
+# AXCL aarch64 (本机，例如树莓派 64 位)
+./build_axcl_aarch64.sh
 
+# AX650 (交叉编译)
+./build_ax650.sh
 
-### sample_demux_ivps_npu_vo
-```mermaid
-flowchart LR
-    A[输入: h264/mp4/rtsp] --> B[解码]
-    B --> C[IVPS 分两路]
-    C --> D[屏幕显示]
-    C --> E[NPU 推理 + OSD] --> D  
+# AX630C (交叉编译)
+./build_ax630c.sh
 ```
 
-### sample_demux_ivps_npu_rtsp
-```mermaid
-flowchart LR
-    A[输入: h264/mp4/rtsp] --> B[解码]
-    B --> C[IVPS 分两路]
-    C --> D[RTSP 推流]
-    C --> E[NPU 推理 + OSD] --> D
+## 运行
+
+示例配置文件：`configs/example.json`
+
+```bash
+./ax_pipeline_app -c configs/example.json -t 20
 ```
 
-### sample_demux_ivps_npu_rtsp_vo
+`-t 0` 表示一直运行直到 `Ctrl+C`。
+
+`configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的 `mp4` 文件路径或 `rtsp://` 地址。
+
+## 插件隔离模式：性能取舍
+
+`npu.ax_plugin_isolation` 可选：
+
+- `inproc`：插件在主进程 `dlopen` 并直接调用 C API。
+  - 优点：额外开销几乎为 0，延迟最低。
+  - 风险：插件崩溃会带崩主进程。
+- `process`：插件在子进程执行，主进程通过 IPC 交互。
+  - 优点：插件崩溃可隔离，主进程可继续转码/推流(最多丢失 AI 结果)。
+  - 代价：有 IPC 开销，并可能引入额外排队延迟；如果需要把大块数据搬到 host，开销会更明显。
+
+建议把 `inproc vs process` 纳入压测：
+
+- 同一输入视频、相同 `frame_output`、相同 `npu_max_fps`，分别跑两种隔离模式。
+- 对比 NPU 吞吐(单位时间内推理次数)和端到端 RTSP 卡顿/延迟。
+  - `inproc` 通常最佳。
+  - `process` 通常更稳但会慢一些，具体取决于你的插件实现是否发生了额外拷贝。
+
+## 参考流程图
+
+### 单模型插件 + 主程序 ByteTrack/OSD
+
+适用场景：插件只做单模型推理(如 YOLOv5/v8 检测)，跟踪与 OSD 由主程序完成(可开关)。
+
 ```mermaid
 flowchart LR
-    A[输入: h264/mp4/rtsp] --> B[解码]
-    B --> C[IVPS 分三路]
-    C --> D[屏幕显示]
-    C --> E[RTSP 推流]
-    C --> F[NPU 推理 + OSD] --> E
-    F --> D
+  A[Input URI] --> B[Demux]
+  B --> C[VDEC decode]
+  C --> D[IVPS frame_output]
+  D --> E[AsyncInfer worker]
+  E --> F[Plugin so inproc or process]
+  F --> G[Detections dets]
+  G --> H[ByteTrack in main optional]
+  H --> I[Tracks track_id boxes]
+  I --> J[OSD draw SetOsd async]
+  C --> K[Fanout to N branches]
+  J --> K
+  K --> L[VENC encode]
+  L --> M[Mux mp4 or rtsp]
 ```
 
-### sample_demux_ivps_npu_rtsp_hdmi_vo
+### 关闭主程序 Track：插件内部实现算法链路
+
+适用场景：用户希望在插件内做完整链路(检测 + 跟踪 + 分类/属性等)，主程序只负责媒体链路与可选的 OSD 展示。
+
 ```mermaid
 flowchart LR
-    A[输入: h264/mp4/rtsp] --> B[解码]
-    B --> C[NPU 推理 + OSD]
-    B --> E[分屏输出]
-    B --> G[RTSP 推流]
-    C --> E
-    C --> G
+  A[Input URI] --> B[Demux]
+  B --> C[VDEC decode]
+  C --> D[IVPS frame_output]
+  D --> E[AsyncInfer worker]
+  E --> F[Plugin so algorithm pipeline]
+  F --> G1[Det]
+  G1 --> G2[Track inside plugin]
+  G2 --> G3[Crop resize device preferred]
+  G3 --> G4[Cls Attr]
+  G4 --> R[Result tracks with id label score box]
+  R --> O[Optional OSD in main]
+  C --> K[Fanout to N branches]
+  O --> K
+  K --> L[VENC encode]
+  L --> M[Mux mp4 or rtsp]
 ```
 
-### sample_multi_demux_ivps_npu_multi_rtsp
-```mermaid
-flowchart LR
-    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
-    B --> C[多路 NPU 推理 + OSD]
-    B --> E[多路 RTSP 推流]
-    C --> E
+## 配置格式（简化）
+
+```json
+{
+  "system": { "device_id": -1 },
+  "pipelines": [
+    {
+      "name": "p0",
+      "device_id": -1,
+      "uri": "xxx.mp4 或 rtsp://...",
+      "realtime_playback": false,
+      "loop_playback": false,
+      "frame_output": {
+        "format": "bgr",
+        "width": 640,
+        "height": 640,
+        "resize": { "mode": "keep_aspect", "background_color": 0 }
+      },
+      "outputs": [
+        { "codec": "h264", "uris": ["/tmp/out.mp4", "rtsp://..."] }
+      ],
+      "npu_max_fps": 20,
+      "npu": {
+        "enable": true,
+        "enable_osd": true,
+        "enable_tracking": true,
+        "track_buffer": 30,
+        "ax_plugin_path": "/path/to/libax_plugin_yolov8.so",
+        "ax_plugin_isolation": "inproc",
+        "ax_plugin_init_info": {
+          "model_path": "models/ax650/yolov8s.axmodel",
+          "num_classes": 80,
+          "conf_threshold": 0.25,
+          "nms_threshold": 0.45
+        }
+      },
+      "log_every_n_frames": 30
+    }
+  ]
+}
 ```
 
-### sample_multi_demux_ivps_npu_hdmi_vo
-```mermaid
-flowchart LR
-    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
-    B --> C[多路 NPU 推理 + OSD]
-    B --> E[多路 HDMI 输出]
-    C --> E
+## 测试
+
+```bash
+cmake -S . -B build -DAXSDK_CHIP_TYPE=axcl -DAXSDK_AXCL_DIR=/usr
+cmake --build build -j
+ctest --test-dir build -V
 ```
-
-### sample_multi_demux_ivps_npu_multi_rtsp_hdmi_vo
-```mermaid
-flowchart LR
-    A[多路输入: h264/mp4/rtsp] --> B[多路解码]
-    B --> C[多路 NPU 推理 + OSD]
-    C --> E[多路 RTSP 推流]
-    C --> F[多路 HDMI 输出]
-    B --> E
-    B --> F
-```
-
-## 更新日志
-
-详情请看 [更新日志](docs/update.md)
-
-## 联动项目
-
-- [ax-samples](https://github.com/AXERA-TECH/ax-samples)：该项目实现了常见的 深度学习开源算法 在 爱芯元智 的 AI SoC 上的示例代码，方便社区开发者进行快速评估和适配
-- [基于 AX650N 部署 YOLO11](https://zhuanlan.zhihu.com/p/772269394)
-- [基于 AX620Q 部署 YOLOv8](https://zhuanlan.zhihu.com/p/683050593)
-- [NPU工具链在线文档](https://pulsar2-docs.readthedocs.io/zh_CN/latest/)
-- [NPU工具链获取](https://huggingface.co/AXERA-TECH/Pulsar2)
-
-## 技术讨论
-
-- Github issues
-- QQ 群: 139953715
-
-## **免责声明**
-
-*本项目仅用于开发者社区技术交流使用，无任何商业交付质量承诺*

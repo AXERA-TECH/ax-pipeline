@@ -1,5 +1,7 @@
 #include "STrack.h"
 
+#include <atomic>
+
 STrack::STrack(std::vector<float> tlwh_, float _score, void *_user_data)
 {
 	_tlwh.resize(4);
@@ -170,9 +172,8 @@ void STrack::mark_removed()
 
 int STrack::next_id()
 {
-	static int _count = 0;
-	_count++;
-	return _count;
+	static std::atomic<int> _count{0};
+	return ++_count;
 }
 
 int STrack::end_frame()

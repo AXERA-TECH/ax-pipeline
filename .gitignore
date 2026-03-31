@@ -33,6 +33,15 @@
 
 # Folder
 3rdparty
-build*
+build*/
+!build_*.sh
 .vscode
 *bsp*
+.ci/
+artifacts/
+/tmp/
+/models/
+
+# Local test/demo configs (keep the shipped example.json tracked)
+configs/test_*.json
+configs/demo_*.json

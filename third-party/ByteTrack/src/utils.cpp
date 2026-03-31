@@ -288,8 +288,13 @@ double BYTETracker::lapjv(const std::vector<std::vector<float>> &cost, std::vect
 		if (!extend_cost)
 		{
 			std::cout << "set extend_cost=True" << std::endl;
-			system("pause");
-			exit(0);
+			for (int i = 0; i < n_rows; ++i) {
+				rowsol[i] = -1;
+			}
+			for (int i = 0; i < n_cols; ++i) {
+				colsol[i] = -1;
+			}
+			return 0.0;
 		}
 	}
 
@@ -350,9 +355,9 @@ double BYTETracker::lapjv(const std::vector<std::vector<float>> &cost, std::vect
 	}
 
 	double **cost_ptr;
-	cost_ptr = new double *[sizeof(double *) * n];
+	cost_ptr = new double *[n];
 	for (int i = 0; i < n; i++)
-		cost_ptr[i] = new double[sizeof(double) * n];
+		cost_ptr[i] = new double[n];
 
 	for (int i = 0; i < n; i++)
 	{
@@ -362,15 +367,27 @@ double BYTETracker::lapjv(const std::vector<std::vector<float>> &cost, std::vect
 		}
 	}
 
-	int *x_c = new int[sizeof(int) * n];
-	int *y_c = new int[sizeof(int) * n];
+	int *x_c = new int[n];
+	int *y_c = new int[n];
 
 	int ret = lapjv_internal(n, cost_ptr, x_c, y_c);
 	if (ret != 0)
 	{
 		std::cout << "Calculate Wrong!" << std::endl;
-		system("pause");
-		exit(0);
+		for (int i = 0; i < n_rows; ++i) {
+			rowsol[i] = -1;
+		}
+		for (int i = 0; i < n_cols; ++i) {
+			colsol[i] = -1;
+		}
+		for (int i = 0; i < n; i++)
+		{
+			delete[] cost_ptr[i];
+		}
+		delete[] cost_ptr;
+		delete[] x_c;
+		delete[] y_c;
+		return 0.0;
 	}
 
 	double opt = 0.0;
