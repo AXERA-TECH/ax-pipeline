@@ -123,7 +123,7 @@ private:
             if (p == nullptr || p->empty()) return;
             axfs::path pp(*p);
             if (pp.is_relative() && !base_dir.empty()) {
-                *p = (base_dir / pp).lexically_normal().string();
+                *p = axfs_compat::LexicallyNormal(base_dir / pp).string();
             }
         };
 
@@ -135,7 +135,7 @@ private:
                     std::string mp = j["model_path"].get<std::string>();
                     axfs::path pp(mp);
                     if (pp.is_relative()) {
-                        j["model_path"] = (base_dir / pp).lexically_normal().string();
+                        j["model_path"] = axfs_compat::LexicallyNormal(base_dir / pp).string();
                         cfg->npu.ax_plugin_init_json = j.dump();
                     }
                 }
