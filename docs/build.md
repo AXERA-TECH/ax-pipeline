@@ -2,13 +2,13 @@
 
 本项目构建脚本对齐 `ax-video-sdk` 的策略: 自动下载/缓存 MSP 或 AXCL SDK；交叉编译场景会自动准备 toolchain。
 
-## 本机(AXCL x86_64)
+## 板端(AXCL x86_64)
 
 ```bash
 ./build_axcl_x86.sh
 ```
 
-## 本机(AXCL aarch64，例如树莓派 64 位)
+## 板端(AXCL aarch64，例如树莓派 64 位)
 
 在 aarch64 主机上执行该脚本会默认走本机 `g++`（不会下载 x86_64 交叉工具链）。
 
@@ -16,7 +16,7 @@
 ./build_axcl_aarch64.sh
 ```
 
-## 板端(交叉编译)
+## 主机端(交叉编译)
 
 AX650:
 
