@@ -1,4 +1,4 @@
 [submodule "deps/ax-video-sdk"]
 	path = deps/ax-video-sdk
-	url = git@github.com:AXERA-TECH/ax-video-sdk.git
+	url = https://github.com/AXERA-TECH/ax-video-sdk.git
 	branch = main
