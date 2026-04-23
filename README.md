@@ -21,6 +21,20 @@
 
 更详细文档见: [docs/README.md](docs/README.md)
 
+## 获取源码（包含子模块）
+
+本项目依赖 git 子模块（例如 `deps/ax-video-sdk`），建议使用递归克隆：
+
+```bash
+git clone --recurse-submodules <repo_url>
+```
+
+如果你已经克隆过仓库但子模块未拉全，可执行：
+
+```bash
+git submodule update --init --recursive
+```
+
 ## 依赖
 
 - 子模块：`deps/ax-video-sdk`
@@ -61,6 +75,18 @@
 `-t 0` 表示一直运行直到 `Ctrl+C`。
 
 `configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的 `mp4` 文件路径或 `rtsp://` 地址。
+
+### 仅解码/AI 模式（`outputs` 可为空）
+
+如果用户只想 **拉流/读文件解码**（可选 NPU 推理），不需要编码推流/落盘，可以：
+
+- 省略 `outputs` 字段，或配置为空数组 `[]`
+
+此时 pipeline 链路为：
+
+- `demux -> decode -> (可选 npu)`
+
+注意：没有编码输出时，即使开启了 `npu.enable_osd=true`，OSD 也不会出现在可播放的输出流上（OSD 仅作用在编码路径）。
 
 ## 插件隔离模式：性能取舍
 
