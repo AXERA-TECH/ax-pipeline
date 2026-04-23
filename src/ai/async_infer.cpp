@@ -76,8 +76,6 @@ void AsyncInfer::SetCallbacks(ResultCallback on_result, ErrorCallback on_error) 
 
 void AsyncInfer::ThreadMain() {
     for (;;) {
-        axvsdk::common::AxImage::Ptr frame;
-        std::uint64_t seq = 0;
         ResultCallback on_result;
         ErrorCallback on_error;
 
@@ -85,16 +83,23 @@ void AsyncInfer::ThreadMain() {
             std::unique_lock<std::mutex> lock(mu_);
             cv_.wait(lock, [&]() { return stop_ || pending_ != nullptr; });
             if (stop_) return;
-            frame = std::move(pending_);
-            seq = pending_seq_;
-            pending_seq_ = 0;
             on_result = on_result_;
             on_error = on_error_;
         }
 
-        if (!frame) continue;
-
         limiter_.Throttle();
+
+        axvsdk::common::AxImage::Ptr frame;
+        std::uint64_t seq = 0;
+        {
+            std::lock_guard<std::mutex> lock(mu_);
+            if (stop_) return;
+            // After throttling, always infer on the newest available frame (best-effort sampling).
+            frame = std::move(pending_);
+            seq = pending_seq_;
+            pending_seq_ = 0;
+        }
+        if (!frame) continue;
 
         std::vector<Detection> dets;
         std::string err;

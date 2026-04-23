@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <thread>
 class FpsController {

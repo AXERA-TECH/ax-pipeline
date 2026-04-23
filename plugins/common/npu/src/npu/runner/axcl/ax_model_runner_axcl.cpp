@@ -407,7 +407,19 @@ void ax_runner_axcl::deinit()
 
 int ax_runner_axcl::set_affinity(int id)
 {
-    return axcl_EngineSetAffinity(m_handle->handle, id, _devid);
+    const int ret = axcl_EngineSetAffinity(m_handle->handle, id, _devid);
+    if (ret != 0) {
+        ALOGE("axcl_EngineSetAffinity failed ret=0x%x set=0x%x devid=%d", ret, id, _devid);
+        return ret;
+    }
+    axclrtEngineSet got = 0;
+    const int gret = axcl_EngineGetAffinity(m_handle->handle, &got, _devid);
+    if (gret != 0) {
+        ALOGE("axcl_EngineGetAffinity failed ret=0x%x devid=%d", gret, _devid);
+    } else {
+        ALOGI("axcl affinity set=0x%x got=0x%x devid=%d", id, static_cast<unsigned int>(got), _devid);
+    }
+    return ret;
 }
 
 int ax_runner_axcl::sync_input(int idx)

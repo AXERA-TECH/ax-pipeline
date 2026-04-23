@@ -70,8 +70,14 @@ private:
         // Initialize AXCL engine once for this worker thread context.
         // AXCL engine APIs used below (AXCL_ENGINE_*) require this on some installs.
         AX_ENGINE_NPU_ATTR_T npu_attr{};
-        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-        const int eng_ret = AXCL_ENGINE_Init(&npu_attr);
+        // For NPU affinity/multi-core, MSP samples recommend using VNPU STD.
+        // Try STD first, then fallback to DISABLE for older installs.
+        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
+        int eng_ret = AXCL_ENGINE_Init(&npu_attr);
+        if (eng_ret != 0) {
+            npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+            eng_ret = AXCL_ENGINE_Init(&npu_attr);
+        }
         if (eng_ret != 0) {
             ALOGE("AXCL_ENGINE_Init failed{0x%8x}.", eng_ret);
             (void)axclrtDestroyContext(ctx);

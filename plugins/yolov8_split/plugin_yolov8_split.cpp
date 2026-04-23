@@ -3,7 +3,6 @@
 #include "ax_plugin/ax_plugin.h"
 
 #include <atomic>
-#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -52,7 +51,7 @@ std::uint32_t NextNpuAffinityMask3() {
 }
 
 struct PluginCtx {
-    axpipeline::npu::AxModelYoloV8Native model;
+    axpipeline::npu::AxModelYoloV8Split model;
     std::vector<ax_plugin_det_t> out_dets;
 
     bool debug_timing{false};
@@ -165,7 +164,8 @@ int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t*
     if (j.contains("vertical_align") && j["vertical_align"].is_string()) {
         opt.base.v_align = ParseResizeAlign(j["vertical_align"].get<std::string>());
     }
-    if (j.contains("background_color") && (j["background_color"].is_number_unsigned() || j["background_color"].is_number_integer())) {
+    if (j.contains("background_color") &&
+        (j["background_color"].is_number_unsigned() || j["background_color"].is_number_integer())) {
         const auto v = j["background_color"].get<std::int64_t>();
         if (v >= 0) opt.base.background_color = static_cast<std::uint32_t>(v);
     }
@@ -232,7 +232,7 @@ int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t*
             fmt = "unknown";
             break;
         }
-        std::fprintf(stderr, "[ax_plugin_yolov8] model input: w=%u h=%u fmt=%s\n", in.width, in.height, fmt);
+        std::fprintf(stderr, "[ax_plugin_yolov8_split] model input: w=%u h=%u fmt=%s\n", in.width, in.height, fmt);
     }
 
     *out_handle = reinterpret_cast<ax_plugin_handle_t>(ctx.release());
@@ -263,9 +263,9 @@ int ax_plugin_infer(ax_plugin_handle_t handle,
     axpipeline::npu::RunTimings* tm_ptr = ctx->debug_timing ? &tm : nullptr;
     if (!ctx->model.Infer(*frame, &dets, &err, tm_ptr)) {
         if (!err.empty()) {
-            std::fprintf(stderr, "[ax_plugin_yolov8] Infer failed: %s\n", err.c_str());
+            std::fprintf(stderr, "[ax_plugin_yolov8_split] Infer failed: %s\n", err.c_str());
         } else {
-            std::fprintf(stderr, "[ax_plugin_yolov8] Infer failed\n");
+            std::fprintf(stderr, "[ax_plugin_yolov8_split] Infer failed\n");
         }
         return -3;
     }
@@ -285,7 +285,7 @@ int ax_plugin_infer(ax_plugin_handle_t handle,
             const auto post = ctx->timing_post_sum_us / n;
             const auto total = ctx->timing_total_sum_us / n;
             std::fprintf(stderr,
-                         "[ax_plugin_yolov8] timing avg_us{pre=%llu infer=%llu post=%llu total=%llu} n=%llu\n",
+                         "[ax_plugin_yolov8_split] timing avg_us{pre=%llu infer=%llu post=%llu total=%llu} n=%llu\n",
                          static_cast<unsigned long long>(pre),
                          static_cast<unsigned long long>(inf),
                          static_cast<unsigned long long>(post),

@@ -40,8 +40,14 @@ int EngineAcquire() {
     if (g_engine_refcnt == 0) {
         AX_ENGINE_NPU_ATTR_T npu_attr;
         memset(&npu_attr, 0, sizeof(npu_attr));
-        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-        const int ret = AX_ENGINE_Init(&npu_attr);
+        // For NPU affinity/multi-core, MSP samples recommend using VNPU STD.
+        // Try STD first, then fallback to DISABLE for older installs.
+        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
+        int ret = AX_ENGINE_Init(&npu_attr);
+        if (ret != 0) {
+            npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+            ret = AX_ENGINE_Init(&npu_attr);
+        }
         if (ret != 0) {
             ALOGE("AX_ENGINE_Init failed ret=%d", ret);
             return ret;
@@ -333,6 +339,11 @@ int ax_runner_ax650::init(const void *model_data, unsigned int model_size, int d
     }
     // fprintf(stdout, "Engine creating handle is done.\n");
 
+    // NOTE: Some engine versions require setting affinity before CreateContext.
+    if (_init_affinity != 0) {
+        (void)set_affinity(_init_affinity);
+    }
+
     // 4. create context
     ret = AX_ENGINE_CreateContext(m_handle->handle);
     if (0 != ret)
@@ -484,7 +495,19 @@ void ax_runner_ax650::deinit()
 
 int ax_runner_ax650::set_affinity(int id)
 {
-    return AX_ENGINE_SetAffinity(m_handle->handle, id);
+    const int ret = AX_ENGINE_SetAffinity(m_handle->handle, id);
+    if (ret != 0) {
+        ALOGE("AX_ENGINE_SetAffinity failed ret=%d set=0x%x", ret, id);
+        return ret;
+    }
+    AX_ENGINE_NPU_SET_T got = 0;
+    const int gret = AX_ENGINE_GetAffinity(m_handle->handle, &got);
+    if (gret != 0) {
+        ALOGE("AX_ENGINE_GetAffinity failed ret=%d", gret);
+    } else {
+        ALOGI("AX_ENGINE affinity set=0x%x got=0x%x", id, static_cast<unsigned int>(got));
+    }
+    return ret;
 }
 
 // int ax_runner_ax650::mem_sync_input(int idx)

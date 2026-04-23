@@ -220,12 +220,24 @@ bool AxModelBase::Init(const ModelInitOptions& opt, std::string* error) {
     }
 #endif
 
+    if (opt_.npu_affinity != 0) {
+        // Some backends require affinity to be set before context creation (during runner init).
+        runner_->runner->set_init_affinity(static_cast<int>(opt_.npu_affinity));
+    }
+
     const int ret = runner_->runner->init(model_bytes_.data(),
                                           static_cast<unsigned int>(model_bytes_.size()),
                                           opt_.device_id);
     if (ret != 0) {
         if (error) *error = "runner init failed: ret=" + std::to_string(ret);
         return false;
+    }
+
+    if (opt_.npu_affinity != 0) {
+        // AXCL uses runtime APIs that may apply affinity after load; MSP prefers pre-init.
+        if (runner_->backend == BackendType::kAxcl) {
+            (void)runner_->runner->set_affinity(static_cast<int>(opt_.npu_affinity));
+        }
     }
 
     // Infer model input spec from runner input tensor.

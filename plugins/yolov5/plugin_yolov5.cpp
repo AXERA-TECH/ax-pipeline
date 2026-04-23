@@ -2,6 +2,7 @@
 
 #include "ax_plugin/ax_plugin.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <string>
@@ -147,6 +148,17 @@ int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t*
     }
     if (j.contains("nms_threshold") && j["nms_threshold"].is_number()) {
         opt.nms_threshold = static_cast<float>(j["nms_threshold"].get<double>());
+    }
+    if (j.contains("pre_nms_topk") && j["pre_nms_topk"].is_number_integer()) {
+        const int v = j["pre_nms_topk"].get<int>();
+        if (v >= 0) opt.pre_nms_topk = v;
+    }
+    if (j.contains("max_det") && j["max_det"].is_number_integer()) {
+        const int v = j["max_det"].get<int>();
+        if (v >= 0) opt.max_det = v;
+    }
+    if (j.contains("class_agnostic_nms") && j["class_agnostic_nms"].is_boolean()) {
+        opt.class_agnostic_nms = j["class_agnostic_nms"].get<bool>();
     }
     if (j.contains("strides") && j["strides"].is_array()) {
         opt.strides.clear();

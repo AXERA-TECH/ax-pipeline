@@ -14,6 +14,13 @@ struct YoloDetOptions {
     int num_classes{80};
     float conf_threshold{0.25F};
     float nms_threshold{0.45F};
+    // NMS behavior:
+    // - pre_nms_topk: keep only top-K candidates by score before NMS (0 = disabled).
+    // - max_det: stop once this many detections are kept after NMS (0 = disabled).
+    // - class_agnostic_nms: when true, boxes of different classes can suppress each other.
+    int pre_nms_topk{1000};
+    int max_det{300};
+    bool class_agnostic_nms{false};
 
     // Common YOLO strides, ordered to match output tensors.
     std::vector<int> strides{8, 16, 32};
@@ -46,6 +53,27 @@ private:
 };
 
 class AxModelYoloV8Native final : public AxModelBase {
+public:
+    bool Init(const YoloDetOptions& opt, std::string* error);
+
+private:
+    bool ValidateModel(std::string* error) override;
+    bool Postprocess(const std::vector<TensorView>& outputs,
+                     const LetterboxInfo& lb,
+                     std::uint32_t src_w,
+                     std::uint32_t src_h,
+                     std::vector<Detection>* out,
+                     std::string* error) override;
+
+    YoloDetOptions opt_{};
+};
+
+// YOLOv8 head with split outputs per stride: bbox(reg) and cls are separate tensors.
+// Expected outputs:
+// - 2 tensors per stride (order can be arbitrary):
+//   - reg: channels = 4 * yolov8_reg_max
+//   - cls: channels = num_classes
+class AxModelYoloV8Split final : public AxModelBase {
 public:
     bool Init(const YoloDetOptions& opt, std::string* error);
 

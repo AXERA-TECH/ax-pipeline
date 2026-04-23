@@ -51,6 +51,10 @@ struct ModelInitOptions {
     axvsdk::common::ResizeAlign h_align{axvsdk::common::ResizeAlign::kCenter};
     axvsdk::common::ResizeAlign v_align{axvsdk::common::ResizeAlign::kCenter};
     std::uint32_t background_color{0};  // 0xRRGGBB
+
+    // MSP (AX650/AX620E-family) only: NPU affinity bitmask (e.g. 0b001/0b010/0b100).
+    // 0 means "leave default".
+    std::uint32_t npu_affinity{0};
 };
 
 struct RunTimings {

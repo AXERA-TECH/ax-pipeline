@@ -111,6 +111,10 @@ int main(int argc, char** argv) {
     pipelines.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> counters;
     counters.reserve(cfg.pipelines.size());
+    std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> npu_ok_counts;
+    npu_ok_counts.reserve(cfg.pipelines.size());
+    std::vector<std::shared_ptr<std::atomic<std::uint64_t>>> npu_err_counts;
+    npu_err_counts.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<axpipeline::ai::AsyncInfer>> npu_workers;
     npu_workers.reserve(cfg.pipelines.size());
     std::vector<std::shared_ptr<FrameInfo>> frame_infos;
@@ -133,6 +137,8 @@ int main(int argc, char** argv) {
 
         std::shared_ptr<axpipeline::ai::AsyncInfer> npu_worker;
         std::shared_ptr<axpipeline::tracking::ByteTrack> tracker;
+        std::shared_ptr<std::atomic<std::uint64_t>> npu_ok;
+        std::shared_ptr<std::atomic<std::uint64_t>> npu_err;
         auto fi = std::make_shared<FrameInfo>();
         if (p.npu.enable) {
             axpipeline::ai::AsyncInferOptions nopt{};
@@ -162,6 +168,9 @@ int main(int argc, char** argv) {
             }
 
             if (npu_worker) {
+                npu_ok = std::make_shared<std::atomic<std::uint64_t>>(0);
+                npu_err = std::make_shared<std::atomic<std::uint64_t>>(0);
+
                 auto* pipe_ptr = pipe.get();
                 const auto resize_opts = p.sdk.frame_output.resize;
                 npu_worker->SetCallbacks(
@@ -171,7 +180,11 @@ int main(int argc, char** argv) {
                  fi,
                  resize_opts,
                  enable_osd = p.npu.enable_osd,
+                 npu_ok,
                  tracker](const std::vector<axpipeline::ai::Detection>& dets_infer, std::uint64_t seq) {
+                    if (npu_ok) {
+                        npu_ok->fetch_add(1, std::memory_order_relaxed);
+                    }
                     std::vector<axpipeline::ai::Detection> dets = dets_infer;
                     const auto sw = fi->source_w.load(std::memory_order_relaxed);
                     const auto sh = fi->source_h.load(std::memory_order_relaxed);
@@ -262,13 +275,18 @@ int main(int argc, char** argv) {
                         }
                     }
                 },
-                [name = p.name, idx = i](const std::string& e, std::uint64_t seq) {
+                [name = p.name, idx = i, npu_err](const std::string& e, std::uint64_t seq) {
+                    if (npu_err) {
+                        npu_err->fetch_add(1, std::memory_order_relaxed);
+                    }
                     std::cerr << "[npu pipeline=" << name << " idx=" << idx << "] seq=" << seq
                               << " error=" << e << "\n";
                 });
             }
         }
         npu_workers.push_back(npu_worker);
+        npu_ok_counts.push_back(npu_ok);
+        npu_err_counts.push_back(npu_err);
         frame_infos.push_back(fi);
         auto dumped = std::make_shared<std::atomic<bool>>(false);
         dumped_first_frames.push_back(dumped);
@@ -349,6 +367,12 @@ int main(int argc, char** argv) {
                 const auto st = pipelines[i]->GetStats();
                 std::cout << "[stats idx=" << i << "] decoded=" << st.decoded_frames
                           << " submit_fail=" << st.branch_submit_failures;
+                if (i < npu_ok_counts.size() && npu_ok_counts[i]) {
+                    std::cout << " npu_ok=" << npu_ok_counts[i]->load(std::memory_order_relaxed);
+                }
+                if (i < npu_err_counts.size() && npu_err_counts[i]) {
+                    std::cout << " npu_err=" << npu_err_counts[i]->load(std::memory_order_relaxed);
+                }
                 for (std::size_t j = 0; j < st.output_stats.size(); ++j) {
                     std::cout << " out" << j << "{"
                               << "submitted=" << st.output_stats[j].submitted_frames

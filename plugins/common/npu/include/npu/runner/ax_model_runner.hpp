@@ -31,8 +31,12 @@ protected:
     std::map<std::string, std::vector<ax_runner_tensor_t>> map_group_input_tensors;
 
     int _devid = 0;
+    int _init_affinity = 0;
 
 public:
+    void set_init_affinity(int id) { _init_affinity = id; }
+    int init_affinity() const noexcept { return _init_affinity; }
+
     virtual int init(const void* model_data, unsigned int model_size, int devid) = 0;
     virtual void deinit() = 0;
     virtual int set_affinity(int id) { return -1; };
