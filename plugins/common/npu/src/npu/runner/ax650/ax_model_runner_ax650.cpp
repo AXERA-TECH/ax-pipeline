@@ -40,11 +40,20 @@ int EngineAcquire() {
     if (g_engine_refcnt == 0) {
         AX_ENGINE_NPU_ATTR_T npu_attr;
         memset(&npu_attr, 0, sizeof(npu_attr));
-        // For NPU affinity/multi-core, MSP samples recommend using VNPU STD.
-        // Try STD first, then fallback to DISABLE for older installs.
+        // NOTE:
+        // - AX650 MSP defines AX_ENGINE_VIRTUAL_NPU_STD (plus other VNPU modes).
+        // - AX620E/20E-series MSP defines AX_ENGINE_VIRTUAL_NPU_ENABLE instead.
+        // Pick the best available mode at compile time, then fallback to DISABLE.
+#if defined(AX_ENGINE_VIRTUAL_NPU_STD)
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
+#elif defined(AX_ENGINE_VIRTUAL_NPU_ENABLE)
+        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_ENABLE;
+#else
+        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+#endif
+
         int ret = AX_ENGINE_Init(&npu_attr);
-        if (ret != 0) {
+        if (ret != 0 && npu_attr.eHardMode != AX_ENGINE_VIRTUAL_NPU_DISABLE) {
             npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
             ret = AX_ENGINE_Init(&npu_attr);
         }
