@@ -11,4 +11,4 @@
 - 构建与部署: [build.md](build.md)
 - 配置格式(JSON): [config.md](config.md)
 - RTSP 预览与排障: [rtsp.md](rtsp.md)
-
+- 性能压测记录: [bench.md](bench.md)
