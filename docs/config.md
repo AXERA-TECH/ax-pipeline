@@ -23,6 +23,13 @@
 - MSP 板端通常保持 `-1`
 - AXCL 建议显式指定默认卡，pipeline 级别也可单独覆盖 `device_id`
 
+`system.vdec_max_group_count` / `system.venc_total_thread_num`:
+
+- 属于底层模块初始化参数；一般保持默认即可
+- 当需要起大量 pipeline（例如 AX650/AXCL 32 路解码、16 路编码）时可显式调大
+- `ax_pipeline_app` 会在 `enable_vdec=true` 时，把 `vdec_max_group_count` 自动提升到至少 `pipelines.size()`
+- `venc_total_thread_num` 当前不会自动提升（部分平台把该值设得过大可能触发 `AX_VENC_Init failed`），需要时请手动配置
+
 ## Pipeline
 
 ```jsonc
@@ -97,6 +104,13 @@
 
 - MP4: `"/tmp/out.mp4"`
 - RTSP: `"rtsp://0.0.0.0:8554/stream_name"`
+
+### 不配置 `outputs`（仅解码/AI）
+
+`outputs` 字段可以省略或配置为空数组 `[]`。此时 pipeline 只会做 `demux -> decode -> (可选 npu)`：
+
+- 不会启动编码/推流，也不会写文件
+- 如果开启了 `npu.enable_osd`，由于没有编码输出，OSD 不会被“画到”任何可播放的输出流上
 
 ### `npu_max_fps`
 

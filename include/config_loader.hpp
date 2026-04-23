@@ -87,6 +87,8 @@ public:
             if (!GetOptBool(s, "enable_vdec", &cfg.system.enable_vdec)) return false;
             if (!GetOptBool(s, "enable_venc", &cfg.system.enable_venc)) return false;
             if (!GetOptBool(s, "enable_ivps", &cfg.system.enable_ivps)) return false;
+            if (!GetOptU32(s, "vdec_max_group_count", &cfg.system.vdec_max_group_count)) return false;
+            if (!GetOptU32(s, "venc_total_thread_num", &cfg.system.venc_total_thread_num)) return false;
         }
 
         if (!j.contains("pipelines") || !j["pipelines"].is_array() || j["pipelines"].empty()) {
@@ -329,45 +331,47 @@ private:
         // frame_output is always honored. When NPU input differs from the decoder source space,
         // ax-pipeline should map detections back to source coordinates before OSD/tracking.
 
-        if (!j.contains("outputs") || !j["outputs"].is_array() || j["outputs"].empty()) return false;
         out->sdk.outputs.clear();
-        for (const auto& o : j["outputs"]) {
-            if (!o.is_object()) return false;
-            axvsdk::pipeline::PipelineOutputConfig oc{};
+        if (j.contains("outputs")) {
+            if (!j["outputs"].is_array()) return false;
+            for (const auto& o : j["outputs"]) {
+                if (!o.is_object()) return false;
+                axvsdk::pipeline::PipelineOutputConfig oc{};
 
-            std::string codec;
-            if (!GetOptString(o, "codec", &codec)) return false;
-            if (!codec.empty()) {
-                oc.codec = ParseVideoCodec(codec);
-                if (oc.codec == axvsdk::codec::VideoCodecType::kUnknown) return false;
-            }
-
-            if (!GetOptU32(o, "width", &oc.width) ||
-                !GetOptU32(o, "height", &oc.height) ||
-                !GetOptDouble(o, "frame_rate", &oc.frame_rate) ||
-                !GetOptU32(o, "bitrate_kbps", &oc.bitrate_kbps) ||
-                !GetOptU32(o, "gop", &oc.gop) ||
-                !GetOptSizeT(o, "input_queue_depth", &oc.input_queue_depth)) {
-                return false;
-            }
-
-            std::string overflow;
-            if (!GetOptString(o, "overflow_policy", &overflow)) return false;
-            if (!overflow.empty()) oc.overflow_policy = ParseOverflowPolicy(overflow);
-
-            if (o.contains("resize")) {
-                if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
-            }
-
-            if (o.contains("uris")) {
-                if (!o["uris"].is_array()) return false;
-                for (const auto& u : o["uris"]) {
-                    if (!u.is_string()) return false;
-                    oc.uris.push_back(u.get<std::string>());
+                std::string codec;
+                if (!GetOptString(o, "codec", &codec)) return false;
+                if (!codec.empty()) {
+                    oc.codec = ParseVideoCodec(codec);
+                    if (oc.codec == axvsdk::codec::VideoCodecType::kUnknown) return false;
                 }
-            }
 
-            out->sdk.outputs.push_back(std::move(oc));
+                if (!GetOptU32(o, "width", &oc.width) ||
+                    !GetOptU32(o, "height", &oc.height) ||
+                    !GetOptDouble(o, "frame_rate", &oc.frame_rate) ||
+                    !GetOptU32(o, "bitrate_kbps", &oc.bitrate_kbps) ||
+                    !GetOptU32(o, "gop", &oc.gop) ||
+                    !GetOptSizeT(o, "input_queue_depth", &oc.input_queue_depth)) {
+                    return false;
+                }
+
+                std::string overflow;
+                if (!GetOptString(o, "overflow_policy", &overflow)) return false;
+                if (!overflow.empty()) oc.overflow_policy = ParseOverflowPolicy(overflow);
+
+                if (o.contains("resize")) {
+                    if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
+                }
+
+                if (o.contains("uris")) {
+                    if (!o["uris"].is_array()) return false;
+                    for (const auto& u : o["uris"]) {
+                        if (!u.is_string()) return false;
+                        oc.uris.push_back(u.get<std::string>());
+                    }
+                }
+
+                out->sdk.outputs.push_back(std::move(oc));
+            }
         }
 
         return true;

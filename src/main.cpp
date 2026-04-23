@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -93,6 +94,12 @@ int main(int argc, char** argv) {
     // RTSP clients may disconnect at any time; avoid process termination on SIGPIPE.
     std::signal(SIGPIPE, SIG_IGN);
 #endif
+
+    if (cfg.system.enable_vdec) {
+        cfg.system.vdec_max_group_count =
+            std::max<std::uint32_t>(cfg.system.vdec_max_group_count,
+                                    static_cast<std::uint32_t>(cfg.pipelines.size()));
+    }
 
     if (!axvsdk::common::InitializeSystem(cfg.system)) {
         std::cerr << "InitializeSystem failed\n";
