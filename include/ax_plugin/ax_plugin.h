@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-#define AX_PLUGIN_API_VERSION 1
+#define AX_PLUGIN_API_VERSION 2
 
 typedef enum ax_plugin_pixel_format_e {
     AX_PLUGIN_PIXEL_FORMAT_UNKNOWN = 0,
@@ -54,6 +54,8 @@ typedef struct ax_plugin_det_t {
     float y1;
     float score;
     int32_t class_id;
+    // Stable object id from tracker. -1 means "not available".
+    int64_t track_id;
 } ax_plugin_det_t;
 
 typedef struct ax_plugin_det_result_t {
@@ -80,4 +82,3 @@ AX_PLUGIN_API void ax_plugin_release_result(ax_plugin_handle_t handle, ax_plugin
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-

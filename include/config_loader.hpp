@@ -33,7 +33,7 @@ public:
             bool enable_osd{true};
             // Enable ByteTrack object tracking on top of detector outputs.
             // When enabled, OSD will be drawn from tracked boxes (stable IDs, per-ID colors).
-            bool enable_tracking{true};
+            bool enable_tracking{false};
             // Track buffer in frames (roughly: how long a lost track is kept before removal).
             std::int32_t track_buffer{30};
             // Plugin .so path.

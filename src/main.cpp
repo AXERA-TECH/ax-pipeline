@@ -199,7 +199,10 @@ int main(int argc, char** argv) {
                         // Keep OSD visible for multiple frames to avoid "blinking" when NPU runs slower than video.
                         osd.hold_frames = 10;
                         if (sw != 0 && sh != 0) {
-                            if (tracker) {
+                            const bool plugin_has_track_id = std::any_of(
+                                dets.begin(), dets.end(), [](const axpipeline::ai::Detection& d) { return d.track_id >= 0; });
+
+                            if (tracker && !plugin_has_track_id) {
                                 const auto tracks = tracker->Update(dets);
                                 osd.rects.reserve(tracks.size());
                                 for (const auto& t : tracks) {
@@ -251,7 +254,12 @@ int main(int argc, char** argv) {
                                     r.height = static_cast<std::uint32_t>(h);
                                     r.thickness = 2;
                                     r.alpha = 255;
-                                    r.color = 0x00FF00;
+                                    if (d.track_id >= 0) {
+                                        r.color = axpipeline::tracking::ByteTrack::ColorForTrackId(
+                                            static_cast<std::uint64_t>(d.track_id));
+                                    } else {
+                                        r.color = 0x00FF00;
+                                    }
                                     osd.rects.push_back(r);
                                 }
                             }
@@ -269,6 +277,7 @@ int main(int argc, char** argv) {
                                 const auto& d = dets[di];
                                 std::cout << "  det" << di
                                           << " cls=" << d.class_id
+                                          << " tid=" << d.track_id
                                           << " score=" << d.score
                                           << " box=(" << d.x0 << "," << d.y0 << ")-(" << d.x1 << "," << d.y1 << ")\n";
                             }

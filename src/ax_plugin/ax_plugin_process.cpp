@@ -571,6 +571,7 @@ bool AxPluginProcess::SendInferRequest(const axvsdk::common::AxImage& image,
         dd.y1 = d.y1;
         dd.score = d.score;
         dd.class_id = static_cast<int>(d.class_id);
+        dd.track_id = d.track_id;
         out->push_back(dd);
     }
     return true;

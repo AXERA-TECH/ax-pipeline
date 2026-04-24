@@ -74,7 +74,7 @@
   "npu": {
     "enable": true,
     "enable_osd": true,
-    "enable_tracking": true,
+    "enable_tracking": false,
     "track_buffer": 30,
     "ax_plugin_path": "/path/to/libax_plugin_yolov8.so",
     "ax_plugin_isolation": "inproc",
@@ -82,7 +82,14 @@
       "model_path": "models/ax650/yolov8s.axmodel",
       "num_classes": 80,
       "conf_threshold": 0.25,
-      "nms_threshold": 0.45
+      "nms_threshold": 0.45,
+
+      // 可选：内置 YOLO 插件的“插件内跟踪”参数（yolov5/yolov8/yolov8_split）
+      // 若启用插件内跟踪，建议 npu.enable_tracking=false，避免双重跟踪
+      "enable_tracking": false,
+      "track_fps": 30,
+      "track_buffer": 30,
+      "track_min_score": 0.0
     }
   },
 
@@ -124,6 +131,17 @@
 注意:
 
 - `frame_output` 同时决定推理输入与对外回调的图像空间；当启用 `npu.enable_osd` 时，示例程序会把检测框从 `frame_output` 空间映射回解码原图空间再绘制 OSD。
+
+### 跟踪：主程序 vs 插件内
+
+`ax_pipeline_app` 支持两种跟踪方式（二选一即可）：
+
+- 主程序 ByteTrack：由主程序在 detector 输出上做跟踪（`npu.enable_tracking=true`，并使用 `npu.track_buffer`）
+- 插件内 ByteTrack：由插件内部完成跟踪并输出 `det.track_id`
+  - 目前内置 `yolov5/yolov8/yolov8_split` 三个插件均支持
+  - 通过 `npu.ax_plugin_init_info.enable_tracking=true` 开启，并可选配置 `track_fps/track_buffer/track_min_score`
+  - 建议同时保持 `npu.enable_tracking=false`，避免重复跟踪导致 ID 混乱或性能下降
+  - 自定义插件也可以在插件内直接复用 `axpipeline::tracking::ByteTrack`
 
 ### `npu.ax_plugin_isolation`
 

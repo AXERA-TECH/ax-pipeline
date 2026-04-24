@@ -64,6 +64,24 @@ else()
     message(FATAL_ERROR "Missing third-party/ByteTrack")
 endif()
 
+# ---- tracking (shared wrapper) ----
+add_library(ax_pipeline_tracking STATIC
+    src/tracking/ax_bytetrack.cpp
+)
+
+target_include_directories(ax_pipeline_tracking
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third-party/ByteTrack/include
+)
+
+target_compile_options(ax_pipeline_tracking PRIVATE
+    -Wall -Wextra -Wno-unused-parameter
+)
+
+target_link_libraries(ax_pipeline_tracking PUBLIC ByteTrack)
+
 # ---- plugins ----
 add_subdirectory(plugins)
 
@@ -74,7 +92,6 @@ add_executable(ax_pipeline_app
     src/ax_plugin/ax_plugin_client.cpp
     src/ax_plugin/ax_plugin_loader.cpp
     src/ax_plugin/ax_plugin_process.cpp
-    src/tracking/ax_bytetrack.cpp
 )
 
 target_include_directories(ax_pipeline_app
@@ -94,7 +111,7 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(ax_pipeline_app PRIVATE dl)
 endif()
 
-target_link_libraries(ax_pipeline_app PRIVATE ax_video_sdk ax_video_sdk::ax_msp ByteTrack)
+target_link_libraries(ax_pipeline_app PRIVATE ax_video_sdk ax_video_sdk::ax_msp ax_pipeline_tracking)
 
 if(DEFINED AXSDK_CHIP_TYPE)
     string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_APP_PLATFORM)

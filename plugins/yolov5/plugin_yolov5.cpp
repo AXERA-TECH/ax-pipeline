@@ -13,6 +13,7 @@
 
 #include "common/ax_image.h"
 #include "npu/models/ax_model_det.hpp"
+#include "tracking/ax_bytetrack.hpp"
 
 namespace {
 
@@ -39,6 +40,8 @@ axvsdk::common::ResizeAlign ParseResizeAlign(const std::string& s) {
 struct PluginCtx {
     axpipeline::npu::AxModelYoloV5 model;
     std::vector<ax_plugin_det_t> out_dets;
+
+    std::unique_ptr<axpipeline::tracking::ByteTrack> tracker;
 };
 
 bool BuildAxImageView(const ax_plugin_image_view_t& view, axvsdk::common::AxImage::Ptr* out) {
@@ -179,6 +182,32 @@ int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t*
         return -4;
     }
 
+    // Optional plugin-side tracking (ByteTrack). When enabled, this plugin returns tracked boxes
+    // and fills det.track_id; the main app should keep npu.enable_tracking=false to avoid double-tracking.
+    bool enable_tracking = false;
+    axpipeline::tracking::ByteTrackOptions topt{};
+    topt.frame_rate = 30;
+    topt.track_buffer = 30;
+    topt.min_score = 0.0F;
+    if (j.contains("enable_tracking") && j["enable_tracking"].is_boolean()) {
+        enable_tracking = j["enable_tracking"].get<bool>();
+    }
+    if (j.contains("track_fps") && j["track_fps"].is_number_integer()) {
+        const int v = j["track_fps"].get<int>();
+        if (v > 0) topt.frame_rate = v;
+    }
+    if (j.contains("track_buffer") && j["track_buffer"].is_number_integer()) {
+        const int v = j["track_buffer"].get<int>();
+        if (v > 0) topt.track_buffer = v;
+    }
+    if (j.contains("track_min_score") && j["track_min_score"].is_number()) {
+        const auto v = static_cast<float>(j["track_min_score"].get<double>());
+        if (v >= 0.0F) topt.min_score = v;
+    }
+    if (enable_tracking) {
+        ctx->tracker = std::make_unique<axpipeline::tracking::ByteTrack>(topt);
+    }
+
     *out_handle = reinterpret_cast<ax_plugin_handle_t>(ctx.release());
     return 0;
 }
@@ -208,16 +237,46 @@ int ax_plugin_infer(ax_plugin_handle_t handle,
     }
 
     ctx->out_dets.clear();
-    ctx->out_dets.reserve(dets.size());
-    for (const auto& d : dets) {
-        ax_plugin_det_t dd{};
-        dd.x0 = d.x0;
-        dd.y0 = d.y0;
-        dd.x1 = d.x1;
-        dd.y1 = d.y1;
-        dd.score = d.score;
-        dd.class_id = d.class_id;
-        ctx->out_dets.push_back(dd);
+    if (ctx->tracker) {
+        std::vector<axpipeline::ai::Detection> dets_ai;
+        dets_ai.reserve(dets.size());
+        for (const auto& d : dets) {
+            axpipeline::ai::Detection dd{};
+            dd.x0 = d.x0;
+            dd.y0 = d.y0;
+            dd.x1 = d.x1;
+            dd.y1 = d.y1;
+            dd.score = d.score;
+            dd.class_id = d.class_id;
+            dets_ai.push_back(dd);
+        }
+
+        const auto tracks = ctx->tracker->Update(dets_ai);
+        ctx->out_dets.reserve(tracks.size());
+        for (const auto& t : tracks) {
+            ax_plugin_det_t dd{};
+            dd.x0 = t.x0;
+            dd.y0 = t.y0;
+            dd.x1 = t.x1;
+            dd.y1 = t.y1;
+            dd.score = t.score;
+            dd.class_id = t.class_id;
+            dd.track_id = t.track_id;
+            ctx->out_dets.push_back(dd);
+        }
+    } else {
+        ctx->out_dets.reserve(dets.size());
+        for (const auto& d : dets) {
+            ax_plugin_det_t dd{};
+            dd.x0 = d.x0;
+            dd.y0 = d.y0;
+            dd.x1 = d.x1;
+            dd.y1 = d.y1;
+            dd.score = d.score;
+            dd.class_id = d.class_id;
+            dd.track_id = -1;
+            ctx->out_dets.push_back(dd);
+        }
     }
 
     out_result->dets = ctx->out_dets.empty() ? nullptr : ctx->out_dets.data();

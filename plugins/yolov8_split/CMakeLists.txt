@@ -17,7 +17,6 @@ target_compile_options(ax_plugin_yolov8_split PRIVATE
     -Wall -Wextra -Wno-unused-parameter
 )
 
-target_link_libraries(ax_plugin_yolov8_split PRIVATE ax_plugin_npu_common)
+target_link_libraries(ax_plugin_yolov8_split PRIVATE ax_plugin_npu_common ax_pipeline_tracking)
 
 set_property(GLOBAL APPEND PROPERTY AXP_PLUGIN_TARGETS ax_plugin_yolov8_split)
-

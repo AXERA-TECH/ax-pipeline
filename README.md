@@ -13,6 +13,8 @@
   - `npu_max_fps` 限速(传 `0/-1` 关闭)
   - OSD 画框
   - ByteTrack 跟踪(按 `track_id` 固定亮色)
+    - 主程序跟踪：`npu.enable_tracking=true`
+    - 插件内跟踪：`yolov5/yolov8/yolov8_split` 支持在 `ax_plugin_init_info` 里配置 `enable_tracking=true`
   - 插件隔离模式:
     - `inproc`: 进程内运行(最快)
     - `process`: 子进程运行(插件崩溃不影响 pipeline)
@@ -152,6 +154,18 @@ flowchart LR
   L --> M[Mux mp4 or rtsp]
 ```
 
+## 插件内跟踪配置（yolov5/yolov8/yolov8_split）
+
+三个内置 YOLO 插件都支持在插件内部开启 ByteTrack 跟踪，并通过 `det.track_id` 输出稳定 id：
+
+- 在 `npu.ax_plugin_init_info` 中配置：
+  - `enable_tracking`：`true/false`
+  - `track_fps`：跟踪器帧率（默认 30）
+  - `track_buffer`：跟踪缓冲（默认 30）
+  - `track_min_score`：低于该阈值的 det 不参与跟踪（默认 0）
+- 若启用了插件内跟踪，建议把 pipeline 侧跟踪关掉：`npu.enable_tracking=false`（避免双重跟踪）
+- 自定义插件也可以在插件内直接复用 `axpipeline::tracking::ByteTrack`（见 `include/tracking/ax_bytetrack.hpp`），方便做多级模型推理链路
+
 ## 配置格式（简化）
 
 ```json
@@ -177,12 +191,16 @@ flowchart LR
       "npu": {
         "enable": true,
         "enable_osd": true,
-        "enable_tracking": true,
+        "enable_tracking": false,
         "track_buffer": 30,
         "ax_plugin_path": "/path/to/libax_plugin_yolov8.so",
         "ax_plugin_isolation": "inproc",
         "ax_plugin_init_info": {
           "model_path": "models/ax650/yolov8s.axmodel",
+          "enable_tracking": true,
+          "track_fps": 30,
+          "track_buffer": 30,
+          "track_min_score": 0.0,
           "num_classes": 80,
           "conf_threshold": 0.25,
           "nms_threshold": 0.45
