@@ -27,7 +27,7 @@ jobs:
           - chip: axcl-aarch64
             script: ./build_axcl_aarch64.sh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -37,8 +37,7 @@ jobs:
           ${{ matrix.script }}
 
       - name: Upload Artifacts (${{ matrix.chip }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ax-pipeline-${{ matrix.chip }}
           path: artifacts/${{ matrix.chip }}/*.tar.gz
-
