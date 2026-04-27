@@ -112,6 +112,22 @@
 - MP4: `"/tmp/out.mp4"`
 - RTSP: `"rtsp://0.0.0.0:8554/stream_name"`
 
+### `outputs[]`
+
+`outputs` 描述该 pipeline 的编码/封装输出列表；每个 output 代表一条编码分支（`decode -> (可选 osd) -> encode -> mux`）。
+
+常用字段：
+
+- `codec`（可选，string）：编码类型
+  - 可选值：`"h264"` / `"h265"`（也可写 `"hevc"`）
+  - 默认：不填时由底层保持默认（建议显式填）
+- `width` / `height` / `frame_rate`（可选，int/float）
+  - 省略或传 `0`：跟随解码输入
+  - `> 0`：输出 resize/重采样到指定参数
+- `overflow_policy`（可选，string）：编码输入队列满时的策略
+  - 可选值：`"drop_oldest"`（默认）/ `"drop_newest"` / `"block"`
+- `resize`（可选，object）：输出分支 resize 策略（字段同 `frame_output.resize`）
+
 ### 不配置 `outputs`（仅解码/AI）
 
 `outputs` 字段可以省略或配置为空数组 `[]`。此时 pipeline 只会做 `demux -> decode -> (可选 npu)`：
@@ -126,11 +142,46 @@
 
 ### `frame_output`
 
-控制 `GetLatestFrame()/frame callback` 的输出格式/尺寸/缩放策略。
+控制 `GetLatestFrame()/frame callback` 的输出格式/尺寸/缩放策略（也会影响 NPU 推理的输入空间）。
 
 注意:
 
 - `frame_output` 同时决定推理输入与对外回调的图像空间；当启用 `npu.enable_osd` 时，示例程序会把检测框从 `frame_output` 空间映射回解码原图空间再绘制 OSD。
+
+字段说明（可显式配置；也可完全省略 `frame_output` 走默认行为）：
+
+- `format`（可选，string）：输出像素格式
+  - 可选值：
+    - `"nv12"`（或 `"NV12"`）
+    - `"rgb"` / `"rgb24"`（或大写）
+    - `"bgr"` / `"bgr24"`（或大写）
+  - 默认：跟随解码输出（通常为 NV12）
+- `width` / `height`（可选，int）
+  - 省略或传 `0`：跟随解码原始分辨率
+  - `> 0`：输出 resize 到目标尺寸（建议 `width/height` 同时设置）
+- `resize`（可选，object）：resize 策略
+  - `mode`：`"stretch"`（默认）或 `"keep_aspect"` / `"keep_aspect_ratio"`
+  - `horizontal_align` / `vertical_align`：`"start"` / `"center"`（默认）/ `"end"`
+  - `background_color`：留边颜色（`0xRRGGBB`，默认 `0`）
+
+常见用法示例：
+
+- 直接拿到 NV12 原图（低开销；最常见）：省略 `frame_output` 字段即可；或显式写成：
+
+```jsonc
+"frame_output": { "format": "nv12" }
+```
+
+- 输出 NV12 并缩放到 960x544（保持比例、黑边填充）：
+
+```jsonc
+"frame_output": {
+  "format": "nv12",
+  "width": 960,
+  "height": 544,
+  "resize": { "mode": "keep_aspect", "background_color": 0 }
+}
+```
 
 ### 跟踪：主程序 vs 插件内
 

@@ -212,6 +212,11 @@ flowchart LR
 }
 ```
 
+补充说明：
+
+- `frame_output.format` 可选：`"nv12"` / `"rgb"` / `"bgr"`（也支持 `rgb24/bgr24` 的别名）；省略 `frame_output` 时默认跟随解码输出（通常 NV12 + 原始分辨率）
+- 更完整的字段与可选值请参考 `docs/config.md`
+
 ## 测试
 
 ```bash
