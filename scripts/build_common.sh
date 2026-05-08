@@ -97,14 +97,14 @@ case "${CHIP}" in
     fi
     ;;
   axcl-riscv64)
-    # NOTE: We do not bundle an AXCL RISC-V SDK zip URL here.
-    # Provide the SDK root via AXSDK_AXCL_DIR, for example:
-    #   export AXSDK_AXCL_DIR=/path/to/axcl_linux_riscv
-    MSP_ZIP_NAME="axcl_linux_riscv.zip"
-    MSP_URL_DEFAULT=""
-    MSP_EXTRACT_DIR="${ROOT_DIR}/.ci/axcl/axcl_linux_riscv"
+    MSP_ZIP_NAME="axcl_linux_riscv_3.14.0.zip"
+    MSP_URL_DEFAULT="https://github.com/ZHEQIUSHUI/assets/releases/download/risc-v/axcl_linux_riscv_3.14.0.zip"
+    MSP_EXTRACT_DIR="${ROOT_DIR}/.ci/axcl/axcl_linux_riscv_3.14.0"
     TOOLCHAIN_FILE="${ROOT_DIR}/toolchains/riscv64-unknown-linux-gnu.toolchain.cmake"
-    TOOLCHAIN_BIN=""
+    TOOLCHAIN_ARCHIVE_NAME="gcc-14.3-riscv64-unknown-linux-gnu-2.39.tar.xz"
+    TOOLCHAIN_URL_DEFAULT="https://github.com/ZHEQIUSHUI/assets/releases/download/risc-v/${TOOLCHAIN_ARCHIVE_NAME}"
+    TOOLCHAIN_DIR="${ROOT_DIR}/.ci/toolchains/gcc-14.3-riscv64-unknown-linux-gnu-2.39"
+    TOOLCHAIN_BIN="${TOOLCHAIN_DIR}/bin"
     COMPILER_CHECK="riscv64-unknown-linux-gnu-g++"
     AXCL_SUBDIR_NAME="axcl_linux_riscv"
     ;;
@@ -133,7 +133,18 @@ if [[ -n "${TOOLCHAIN_BIN}" ]]; then
     esac
   fi
 
-  export PATH="${TOOLCHAIN_BIN}:${PATH}"
+  # Some toolchain archives may have different top-level directory names.
+  # If the expected bin directory does not exist, try to auto-detect it.
+  if [[ ! -d "${TOOLCHAIN_BIN}" ]]; then
+    DETECTED_BIN="$(find "${ROOT_DIR}/.ci/toolchains" -maxdepth 4 -type f -name "${COMPILER_CHECK}" -print | head -n 1 || true)"
+    if [[ "${DETECTED_BIN}" == */bin/${COMPILER_CHECK} ]]; then
+      TOOLCHAIN_BIN="${DETECTED_BIN%/${COMPILER_CHECK}}"
+    fi
+  fi
+
+  if [[ -d "${TOOLCHAIN_BIN}" ]]; then
+    export PATH="${TOOLCHAIN_BIN}:${PATH}"
+  fi
 fi
 
 if ! command -v "${COMPILER_CHECK}" >/dev/null 2>&1; then
@@ -150,8 +161,17 @@ if [[ "${CHIP}" == axcl-* ]]; then
   if [[ -n "${AXSDK_AXCL_DIR:-}" ]]; then
     MSP_ROOT="${AXSDK_AXCL_DIR}"
   else
-    # Prefer system-installed AXCL (fast, avoids CI zip quirks).
-    if [[ -f "/usr/include/axcl/axcl.h" || -f "/usr/include/axcl.h" ]] && \
+    # Prefer system-installed AXCL only for *native* host builds.
+    # For cross-compiling (e.g. axcl-aarch64 on x86_64, axcl-riscv64), /usr will contain host-arch libs.
+    USE_SYSTEM_AXCL="0"
+    if [[ "${CHIP}" == "axcl-x86_64" ]]; then
+      USE_SYSTEM_AXCL="1"
+    elif [[ "${CHIP}" == "axcl-aarch64" ]] && [[ "${HOST_ARCH}" == "aarch64" || "${HOST_ARCH}" == "arm64" ]]; then
+      USE_SYSTEM_AXCL="1"
+    fi
+
+    if [[ "${USE_SYSTEM_AXCL}" == "1" ]] && \
+       [[ -f "/usr/include/axcl/axcl.h" || -f "/usr/include/axcl.h" ]] && \
        [[ -f "/usr/lib/axcl/libaxcl_sys.so" || -f "/usr/lib/libaxcl_sys.so" || -f "/usr/lib64/libaxcl_sys.so" ]]; then
       MSP_ROOT="/usr"
     else

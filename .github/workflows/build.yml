@@ -26,6 +26,8 @@ jobs:
             script: ./build_axcl_x86.sh
           - chip: axcl-aarch64
             script: ./build_axcl_aarch64.sh
+          - chip: axcl-riscv64
+            script: ./build_axcl_riscv64.sh
     steps:
       - uses: actions/checkout@v6
         with:
@@ -33,7 +35,7 @@ jobs:
 
       - name: Build (${{ matrix.chip }})
         run: |
-          chmod +x ./build_ax650.sh ./build_ax630c.sh ./build_ax620q.sh ./build_ax620qp.sh ./build_axcl_x86.sh ./build_axcl_aarch64.sh ./scripts/build_common.sh
+          chmod +x ./build_ax650.sh ./build_ax630c.sh ./build_ax620q.sh ./build_ax620qp.sh ./build_axcl_x86.sh ./build_axcl_aarch64.sh ./build_axcl_riscv64.sh ./scripts/build_common.sh
           ${{ matrix.script }}
 
       - name: Upload Artifacts (${{ matrix.chip }})
