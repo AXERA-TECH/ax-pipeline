@@ -16,6 +16,18 @@
 ./build_axcl_aarch64.sh
 ```
 
+## AXCL riscv64（交叉编译）
+
+该模式需要：
+
+- `riscv64-unknown-linux-gnu-gcc/g++` 可在 `PATH` 中找到
+- `AXSDK_AXCL_DIR` 指向 riscv 版 AXCL SDK root（包含 `include/axcl/axcl.h` 与 `lib/axcl/libaxcl_sys.so`）
+
+```bash
+export AXSDK_AXCL_DIR=/path/to/axcl_linux_riscv
+./build_axcl_riscv64.sh
+```
+
 ## 板端(交叉编译)
 
 AX650:

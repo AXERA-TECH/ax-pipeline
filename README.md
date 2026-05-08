@@ -48,7 +48,7 @@ git submodule update --init --recursive
 本项目构建方式对齐 `ax-video-sdk`：
 
 - 板端：`AX650`、`AX620E(AX630C/AX620Q/AX620QP)`
-- AXCL：x86_64 / aarch64
+- AXCL：x86_64 / aarch64 / riscv64
 
 构建脚本与 CI 会自动准备 MSP/AXCL SDK 和 toolchain。
 
@@ -58,6 +58,9 @@ git submodule update --init --recursive
 
 # AXCL aarch64 (本机，例如树莓派 64 位)
 ./build_axcl_aarch64.sh
+
+# AXCL riscv64 (交叉编译；需要 AXSDK_AXCL_DIR 指向 riscv 版 AXCL SDK root)
+./build_axcl_riscv64.sh
 
 # AX650 (交叉编译)
 ./build_ax650.sh
