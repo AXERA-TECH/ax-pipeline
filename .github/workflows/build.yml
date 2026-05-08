@@ -33,6 +33,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache CI Assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci/downloads
+            .ci/toolchains
+            .ci/msp
+            .ci/axcl
+          key: ${{ runner.os }}-${{ matrix.chip }}-${{ hashFiles('.github/workflows/build.yml', 'scripts/build_common.sh', 'toolchains/*.cmake') }}
+
       - name: Build (${{ matrix.chip }})
         run: |
           chmod +x ./build_ax650.sh ./build_ax630c.sh ./build_ax620q.sh ./build_ax620qp.sh ./build_axcl_x86.sh ./build_axcl_aarch64.sh ./build_axcl_riscv64.sh ./scripts/build_common.sh
