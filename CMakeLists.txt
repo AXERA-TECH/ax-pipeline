@@ -153,6 +153,7 @@ add_executable(ax_plugin_host
 target_include_directories(ax_plugin_host
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
 )
 
 target_compile_options(ax_plugin_host PRIVATE
@@ -161,6 +162,22 @@ target_compile_options(ax_plugin_host PRIVATE
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(ax_plugin_host PRIVATE dl)
+endif()
+
+target_link_libraries(ax_plugin_host PRIVATE ax_video_sdk)
+
+if(DEFINED AXSDK_CHIP_TYPE)
+    string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_PLUGIN_HOST_PLATFORM)
+    if(AXP_CHIP_PLUGIN_HOST_PLATFORM STREQUAL "axcl")
+        # AXCL: allow incomplete vendor .so dependencies (e.g. fmt/spdlog) at link time in CI/cross builds.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_plugin_host PRIVATE -Wl,--allow-shlib-undefined)
+        endif()
+    endif()
+endif()
+
+if(_AXP_NEED_STDCXXFS)
+    target_link_libraries(ax_plugin_host PRIVATE stdc++fs)
 endif()
 
 install(TARGETS ax_plugin_host RUNTIME DESTINATION bin)

@@ -19,6 +19,8 @@ int main() {
 #  include <signal.h>
 #  include <unistd.h>
 
+#  include "common/ax_system.h"
+
 namespace {
 
 bool ReadExact(int fd, void* buf, std::size_t n) {
@@ -176,6 +178,16 @@ int main(int argc, char** argv) {
     if (fd < 0) return 2;
 
     ::signal(SIGPIPE, SIG_IGN);
+
+    // The plugin may use ax-video-sdk modules (AXCL/MSP) internally (e.g. NPU runner),
+    // so the subprocess host must initialize the SDK runtime as well.
+    // Use defaults: caller controls device_id via ax_plugin_init().
+    if (!axvsdk::common::InitializeSystem()) {
+        return 3;
+    }
+    struct Guard {
+        ~Guard() { axvsdk::common::ShutdownSystem(); }
+    } guard;
 
     PluginFns plugin;
     std::vector<std::uint8_t> payload;
@@ -358,4 +370,3 @@ int main(int argc, char** argv) {
 }
 
 #endif  // !_WIN32
-
