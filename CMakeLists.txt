@@ -173,6 +173,13 @@ if(DEFINED AXSDK_CHIP_TYPE)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
             target_link_options(ax_plugin_host PRIVATE -Wl,--allow-shlib-undefined)
         endif()
+    else()
+        # MSP cross builds: ax-video-sdk is a shared library and depends on vendor MSP .so's.
+        # The linker may treat those transitive dependencies as unresolved unless we allow it here,
+        # similar to ax_pipeline_app.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_link_options(ax_plugin_host PRIVATE -Wl,--allow-shlib-undefined)
+        endif()
     endif()
 endif()
 
