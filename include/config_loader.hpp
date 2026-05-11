@@ -53,6 +53,67 @@ public:
         std::vector<PipelineCfg> pipelines;
     };
 
+    // Parse a single pipeline object (same schema as pipelines[] entries in the config file).
+    // For HTTP/API usage: relative paths are kept as-is; callers may resolve them if needed.
+    static bool LoadPipelineFromJsonText(const std::string& text, PipelineCfg* out, std::string* error) {
+        if (out == nullptr) {
+            if (error) *error = "pipeline output is null";
+            return false;
+        }
+        nlohmann::json j;
+        try {
+            j = nlohmann::json::parse(text);
+        } catch (const std::exception& e) {
+            if (error) *error = std::string("json parse failed: ") + e.what();
+            return false;
+        }
+        return LoadPipelineFromJson(j, 0, out, error);
+    }
+
+    static bool LoadPipelineFromJson(const nlohmann::json& j, std::size_t index, PipelineCfg* out, std::string* error) {
+        if (out == nullptr) {
+            if (error) *error = "pipeline output is null";
+            return false;
+        }
+        if (!ParsePipeline(j, index, out)) {
+            if (error) *error = "invalid pipeline json";
+            return false;
+        }
+        return true;
+    }
+
+    // Parse a single output object (same schema as outputs[] entries in the config file).
+    static bool LoadOutputFromJsonText(const std::string& text,
+                                       axvsdk::pipeline::PipelineOutputConfig* out,
+                                       std::string* error) {
+        if (out == nullptr) {
+            if (error) *error = "output config is null";
+            return false;
+        }
+        nlohmann::json j;
+        try {
+            j = nlohmann::json::parse(text);
+        } catch (const std::exception& e) {
+            if (error) *error = std::string("json parse failed: ") + e.what();
+            return false;
+        }
+        return LoadOutputFromJson(j, out, error);
+    }
+
+    static bool LoadOutputFromJson(const nlohmann::json& j,
+                                   axvsdk::pipeline::PipelineOutputConfig* out,
+                                   std::string* error) {
+        if (out == nullptr) {
+            if (error) *error = "output config is null";
+            return false;
+        }
+        if (!ParseOutput(j, out)) {
+            if (error) *error = "invalid output json";
+            return false;
+        }
+        return true;
+    }
+
     static bool LoadFromFile(const std::string& path, AppCfg* out, std::string* error) {
         if (out == nullptr) {
             if (error) *error = "config output is null";
@@ -335,45 +396,53 @@ private:
         if (j.contains("outputs")) {
             if (!j["outputs"].is_array()) return false;
             for (const auto& o : j["outputs"]) {
-                if (!o.is_object()) return false;
                 axvsdk::pipeline::PipelineOutputConfig oc{};
-
-                std::string codec;
-                if (!GetOptString(o, "codec", &codec)) return false;
-                if (!codec.empty()) {
-                    oc.codec = ParseVideoCodec(codec);
-                    if (oc.codec == axvsdk::codec::VideoCodecType::kUnknown) return false;
-                }
-
-                if (!GetOptU32(o, "width", &oc.width) ||
-                    !GetOptU32(o, "height", &oc.height) ||
-                    !GetOptDouble(o, "frame_rate", &oc.frame_rate) ||
-                    !GetOptU32(o, "bitrate_kbps", &oc.bitrate_kbps) ||
-                    !GetOptU32(o, "gop", &oc.gop) ||
-                    !GetOptSizeT(o, "input_queue_depth", &oc.input_queue_depth)) {
-                    return false;
-                }
-
-                std::string overflow;
-                if (!GetOptString(o, "overflow_policy", &overflow)) return false;
-                if (!overflow.empty()) oc.overflow_policy = ParseOverflowPolicy(overflow);
-
-                if (o.contains("resize")) {
-                    if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
-                }
-
-                if (o.contains("uris")) {
-                    if (!o["uris"].is_array()) return false;
-                    for (const auto& u : o["uris"]) {
-                        if (!u.is_string()) return false;
-                        oc.uris.push_back(u.get<std::string>());
-                    }
-                }
-
+                if (!ParseOutput(o, &oc)) return false;
                 out->sdk.outputs.push_back(std::move(oc));
             }
         }
 
+        return true;
+    }
+
+    static bool ParseOutput(const json& o, axvsdk::pipeline::PipelineOutputConfig* out) {
+        if (out == nullptr || !o.is_object()) return false;
+
+        axvsdk::pipeline::PipelineOutputConfig oc{};
+
+        std::string codec;
+        if (!GetOptString(o, "codec", &codec)) return false;
+        if (!codec.empty()) {
+            oc.codec = ParseVideoCodec(codec);
+            if (oc.codec == axvsdk::codec::VideoCodecType::kUnknown) return false;
+        }
+
+        if (!GetOptU32(o, "width", &oc.width) ||
+            !GetOptU32(o, "height", &oc.height) ||
+            !GetOptDouble(o, "frame_rate", &oc.frame_rate) ||
+            !GetOptU32(o, "bitrate_kbps", &oc.bitrate_kbps) ||
+            !GetOptU32(o, "gop", &oc.gop) ||
+            !GetOptSizeT(o, "input_queue_depth", &oc.input_queue_depth)) {
+            return false;
+        }
+
+        std::string overflow;
+        if (!GetOptString(o, "overflow_policy", &overflow)) return false;
+        if (!overflow.empty()) oc.overflow_policy = ParseOverflowPolicy(overflow);
+
+        if (o.contains("resize")) {
+            if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
+        }
+
+        if (o.contains("uris")) {
+            if (!o["uris"].is_array()) return false;
+            for (const auto& u : o["uris"]) {
+                if (!u.is_string()) return false;
+                oc.uris.push_back(u.get<std::string>());
+            }
+        }
+
+        *out = std::move(oc);
         return true;
     }
 };

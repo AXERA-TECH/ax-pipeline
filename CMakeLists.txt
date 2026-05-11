@@ -89,6 +89,9 @@ add_subdirectory(plugins)
 add_executable(ax_pipeline_app
     src/main.cpp
     src/ai/async_infer.cpp
+    src/app/pipeline_instance.cpp
+    src/app/pipeline_service.cpp
+    src/app/http_api_server.cpp
     src/ax_plugin/ax_plugin_client.cpp
     src/ax_plugin/ax_plugin_loader.cpp
     src/ax_plugin/ax_plugin_process.cpp
@@ -98,6 +101,7 @@ target_include_directories(ax_pipeline_app
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps/ax-video-sdk/third-party/rtsp-sdk/third_party
         ${CMAKE_CURRENT_SOURCE_DIR}/third-party/ByteTrack/include
         ${CMAKE_CURRENT_SOURCE_DIR}/third-party/cmdline
         ${CMAKE_CURRENT_SOURCE_DIR}/third-party/json

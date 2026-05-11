@@ -81,6 +81,16 @@ git submodule update --init --recursive
 
 `configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的 `mp4` 文件路径或 `rtsp://` 地址。
 
+### HTTP API（动态编辑 pipelines，可选）
+
+启动 HTTP 控制面：
+
+```bash
+./ax_pipeline_app -c configs/example.json -t 0 --http_port=25000 --http_addr=127.0.0.1
+```
+
+接口说明见：`docs/http_api.md`
+
 ### 仅解码/AI 模式（`outputs` 可为空）
 
 如果用户只想 **拉流/读文件解码**（可选 NPU 推理），不需要编码推流/落盘，可以：
