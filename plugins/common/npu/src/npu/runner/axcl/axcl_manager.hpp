@@ -1,5 +1,6 @@
 #pragma once
 #include <axcl.h>
+#include <axcl_rt_engine.h>
 
 #include <iostream>
 #include <thread>
@@ -12,8 +13,6 @@
 #include <chrono>
 
 #include "logger.hpp"
-#include <ax_engine_type.h>
-#include <axcl_npu.h>
 
 class AXCLWorker
 {
@@ -67,19 +66,14 @@ private:
             initPromise.set_value(false);
             return;
         }
-        // Initialize AXCL engine once for this worker thread context.
-        // AXCL engine APIs used below (AXCL_ENGINE_*) require this on some installs.
-        AX_ENGINE_NPU_ATTR_T npu_attr{};
-        // For NPU affinity/multi-core, MSP samples recommend using VNPU STD.
-        // Try STD first, then fallback to DISABLE for older installs.
-        npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
-        int eng_ret = AXCL_ENGINE_Init(&npu_attr);
-        if (eng_ret != 0) {
-            npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-            eng_ret = AXCL_ENGINE_Init(&npu_attr);
-        }
-        if (eng_ret != 0) {
-            ALOGE("AXCL_ENGINE_Init failed{0x%8x}.", eng_ret);
+        // Initialize AXCL runtime engine for this worker thread context.
+        //
+        // IMPORTANT: VNPU modes restrict what model types can be loaded.
+        // For example, 3-core models (e.g. yolov8n.axmodel in our repo) fail to load
+        // when VNPU is enabled. To maximize compatibility, default to VNPU_DISABLE.
+        axclError eng_ret = axclrtEngineInit(AXCL_VNPU_DISABLE);
+        if (eng_ret != AXCL_SUCC) {
+            ALOGE("axclrtEngineInit(VNPU_DISABLE) failed{0x%8x}.", eng_ret);
             (void)axclrtDestroyContext(ctx);
             initPromise.set_value(false);
             return;
@@ -104,7 +98,7 @@ private:
             }
             task();
         }
-        (void)AXCL_ENGINE_Deinit();
+        (void)axclrtEngineFinalize();
         (void)axclrtDestroyContext(ctx);
         ALOGI("AXCLWorker exit with devid %d", devid);
     }
