@@ -7,8 +7,11 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <string>
@@ -17,9 +20,21 @@
 
 #include "json.hpp"
 
+#include "ai/ax_detection.hpp"
 #include "common/ax_image.h"
-#include "npu/models/ax_model_base.hpp"
+#include "common/ax_image_processor.h"
 #include "tracking/ax_bytetrack.hpp"
+
+#include "npu/runner/ax_model_runner.hpp"
+
+#if defined(AXPIPELINE_HAVE_AXCL)
+#include "../common/npu/src/npu/runner/axcl/ax_model_runner_axcl.hpp"
+#include "../common/npu/src/npu/runner/axcl/axcl_manager.h"
+#endif
+
+#if defined(AXPIPELINE_HAVE_MSP)
+#include "../common/npu/src/npu/runner/ax650/ax_model_runner_ax650.hpp"
+#endif
 
 namespace {
 
@@ -53,14 +68,185 @@ inline float Sigmoid(float x) noexcept {
     return 1.0F / (1.0F + std::exp(-x));
 }
 
+struct ModelBaseOptions {
+    int device_id{-1};
+    std::string model_path;
+
+    axvsdk::common::ResizeMode resize_mode{axvsdk::common::ResizeMode::kKeepAspectRatio};
+    axvsdk::common::ResizeAlign h_align{axvsdk::common::ResizeAlign::kCenter};
+    axvsdk::common::ResizeAlign v_align{axvsdk::common::ResizeAlign::kCenter};
+    std::uint32_t background_color{0};  // 0xRRGGBB
+
+    // NPU affinity bitmask (e.g. 0b001/0b010/0b100). 0 = default.
+    std::uint32_t npu_affinity{0};
+};
+
 struct PcdOptions {
-    axpipeline::npu::ModelInitOptions base{};
+    ModelBaseOptions base{};
 
     int num_classes{3};
     float conf_threshold{0.25F};
     float nms_threshold{0.45F};
     int max_det{50};
     std::vector<int> strides{16, 32};
+};
+
+struct LetterboxInfo {
+    float scale{1.0F};
+    float pad_x{0.0F};
+    float pad_y{0.0F};
+    std::uint32_t dst_w{0};
+    std::uint32_t dst_h{0};
+};
+
+LetterboxInfo ComputeLetterbox(std::uint32_t src_w,
+                               std::uint32_t src_h,
+                               std::uint32_t dst_w,
+                               std::uint32_t dst_h,
+                               axvsdk::common::ResizeAlign h_align,
+                               axvsdk::common::ResizeAlign v_align) {
+    LetterboxInfo lb{};
+    lb.dst_w = dst_w;
+    lb.dst_h = dst_h;
+    if (src_w == 0 || src_h == 0 || dst_w == 0 || dst_h == 0) {
+        return lb;
+    }
+
+    const float sx = static_cast<float>(dst_w) / static_cast<float>(src_w);
+    const float sy = static_cast<float>(dst_h) / static_cast<float>(src_h);
+    lb.scale = std::min(sx, sy);
+
+    const std::uint32_t new_w = static_cast<std::uint32_t>(std::round(static_cast<float>(src_w) * lb.scale));
+    const std::uint32_t new_h = static_cast<std::uint32_t>(std::round(static_cast<float>(src_h) * lb.scale));
+    const std::uint32_t pad_w = (dst_w > new_w) ? (dst_w - new_w) : 0U;
+    const std::uint32_t pad_h = (dst_h > new_h) ? (dst_h - new_h) : 0U;
+
+    const std::uint32_t pad_x0 = [&]() -> std::uint32_t {
+        switch (h_align) {
+        case axvsdk::common::ResizeAlign::kStart:
+            return 0U;
+        case axvsdk::common::ResizeAlign::kEnd:
+            return pad_w;
+        case axvsdk::common::ResizeAlign::kCenter:
+        default:
+            return pad_w / 2U;
+        }
+    }();
+
+    const std::uint32_t pad_y0 = [&]() -> std::uint32_t {
+        switch (v_align) {
+        case axvsdk::common::ResizeAlign::kStart:
+            return 0U;
+        case axvsdk::common::ResizeAlign::kEnd:
+            return pad_h;
+        case axvsdk::common::ResizeAlign::kCenter:
+        default:
+            return pad_h / 2U;
+        }
+    }();
+
+    lb.pad_x = static_cast<float>(pad_x0);
+    lb.pad_y = static_cast<float>(pad_y0);
+    return lb;
+}
+
+void UndoLetterbox(const LetterboxInfo& lb, std::uint32_t src_w, std::uint32_t src_h, std::vector<axpipeline::ai::Detection>* dets) {
+    if (!dets || dets->empty()) return;
+    if (lb.scale <= 0.0F) return;
+
+    for (auto& d : *dets) {
+        d.x0 = (d.x0 - lb.pad_x) / lb.scale;
+        d.y0 = (d.y0 - lb.pad_y) / lb.scale;
+        d.x1 = (d.x1 - lb.pad_x) / lb.scale;
+        d.y1 = (d.y1 - lb.pad_y) / lb.scale;
+
+        if (d.x1 < d.x0) std::swap(d.x0, d.x1);
+        if (d.y1 < d.y0) std::swap(d.y0, d.y1);
+
+        d.x0 = std::max(0.0F, std::min(d.x0, static_cast<float>(src_w)));
+        d.y0 = std::max(0.0F, std::min(d.y0, static_cast<float>(src_h)));
+        d.x1 = std::max(0.0F, std::min(d.x1, static_cast<float>(src_w)));
+        d.y1 = std::max(0.0F, std::min(d.y1, static_cast<float>(src_h)));
+    }
+}
+
+enum class InputLayout {
+    kUnknown = 0,
+    kNHWC,
+    kNCHW,
+};
+
+struct InputMeta {
+    InputLayout layout{InputLayout::kUnknown};
+    std::uint32_t width{0};
+    std::uint32_t height{0};
+    std::uint32_t channels{0};
+};
+
+bool InferInputMeta(const ax_runner_tensor_t& in, InputMeta* out, std::string* error) {
+    if (!out) return false;
+    *out = {};
+    if (in.vShape.size() != 4) {
+        if (error) *error = "unexpected input dims: rank=" + std::to_string(in.vShape.size());
+        return false;
+    }
+
+    const auto n = in.vShape[0];
+    const auto d1 = in.vShape[1];
+    const auto d2 = in.vShape[2];
+    const auto d3 = in.vShape[3];
+    (void)n;
+
+    if (d1 == 3U) {
+        out->layout = InputLayout::kNCHW;
+        out->channels = 3;
+        out->height = d2;
+        out->width = d3;
+    } else if (d3 == 3U) {
+        out->layout = InputLayout::kNHWC;
+        out->channels = 3;
+        out->height = d1;
+        out->width = d2;
+    } else {
+        if (error) *error = "cannot infer input layout from shape";
+        return false;
+    }
+
+    if (out->width == 0 || out->height == 0) {
+        if (error) *error = "invalid input shape";
+        return false;
+    }
+    return true;
+}
+
+bool ReadFileToBuffer(const std::string& path, std::vector<char>* out, std::string* error) {
+    if (out == nullptr) return false;
+    out->clear();
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs) {
+        if (error) *error = "open failed: " + path;
+        return false;
+    }
+    ifs.seekg(0, std::ios::end);
+    const auto end = ifs.tellg();
+    if (end <= 0) {
+        if (error) *error = "empty file: " + path;
+        return false;
+    }
+    out->resize(static_cast<std::size_t>(end));
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(out->data(), static_cast<std::streamsize>(out->size()))) {
+        if (error) *error = "read failed: " + path;
+        return false;
+    }
+    return true;
+}
+
+struct TensorView {
+    const float* data{nullptr};
+    std::vector<unsigned int> shape;
+    std::size_t bytes{0};
+    std::string name;
 };
 
 struct DenseTensorView {
@@ -71,17 +257,13 @@ struct DenseTensorView {
     bool channel_first{true};
 };
 
-bool MakeDenseView(const axpipeline::npu::AxModelBase::TensorView& t,
-                   int expected_channels,
-                   std::size_t expected_anchors,
-                   DenseTensorView* out) {
+bool MakeDenseView(const TensorView& t, int expected_channels, std::size_t expected_anchors, DenseTensorView* out) {
     if (!out) return false;
     *out = {};
     if (t.data == nullptr) return false;
     if (expected_channels <= 0 || expected_anchors == 0) return false;
 
     std::vector<unsigned int> dims = t.shape;
-    // Squeeze batch/degenerate dims (keep at least 2 dims).
     if (dims.size() > 2) {
         for (auto it = dims.begin(); dims.size() > 2 && it != dims.end();) {
             if (*it == 1U) {
@@ -150,7 +332,7 @@ inline float DenseAt(const DenseTensorView& tv, int c, std::size_t n) noexcept {
     return tv.data[n * static_cast<std::size_t>(tv.channels) + static_cast<std::size_t>(c)];
 }
 
-inline float IoUInclusive(const axpipeline::npu::Detection& a, const axpipeline::npu::Detection& b) noexcept {
+inline float IoUInclusive(const axpipeline::ai::Detection& a, const axpipeline::ai::Detection& b) noexcept {
     const float x0 = std::max(a.x0, b.x0);
     const float y0 = std::max(a.y0, b.y0);
     const float x1 = std::min(a.x1, b.x1);
@@ -165,14 +347,19 @@ inline float IoUInclusive(const axpipeline::npu::Detection& a, const axpipeline:
     return inter / uni;
 }
 
-void NmsPerClass(std::vector<axpipeline::npu::Detection>* dets, float iou_thr) {
+void NmsPerClass(std::vector<axpipeline::ai::Detection>* dets, float iou_thr, std::size_t max_det) {
     if (!dets || dets->empty()) return;
-    if (iou_thr <= 0.0F) return;
+    if (iou_thr < 0.0F) iou_thr = 0.0F;
 
     std::sort(dets->begin(), dets->end(), [](const auto& a, const auto& b) { return a.score > b.score; });
 
-    std::vector<axpipeline::npu::Detection> keep;
-    keep.reserve(dets->size());
+    if (iou_thr <= 0.0F) {
+        if (max_det > 0 && dets->size() > max_det) dets->resize(max_det);
+        return;
+    }
+
+    std::vector<axpipeline::ai::Detection> keep;
+    keep.reserve((max_det > 0) ? std::min(dets->size(), max_det) : dets->size());
     for (const auto& d : *dets) {
         bool ok = true;
         for (const auto& k : keep) {
@@ -182,43 +369,105 @@ void NmsPerClass(std::vector<axpipeline::npu::Detection>* dets, float iou_thr) {
                 break;
             }
         }
-        if (ok) keep.push_back(d);
+        if (!ok) continue;
+        keep.push_back(d);
+        if (max_det > 0 && keep.size() >= max_det) break;
     }
     *dets = std::move(keep);
 }
 
-class AxModelPcd final : public axpipeline::npu::AxModelBase {
+class PcdModel final {
 public:
     bool Init(const PcdOptions& opt, std::string* error) {
+        Deinit();
         opt_ = opt;
-        return AxModelBase::Init(opt_.base, error);
-    }
+        if (opt_.base.model_path.empty()) {
+            if (error) *error = "model_path is empty";
+            return false;
+        }
 
-private:
-    bool ValidateModel(std::string* error) override {
+        if (!ReadFileToBuffer(opt_.base.model_path, &model_bytes_, error)) {
+            return false;
+        }
+
+        if (!imgproc_) {
+            imgproc_ = axvsdk::common::CreateImageProcessor();
+            if (!imgproc_) {
+                if (error) *error = "CreateImageProcessor failed";
+                return false;
+            }
+        }
+
+        if (opt_.base.device_id < 0) {
+            opt_.base.device_id = 0;
+        }
+
+#if defined(AXPIPELINE_HAVE_AXCL)
+        if (!axcl_Dev_IsInit(opt_.base.device_id)) {
+            if (axcl_Dev_Init(opt_.base.device_id) != 0) {
+                if (error) *error = "axcl_Dev_Init failed for device " + std::to_string(opt_.base.device_id);
+                return false;
+            }
+        }
+        runner_ = std::make_shared<ax_runner_axcl>();
+#elif defined(AXPIPELINE_HAVE_MSP)
+        runner_ = std::make_shared<ax_runner_ax650>();
+#else
+        (void)error;
+        return false;
+#endif
+
+        if (!runner_) {
+            if (error) *error = "create runner failed";
+            return false;
+        }
+
+        if (opt_.base.npu_affinity != 0) {
+            runner_->set_init_affinity(static_cast<int>(opt_.base.npu_affinity));
+        }
+
+        const int ret = runner_->init(model_bytes_.data(), static_cast<unsigned int>(model_bytes_.size()), opt_.base.device_id);
+        if (ret != 0) {
+            if (error) *error = "runner init failed: ret=" + std::to_string(ret);
+            return false;
+        }
+
+        if (opt_.base.npu_affinity != 0) {
+            (void)runner_->set_affinity(static_cast<int>(opt_.base.npu_affinity));
+        }
+
+        if (runner_->get_num_inputs() < 1) {
+            if (error) *error = "model has no inputs";
+            return false;
+        }
+        if (!InferInputMeta(runner_->get_input(0), &input_, error)) {
+            return false;
+        }
+
+        if (input_.channels != 3) {
+            if (error) *error = "unsupported input channels: " + std::to_string(input_.channels);
+            return false;
+        }
+
+        const std::size_t expect_bytes =
+            static_cast<std::size_t>(input_.width) * static_cast<std::size_t>(input_.height) * 3U;
+        if (runner_->get_input(0).nSize < static_cast<int>(expect_bytes)) {
+            if (error) *error = "runner input buffer too small for expected RGB bytes";
+            return false;
+        }
+
         if (opt_.strides.empty()) {
             if (error) *error = "strides is empty";
-            return false;
-        }
-        if (opt_.num_classes <= 0) {
-            if (error) *error = "num_classes must be > 0";
-            return false;
-        }
-
-        const auto in = input_spec();
-        if (in.width == 0 || in.height == 0) {
-            if (error) *error = "invalid model input spec";
             return false;
         }
 
         anchor_cx_.clear();
         anchor_cy_.clear();
         anchor_stride_.clear();
-
         for (const int s : opt_.strides) {
             if (s <= 0) continue;
-            const std::uint32_t gh = in.height / static_cast<std::uint32_t>(s);
-            const std::uint32_t gw = in.width / static_cast<std::uint32_t>(s);
+            const std::uint32_t gh = input_.height / static_cast<std::uint32_t>(s);
+            const std::uint32_t gw = input_.width / static_cast<std::uint32_t>(s);
             for (std::uint32_t y = 0; y < gh; ++y) {
                 for (std::uint32_t x = 0; x < gw; ++x) {
                     anchor_cx_.push_back((static_cast<float>(x) + 0.5F) * static_cast<float>(s));
@@ -227,31 +476,163 @@ private:
                 }
             }
         }
-
         if (anchor_cx_.empty()) {
             if (error) *error = "anchor grid is empty (check strides vs model input size)";
             return false;
         }
-        return true;
-    }
 
-    bool Postprocess(const std::vector<TensorView>& outputs,
-                     const axpipeline::npu::LetterboxInfo& /*lb*/,
-                     std::uint32_t /*src_w*/,
-                     std::uint32_t /*src_h*/,
-                     std::vector<axpipeline::npu::Detection>* out,
-                     std::string* error) override {
-        if (!out) return false;
-        out->clear();
+        axvsdk::common::ImageDescriptor desc{};
+        desc.format = axvsdk::common::PixelFormat::kRgb24;
+        desc.width = input_.width;
+        desc.height = input_.height;
+        desc.strides[0] = static_cast<std::size_t>(desc.width) * 3U;
 
-        if (outputs.size() < 2) {
-            if (error) *error = "unexpected output tensor count: got " + std::to_string(outputs.size());
+        axvsdk::common::ImageAllocationOptions alloc{};
+        alloc.memory_type = axvsdk::common::MemoryType::kCmm;
+        alloc.cache_mode = axvsdk::common::CacheMode::kNonCached;
+        alloc.alignment = 0x1000;
+        alloc.token = "PcdPreprocess";
+
+        preprocess_rgb_ = axvsdk::common::AxImage::Create(desc, alloc);
+        if (!preprocess_rgb_) {
+            if (error) *error = "allocate preprocess buffer failed";
             return false;
         }
 
-        const auto in = input_spec();
-        const std::size_t anchors = anchor_cx_.size();
+        host_rgb_.resize(expect_bytes);
+        return true;
+    }
 
+    void Deinit() {
+        if (runner_) {
+            runner_->deinit();
+        }
+        runner_.reset();
+        model_bytes_.clear();
+        input_ = {};
+        preprocess_rgb_.reset();
+        host_rgb_.clear();
+        anchor_cx_.clear();
+        anchor_cy_.clear();
+        anchor_stride_.clear();
+    }
+
+    bool Infer(const axvsdk::common::AxImage& frame, std::vector<axpipeline::ai::Detection>* out, std::string* error) {
+        if (out == nullptr) return false;
+        out->clear();
+        if (!runner_ || !preprocess_rgb_) {
+            if (error) *error = "model not initialized";
+            return false;
+        }
+
+        const auto src_w = frame.width();
+        const auto src_h = frame.height();
+        const auto lb = ComputeLetterbox(src_w, src_h, input_.width, input_.height, opt_.base.h_align, opt_.base.v_align);
+
+        axvsdk::common::ImageProcessRequest req{};
+        req.output_image.format = axvsdk::common::PixelFormat::kRgb24;
+        req.output_image.width = input_.width;
+        req.output_image.height = input_.height;
+        req.resize.mode = opt_.base.resize_mode;
+        req.resize.horizontal_align = opt_.base.h_align;
+        req.resize.vertical_align = opt_.base.v_align;
+        req.resize.background_color = opt_.base.background_color;
+
+        if (!imgproc_->Process(frame, req, *preprocess_rgb_)) {
+            if (error) *error = "preprocess failed";
+            return false;
+        }
+
+        const std::size_t bytes = static_cast<std::size_t>(input_.width) * static_cast<std::size_t>(input_.height) * 3U;
+        const auto phy0 = preprocess_rgb_->physical_address(0);
+        const auto* vir0 = preprocess_rgb_->plane_data(0);
+
+        const std::uint8_t* rgb_hwc = nullptr;
+#if defined(AXPIPELINE_HAVE_AXCL)
+        (void)vir0;
+        // AXCL: preprocess output is device memory; copy back to host for layout conversion.
+        if (phy0 == 0) {
+            if (error) *error = "preprocess rgb has no physical address";
+            return false;
+        }
+        const void* src_dev = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(phy0));
+        if (axcl_Memcpy(host_rgb_.data(), src_dev, bytes, AXCL_MEMCPY_DEVICE_TO_HOST, opt_.base.device_id) != 0) {
+            if (error) *error = "axcl_Memcpy(D2H preprocess rgb) failed";
+            return false;
+        }
+        rgb_hwc = host_rgb_.data();
+#else
+        (void)phy0;
+        // MSP: CMM is CPU addressable.
+        if (vir0 == nullptr) {
+            if (error) *error = "preprocess rgb plane not accessible";
+            return false;
+        }
+        if (preprocess_rgb_->stride(0) == static_cast<std::size_t>(input_.width) * 3U) {
+            // Tight-packed: direct view.
+            rgb_hwc = vir0;
+        } else {
+            // Should not happen (we set stride), but handle defensively.
+            for (std::uint32_t y = 0; y < input_.height; ++y) {
+                std::memcpy(host_rgb_.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(input_.width) * 3U,
+                            vir0 + static_cast<std::size_t>(y) * preprocess_rgb_->stride(0),
+                            static_cast<std::size_t>(input_.width) * 3U);
+            }
+            rgb_hwc = host_rgb_.data();
+        }
+#endif
+        if (rgb_hwc == nullptr) {
+            if (error) *error = "preprocess rgb pointer is null";
+            return false;
+        }
+
+        auto& in = runner_->get_input(0);
+        if (in.pVirAddr == nullptr || in.nSize <= 0) {
+            if (error) *error = "invalid runner input staging buffer";
+            return false;
+        }
+        auto* dst = static_cast<std::uint8_t*>(in.pVirAddr);
+
+        if (input_.layout == InputLayout::kNHWC) {
+            std::memcpy(dst, rgb_hwc, bytes);
+        } else if (input_.layout == InputLayout::kNCHW) {
+            const std::size_t plane = static_cast<std::size_t>(input_.width) * static_cast<std::size_t>(input_.height);
+            std::uint8_t* r = dst;
+            std::uint8_t* g = dst + plane;
+            std::uint8_t* b = dst + plane * 2U;
+            for (std::size_t i = 0; i < plane; ++i) {
+                r[i] = rgb_hwc[i * 3U + 0];
+                g[i] = rgb_hwc[i * 3U + 1];
+                b[i] = rgb_hwc[i * 3U + 2];
+            }
+        } else {
+            if (error) *error = "unknown input layout";
+            return false;
+        }
+
+        // Run.
+        const int ret = runner_->inference();
+        if (ret != 0) {
+            if (error) *error = "runner inference failed: ret=" + std::to_string(ret);
+            return false;
+        }
+
+        // Collect outputs (already synced in runner for both backends).
+        std::vector<TensorView> outputs;
+        const int nout = runner_->get_num_outputs();
+        outputs.reserve(static_cast<std::size_t>(nout));
+        for (int i = 0; i < nout; ++i) {
+            const auto& o = runner_->get_output(i);
+            TensorView tv{};
+            tv.data = reinterpret_cast<const float*>(o.pVirAddr);
+            tv.shape = o.vShape;
+            tv.name = o.sName;
+            tv.bytes = static_cast<std::size_t>(o.nSize);
+            outputs.push_back(std::move(tv));
+        }
+
+        // Decode.
+        const std::size_t anchors = anchor_cx_.size();
         DenseTensorView boxes{};
         DenseTensorView scores{};
         bool ok = false;
@@ -268,7 +649,7 @@ private:
             return false;
         }
 
-        std::vector<axpipeline::npu::Detection> dets;
+        std::vector<axpipeline::ai::Detection> dets;
         dets.reserve(static_cast<std::size_t>(opt_.max_det > 0 ? opt_.max_det : 256));
 
         const float conf_thr = opt_.conf_threshold;
@@ -283,9 +664,6 @@ private:
                 }
             }
 
-            // Same behavior as the reference python code:
-            // - filter by obj (= max prob)
-            // - final conf = obj * max_prob (i.e. square)
             const float obj = best_prob;
             if (obj <= conf_thr) continue;
             const float score = obj * best_prob;
@@ -299,44 +677,47 @@ private:
             const float cx = anchor_cx_[n];
             const float cy = anchor_cy_[n];
 
-            float x0 = cx - l * s;
-            float y0 = cy - t * s;
-            float x1 = cx + r * s;
-            float y1 = cy + b * s;
-
-            x0 = std::max(0.0F, std::min(x0, static_cast<float>(in.width)));
-            y0 = std::max(0.0F, std::min(y0, static_cast<float>(in.height)));
-            x1 = std::max(0.0F, std::min(x1, static_cast<float>(in.width)));
-            y1 = std::max(0.0F, std::min(y1, static_cast<float>(in.height)));
-            if (x1 <= x0) x1 = std::min(static_cast<float>(in.width), x0 + 1.0F);
-            if (y1 <= y0) y1 = std::min(static_cast<float>(in.height), y0 + 1.0F);
-
-            axpipeline::npu::Detection d{};
-            d.x0 = x0;
-            d.y0 = y0;
-            d.x1 = x1;
-            d.y1 = y1;
+            axpipeline::ai::Detection d{};
+            d.x0 = cx - l * s;
+            d.y0 = cy - t * s;
+            d.x1 = cx + r * s;
+            d.y1 = cy + b * s;
             d.score = score;
             d.class_id = best_cls;
+            d.track_id = -1;
             dets.push_back(d);
         }
 
-        if (dets.empty()) {
-            *out = {};
-            return true;
+        // NMS + mapping back to source coords.
+        NmsPerClass(&dets, opt_.nms_threshold, (opt_.max_det > 0) ? static_cast<std::size_t>(opt_.max_det) : 0U);
+        if (opt_.base.resize_mode == axvsdk::common::ResizeMode::kKeepAspectRatio) {
+            UndoLetterbox(lb, src_w, src_h, &dets);
+        } else {
+            // stretch: map linearly
+            const float sx = static_cast<float>(src_w) / static_cast<float>(input_.width);
+            const float sy = static_cast<float>(src_h) / static_cast<float>(input_.height);
+            for (auto& d : dets) {
+                d.x0 *= sx;
+                d.x1 *= sx;
+                d.y0 *= sy;
+                d.y1 *= sy;
+            }
         }
 
-        std::sort(dets.begin(), dets.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
-        if (opt_.max_det > 0 && dets.size() > static_cast<std::size_t>(opt_.max_det)) {
-            dets.resize(static_cast<std::size_t>(opt_.max_det));
-        }
-
-        NmsPerClass(&dets, opt_.nms_threshold);
         *out = std::move(dets);
         return true;
     }
 
+private:
     PcdOptions opt_{};
+    std::vector<char> model_bytes_{};
+    std::shared_ptr<ax_runner_base> runner_{};
+    InputMeta input_{};
+
+    std::unique_ptr<axvsdk::common::ImageProcessor> imgproc_{};
+    axvsdk::common::AxImage::Ptr preprocess_rgb_{};
+    std::vector<std::uint8_t> host_rgb_{};
+
     std::vector<float> anchor_cx_;
     std::vector<float> anchor_cy_;
     std::vector<float> anchor_stride_;
@@ -390,7 +771,7 @@ bool BuildAxImageView(const ax_plugin_image_view_t& view, axvsdk::common::AxImag
 }
 
 struct PluginCtx {
-    AxModelPcd model;
+    PcdModel model;
     std::vector<ax_plugin_det_t> out_dets;
     std::unique_ptr<axpipeline::tracking::ByteTrack> tracker;
 };
@@ -530,9 +911,9 @@ int ax_plugin_infer(ax_plugin_handle_t handle,
         return -2;
     }
 
-    std::vector<axpipeline::npu::Detection> dets;
+    std::vector<axpipeline::ai::Detection> dets;
     std::string err;
-    if (!ctx->model.Infer(*frame, &dets, &err, nullptr)) {
+    if (!ctx->model.Infer(*frame, &dets, &err)) {
         if (!err.empty()) {
             std::fprintf(stderr, "[ax_plugin_pcd] Infer failed: %s\n", err.c_str());
         } else {
@@ -543,20 +924,7 @@ int ax_plugin_infer(ax_plugin_handle_t handle,
 
     ctx->out_dets.clear();
     if (ctx->tracker) {
-        std::vector<axpipeline::ai::Detection> dets_ai;
-        dets_ai.reserve(dets.size());
-        for (const auto& d : dets) {
-            axpipeline::ai::Detection dd{};
-            dd.x0 = d.x0;
-            dd.y0 = d.y0;
-            dd.x1 = d.x1;
-            dd.y1 = d.y1;
-            dd.score = d.score;
-            dd.class_id = d.class_id;
-            dets_ai.push_back(dd);
-        }
-
-        const auto tracks = ctx->tracker->Update(dets_ai);
+        const auto tracks = ctx->tracker->Update(dets);
         ctx->out_dets.reserve(tracks.size());
         for (const auto& t : tracks) {
             ax_plugin_det_t dd{};

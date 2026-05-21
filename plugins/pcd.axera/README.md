@@ -46,3 +46,20 @@ Optional tracking (plugin-side ByteTrack, same behavior as `yolov5/yolov8` plugi
 - `track_buffer` (int, default `30`)
 - `track_min_score` (number, default `0.0`)
 
+## Benchmark (10x 1080p decode + encode + NPU)
+
+Tested with `ax_pipeline_app -t 60` (MP4 input in `realtime_playback=true`), 10 pipelines, each pipeline:
+
+- Input: 1920x1080@30 HEVC
+- Output: H.265 encode + RTSP publish (no client required)
+- NPU: `ax_plugin_pcd`, OSD/tracking disabled, `npu_max_fps=0` (unlimited)
+
+FPS calculation:
+
+- Decode FPS / channel: `decoded / 60`
+- NPU FPS / channel: `npu_ok / 60`
+
+| Platform | Channels | Decode FPS / ch (avg) | NPU FPS / ch (avg / min / max) |
+|---|---:|---:|---:|
+| AXCL (x86_64) | 10 | 29.69 | 15.71 / 15.55 / 15.88 |
+| AX650 (MSP) | 10 | 29.63 | 4.70 / 4.45 / 4.83 |
