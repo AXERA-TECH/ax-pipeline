@@ -137,11 +137,7 @@ std::vector<ai::Detection> PipelineInstance::GetLastDetectionsLocked() const {
 
 void PipelineInstance::StartNpuIfEnabled() {
     if (!pipe_) return;
-    if (!cfg_.npu.enable) {
-        npu_worker_.reset();
-        tracker_.reset();
-        return;
-    }
+    if (!cfg_.npu.enable) return;
 
     ai::AsyncInferOptions nopt{};
     nopt.device_id = cfg_.device_id;
@@ -276,7 +272,7 @@ void PipelineInstance::StartNpuIfEnabled() {
                     }
                 }
 
-                if ((seq % 30) == 0) {
+                if (EnvFlagEnabled("AXP_NPU_LOG") && (seq % 30) == 0) {
                     std::cout << "[npu pipeline=" << name << "] seq=" << seq << " dets=" << dets_infer.size() << "\n";
                 }
             },
@@ -291,12 +287,10 @@ void PipelineInstance::StartNpuIfEnabled() {
     BuildFrameCallback();
 }
 
-void PipelineInstance::StopNpu() noexcept {
-    if (npu_worker_) {
-        npu_worker_->Stop();
-    }
-    npu_worker_.reset();
+std::shared_ptr<ai::AsyncInfer> PipelineInstance::DetachNpuWorkerLocked() noexcept {
+    auto worker = std::move(npu_worker_);
     tracker_.reset();
+    return worker;
 }
 
 void PipelineInstance::ClearOsdIfAny() noexcept {
@@ -306,101 +300,106 @@ void PipelineInstance::ClearOsdIfAny() noexcept {
 }
 
 bool PipelineInstance::Open(std::string* error) {
-    std::lock_guard<std::mutex> lock(mu_);
-    if (pipe_) return true;
-    if (!BuildPipeline(error)) return false;
-    StartNpuIfEnabled();
+    std::shared_ptr<ai::AsyncInfer> old_worker;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        if (pipe_) return true;
+        if (!BuildPipeline(error)) return false;
+        old_worker = DetachNpuWorkerLocked();
+        StartNpuIfEnabled();
+    }
+    if (old_worker) old_worker->Stop();
     return true;
 }
 
 bool PipelineInstance::Start(std::string* error) {
-    std::lock_guard<std::mutex> lock(mu_);
-    if (!pipe_) {
-        if (!BuildPipeline(error)) return false;
-        StartNpuIfEnabled();
+    std::shared_ptr<ai::AsyncInfer> old_worker;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        if (!pipe_) {
+            if (!BuildPipeline(error)) return false;
+            old_worker = DetachNpuWorkerLocked();
+            StartNpuIfEnabled();
+        }
+        if (running_) return true;
+        if (!pipe_ || !pipe_->Start()) {
+            if (error) *error = "pipeline Start failed";
+            return false;
+        }
+        running_ = true;
     }
-    if (running_) return true;
-    if (!pipe_->Start()) {
-        if (error) *error = "pipeline Start failed";
-        return false;
-    }
-    running_ = true;
+    if (old_worker) old_worker->Stop();
     return true;
 }
 
 void PipelineInstance::Stop() noexcept {
-    std::lock_guard<std::mutex> lock(mu_);
-    running_ = false;
-    StopNpu();
-    if (pipe_) {
-        pipe_->Stop();
+    std::shared_ptr<ai::AsyncInfer> worker;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        running_ = false;
+        worker = DetachNpuWorkerLocked();
+        if (pipe_) {
+            pipe_->Stop();
+        }
     }
+    if (worker) worker->Stop();
 }
 
 void PipelineInstance::Close() noexcept {
-    std::lock_guard<std::mutex> lock(mu_);
-    running_ = false;
-    StopNpu();
-    if (pipe_) {
-        pipe_->Stop();
-        pipe_->Close();
-        pipe_.reset();
+    std::shared_ptr<ai::AsyncInfer> worker;
+    std::unique_ptr<axvsdk::pipeline::Pipeline> pipe;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        running_ = false;
+        worker = DetachNpuWorkerLocked();
+        pipe = std::move(pipe_);
+        last_dets_.clear();
+        last_det_seq_ = 0;
+        frame_counter_->store(0, std::memory_order_relaxed);
+        frame_info_->source_w.store(0, std::memory_order_relaxed);
+        frame_info_->source_h.store(0, std::memory_order_relaxed);
+        frame_info_->infer_w.store(0, std::memory_order_relaxed);
+        frame_info_->infer_h.store(0, std::memory_order_relaxed);
     }
-    last_dets_.clear();
-    last_det_seq_ = 0;
-    frame_counter_->store(0, std::memory_order_relaxed);
-    frame_info_->source_w.store(0, std::memory_order_relaxed);
-    frame_info_->source_h.store(0, std::memory_order_relaxed);
-    frame_info_->infer_w.store(0, std::memory_order_relaxed);
-    frame_info_->infer_h.store(0, std::memory_order_relaxed);
+    if (worker) worker->Stop();
+    if (pipe) {
+        pipe->Stop();
+        pipe->Close();
+    }
 }
 
 bool PipelineInstance::Reconfigure(const ConfigLoader::PipelineCfg& cfg, bool autostart, std::string* error) {
-    std::lock_guard<std::mutex> lock(mu_);
-    const auto old_cfg = cfg_;
-    const bool was_running = running_;
+    std::shared_ptr<ai::AsyncInfer> old_worker;
+    std::unique_ptr<axvsdk::pipeline::Pipeline> old_pipe;
+    ConfigLoader::PipelineCfg old_cfg;
+    bool was_running = false;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        old_cfg = cfg_;
+        was_running = running_;
 
-    // Stop current.
-    running_ = false;
-    StopNpu();
-    ClearOsdIfAny();
-    if (pipe_) {
-        pipe_->Stop();
-        pipe_->Close();
-        pipe_.reset();
+        running_ = false;
+        old_worker = DetachNpuWorkerLocked();
+        ClearOsdIfAny();
+        old_pipe = std::move(pipe_);
+
+        cfg_ = cfg;
+        frame_counter_->store(0, std::memory_order_relaxed);
+        last_dets_.clear();
+        last_det_seq_ = 0;
     }
 
-    cfg_ = cfg;
-    frame_counter_->store(0, std::memory_order_relaxed);
-    last_dets_.clear();
-    last_det_seq_ = 0;
+    if (old_worker) old_worker->Stop();
+    if (old_pipe) {
+        old_pipe->Stop();
+        old_pipe->Close();
+    }
 
     std::string open_err;
-    if (!BuildPipeline(&open_err)) {
-        // Rollback best-effort.
-        cfg_ = old_cfg;
-        (void)BuildPipeline(nullptr);
-        StartNpuIfEnabled();
-        if (was_running && pipe_) {
-            (void)pipe_->Start();
-            running_ = true;
-        }
-        if (error) *error = open_err.empty() ? "reconfigure open failed" : open_err;
-        return false;
-    }
-
-    StartNpuIfEnabled();
-    if (autostart && was_running) {
-        if (!pipe_->Start()) {
-            const std::string start_err = "reconfigure start failed";
-            // Rollback to old config if we cannot start the new one.
-            StopNpu();
-            ClearOsdIfAny();
-            if (pipe_) {
-                pipe_->Stop();
-                pipe_->Close();
-                pipe_.reset();
-            }
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        if (!BuildPipeline(&open_err)) {
+            // Rollback best-effort.
             cfg_ = old_cfg;
             (void)BuildPipeline(nullptr);
             StartNpuIfEnabled();
@@ -408,10 +407,33 @@ bool PipelineInstance::Reconfigure(const ConfigLoader::PipelineCfg& cfg, bool au
                 (void)pipe_->Start();
                 running_ = true;
             }
+            if (error) *error = open_err.empty() ? "reconfigure open failed" : open_err;
+            return false;
+        }
+        StartNpuIfEnabled();
+    }
+
+    if (autostart && was_running) {
+        bool started = false;
+        {
+            std::lock_guard<std::mutex> lock(mu_);
+            if (pipe_ && pipe_->Start()) {
+                running_ = true;
+                started = true;
+            }
+        }
+        if (!started) {
+            const std::string start_err = "reconfigure start failed";
+            Close();
+            {
+                std::lock_guard<std::mutex> lock(mu_);
+                cfg_ = old_cfg;
+            }
+            (void)Open(nullptr);
+            if (was_running) (void)Start(nullptr);
             if (error) *error = start_err;
             return false;
         }
-        running_ = true;
     }
     return true;
 }
@@ -420,23 +442,27 @@ bool PipelineInstance::UpdateNpu(const ConfigLoader::PipelineCfg::NpuCfg& npu,
                                 double npu_max_fps,
                                 bool autostart,
                                 std::string* error) {
-    std::lock_guard<std::mutex> lock(mu_);
-    const bool was_running = running_;
-
-    cfg_.npu = npu;
-    cfg_.npu_max_fps = npu_max_fps;
-
-    StopNpu();
-    ClearOsdIfAny();
-    StartNpuIfEnabled();
-
-    if (autostart && was_running && pipe_ && !running_) {
-        if (!pipe_->Start()) {
-            if (error) *error = "pipeline Start failed after npu update";
-            return false;
+    std::shared_ptr<ai::AsyncInfer> old_worker;
+    bool was_running = false;
+    bool need_restart = false;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        was_running = running_;
+        cfg_.npu = npu;
+        cfg_.npu_max_fps = npu_max_fps;
+        old_worker = DetachNpuWorkerLocked();
+        ClearOsdIfAny();
+        StartNpuIfEnabled();
+        need_restart = autostart && was_running && pipe_ && !running_;
+        if (need_restart) {
+            if (!pipe_->Start()) {
+                if (error) *error = "pipeline Start failed after npu update";
+                return false;
+            }
+            running_ = true;
         }
-        running_ = true;
     }
+    if (old_worker) old_worker->Stop();
     return true;
 }
 

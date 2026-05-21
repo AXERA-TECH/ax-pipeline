@@ -79,7 +79,8 @@ private:
     bool BuildPipeline(std::string* error);
     void BuildFrameCallback();
     void StartNpuIfEnabled();
-    void StopNpu() noexcept;
+    // Caller must hold mu_. Detaches the NPU worker from this instance.
+    std::shared_ptr<ai::AsyncInfer> DetachNpuWorkerLocked() noexcept;
     void ClearOsdIfAny() noexcept;
 
     // Caller must hold mu_.
