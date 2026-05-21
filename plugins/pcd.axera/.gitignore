@@ -1,0 +1,13 @@
+*.axmodel
+*.onnx
+*.pt
+*.pth
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.h264
+*.h265
+*.hevc
+*.py
+
