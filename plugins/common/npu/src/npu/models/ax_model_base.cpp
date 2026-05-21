@@ -240,6 +240,17 @@ bool AxModelBase::Init(const ModelInitOptions& opt, std::string* error) {
         }
     }
 
+#if defined(AXPIPELINE_HAVE_AXCL)
+    if (runner_->backend == BackendType::kAxcl) {
+        // We manage AXCL input synchronization explicitly in PrepareInput() to avoid a slow device->host->device bounce.
+        // Keep output auto-sync enabled (tensors are consumed by CPU postprocess).
+        if (auto* axcl_runner = dynamic_cast<ax_runner_axcl*>(runner_->runner.get())) {
+            axcl_runner->set_auto_sync_before_inference(false);
+            axcl_runner->set_auto_sync_after_inference(true);
+        }
+    }
+#endif
+
     // Infer model input spec from runner input tensor.
     if (runner_->runner->get_num_inputs() < 1) {
         if (error) *error = "model has no inputs";
@@ -342,14 +353,14 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
     }
 
     // Fast-path: input frame is already in model input shape/format.
-    // For AXCL, runner input staging is host memory. When the frame is device memory (common),
-    // host must NOT touch its pointers directly; do a D2H copy via AXCL runtime instead.
+    // For AXCL, keep the input on device whenever possible (D2D copy into runner input buffer).
+    // The old D2H->H2D bounce across PCIe kills multi-channel throughput.
     if (frame.width() == input_.width && frame.height() == input_.height && frame.format() == input_.format) {
         auto& r = *runner_->runner;
         const auto& in = r.get_input(0);
         if (runner_->backend == BackendType::kAxcl) {
 #if defined(AXPIPELINE_HAVE_AXCL)
-            if (in.pVirAddr == nullptr || in.nSize <= 0) {
+            if (in.nSize <= 0 || in.phyAddr == 0) {
                 if (error) *error = "invalid runner input buffer";
                 return false;
             }
@@ -363,7 +374,7 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 input_.format == axvsdk::common::PixelFormat::kRgb24) {
                 const std::size_t row_bytes = static_cast<std::size_t>(input_.width) * 3U;
                 const std::size_t src_stride = frame.stride(0);
-                auto* dst = static_cast<std::uint8_t*>(in.pVirAddr);
+                auto* dst_dev = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(in.phyAddr));
 
                 const std::size_t expect = row_bytes * static_cast<std::size_t>(input_.height);
                 if (expect > static_cast<std::size_t>(in.nSize)) {
@@ -372,19 +383,29 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 }
 
                 if (host_accessible) {
+                    if (in.pVirAddr == nullptr) {
+                        if (error) *error = "invalid runner input staging buffer";
+                        return false;
+                    }
+                    auto* dst_host = static_cast<std::uint8_t*>(in.pVirAddr);
                     const auto* src0 = frame.plane_data(0);
                     if (src0 == nullptr) {
                         if (error) *error = "input plane0 not accessible on host";
                         return false;
                     }
                     if (src_stride == row_bytes) {
-                        std::memcpy(dst, src0, expect);
+                        std::memcpy(dst_host, src0, expect);
                     } else {
                         for (std::uint32_t y = 0; y < input_.height; ++y) {
-                            std::memcpy(dst + static_cast<std::size_t>(y) * row_bytes,
+                            std::memcpy(dst_host + static_cast<std::size_t>(y) * row_bytes,
                                         src0 + static_cast<std::size_t>(y) * src_stride,
                                         row_bytes);
                         }
+                    }
+                    const int sret = r.sync_input(0);
+                    if (sret != 0) {
+                        if (error) *error = "axcl sync_input(H2D bgr) failed: ret=" + std::to_string(sret);
+                        return false;
                     }
                     return true;
                 }
@@ -400,9 +421,10 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 }
 
                 if (src_stride == row_bytes) {
-                    const auto cpy = axcl_Memcpy(dst, src0, expect, AXCL_MEMCPY_DEVICE_TO_HOST, opt_.device_id);
+                    const auto cpy =
+                        axcl_Memcpy(dst_dev, src0, expect, AXCL_MEMCPY_DEVICE_TO_DEVICE, opt_.device_id);
                     if (cpy != 0) {
-                        if (error) *error = "axcl_Memcpy(D2H bgr) failed: ret=" + std::to_string(cpy);
+                        if (error) *error = "axcl_Memcpy(D2D bgr) failed: ret=" + std::to_string(cpy);
                         return false;
                     }
                 } else {
@@ -410,13 +432,13 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                     for (std::uint32_t y = 0; y < input_.height; ++y) {
                         const void* row_src =
                             reinterpret_cast<const void*>(base0 + static_cast<std::uintptr_t>(y) * src_stride);
-                        const auto cpy = axcl_Memcpy(dst + static_cast<std::size_t>(y) * row_bytes,
+                        const auto cpy = axcl_Memcpy(dst_dev + static_cast<std::size_t>(y) * row_bytes,
                                                      row_src,
                                                      row_bytes,
-                                                     AXCL_MEMCPY_DEVICE_TO_HOST,
+                                                     AXCL_MEMCPY_DEVICE_TO_DEVICE,
                                                      opt_.device_id);
                         if (cpy != 0) {
-                            if (error) *error = "axcl_Memcpy(D2H bgr row) failed: ret=" + std::to_string(cpy);
+                            if (error) *error = "axcl_Memcpy(D2D bgr row) failed: ret=" + std::to_string(cpy);
                             return false;
                         }
                     }
@@ -428,7 +450,7 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 const std::size_t y_row = static_cast<std::size_t>(input_.width);
                 const std::size_t y_stride = frame.stride(0);
                 const std::size_t uv_stride = frame.stride(1);
-                auto* dst = static_cast<std::uint8_t*>(in.pVirAddr);
+                auto* dst_dev = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(in.phyAddr));
 
                 const std::size_t expect = y_row * static_cast<std::size_t>(input_.height) * 3U / 2U;
                 if (expect > static_cast<std::size_t>(in.nSize)) {
@@ -437,6 +459,11 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 }
 
                 if (host_accessible) {
+                    if (in.pVirAddr == nullptr) {
+                        if (error) *error = "invalid runner input staging buffer";
+                        return false;
+                    }
+                    auto* dst_host = static_cast<std::uint8_t*>(in.pVirAddr);
                     const auto* src0 = frame.plane_data(0);
                     const auto* src1 = frame.plane_data(1);
                     if (src0 == nullptr) {
@@ -448,15 +475,20 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                         return false;
                     }
                     for (std::uint32_t y = 0; y < input_.height; ++y) {
-                        std::memcpy(dst + static_cast<std::size_t>(y) * y_row,
+                        std::memcpy(dst_host + static_cast<std::size_t>(y) * y_row,
                                     src0 + static_cast<std::size_t>(y) * y_stride,
                                     y_row);
                     }
                     const std::size_t y_bytes = y_row * input_.height;
                     for (std::uint32_t y = 0; y < input_.height / 2U; ++y) {
-                        std::memcpy(dst + y_bytes + static_cast<std::size_t>(y) * y_row,
+                        std::memcpy(dst_host + y_bytes + static_cast<std::size_t>(y) * y_row,
                                     src1 + static_cast<std::size_t>(y) * uv_stride,
                                     y_row);
+                    }
+                    const int sret = r.sync_input(0);
+                    if (sret != 0) {
+                        if (error) *error = "axcl sync_input(H2D nv12) failed: ret=" + std::to_string(sret);
+                        return false;
                     }
                     return true;
                 }
@@ -482,13 +514,13 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 for (std::uint32_t y = 0; y < input_.height; ++y) {
                     const void* row_src =
                         reinterpret_cast<const void*>(base0 + static_cast<std::uintptr_t>(y) * y_stride);
-                    const auto cpy = axcl_Memcpy(dst + static_cast<std::size_t>(y) * y_row,
+                    const auto cpy = axcl_Memcpy(dst_dev + static_cast<std::size_t>(y) * y_row,
                                                  row_src,
                                                  y_row,
-                                                 AXCL_MEMCPY_DEVICE_TO_HOST,
+                                                 AXCL_MEMCPY_DEVICE_TO_DEVICE,
                                                  opt_.device_id);
                     if (cpy != 0) {
-                        if (error) *error = "axcl_Memcpy(D2H nv12 y row) failed: ret=" + std::to_string(cpy);
+                        if (error) *error = "axcl_Memcpy(D2D nv12 y row) failed: ret=" + std::to_string(cpy);
                         return false;
                     }
                 }
@@ -498,13 +530,13 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
                 for (std::uint32_t y = 0; y < input_.height / 2U; ++y) {
                     const void* row_src =
                         reinterpret_cast<const void*>(base1 + static_cast<std::uintptr_t>(y) * uv_stride);
-                    const auto cpy = axcl_Memcpy(dst + y_bytes + static_cast<std::size_t>(y) * y_row,
+                    const auto cpy = axcl_Memcpy(dst_dev + y_bytes + static_cast<std::size_t>(y) * y_row,
                                                  row_src,
                                                  y_row,
-                                                 AXCL_MEMCPY_DEVICE_TO_HOST,
+                                                 AXCL_MEMCPY_DEVICE_TO_DEVICE,
                                                  opt_.device_id);
                     if (cpy != 0) {
-                        if (error) *error = "axcl_Memcpy(D2H nv12 uv row) failed: ret=" + std::to_string(cpy);
+                        if (error) *error = "axcl_Memcpy(D2D nv12 uv row) failed: ret=" + std::to_string(cpy);
                         return false;
                     }
                 }
@@ -530,34 +562,39 @@ bool AxModelBase::PrepareInput(const axvsdk::common::AxImage& frame, std::string
 
     if (runner_->backend == BackendType::kAxcl) {
 #if defined(AXPIPELINE_HAVE_AXCL)
-        if (!scratch_) {
-            if (error) *error = "AXCL scratch not allocated";
-            return false;
-        }
-        if (!imgproc_->Process(frame, req, *scratch_)) {
-            if (error) *error = "preprocess failed";
-            return false;
-        }
-
-        // D2H: pack scratch bytes into runner input staging buffer.
-        // Note: runner's input staging is host memory; device address is not host-accessible.
-        if (in.pVirAddr == nullptr || in.nSize <= 0) {
+        // AXCL: preprocess directly into runner input device buffer to avoid PCIe D2H->H2D bounce.
+        if (in.phyAddr == 0 || in.nSize <= 0) {
             if (error) *error = "invalid runner input buffer";
             return false;
         }
 
-        const auto phy = scratch_->physical_address(0);
-        const auto vir = scratch_->virtual_address(0);
-        const void* src = (phy != 0) ? reinterpret_cast<const void*>(static_cast<std::uintptr_t>(phy)) : vir;
-        if (src == nullptr) {
-            if (error) *error = "invalid AXCL scratch address";
-            return false;
+        axvsdk::common::ImageDescriptor desc{};
+        desc.format = input_.format;
+        desc.width = input_.width;
+        desc.height = input_.height;
+        if (desc.format == axvsdk::common::PixelFormat::kNv12) {
+            desc.strides[0] = desc.width;
+            desc.strides[1] = desc.width;
+        } else {
+            desc.strides[0] = static_cast<std::size_t>(desc.width) * 3U;
         }
 
-        const auto cpy = axcl_Memcpy(in.pVirAddr, src, static_cast<std::size_t>(in.nSize),
-                                     AXCL_MEMCPY_DEVICE_TO_HOST, opt_.device_id);
-        if (cpy != 0) {
-            if (error) *error = "axcl_Memcpy(D2H input) failed: ret=" + std::to_string(cpy);
+        std::array<axvsdk::common::ExternalImagePlane, axvsdk::common::kMaxImagePlanes> planes{};
+        planes[0].virtual_address = reinterpret_cast<void*>(static_cast<std::uintptr_t>(in.phyAddr));
+        planes[0].physical_address = static_cast<std::uint64_t>(in.phyAddr);
+        if (desc.format == axvsdk::common::PixelFormat::kNv12) {
+            const std::size_t y_bytes = desc.strides[0] * desc.height;
+            planes[1].virtual_address = static_cast<std::uint8_t*>(planes[0].virtual_address) + y_bytes;
+            planes[1].physical_address = planes[0].physical_address + y_bytes;
+        }
+
+        auto dst = axvsdk::common::AxImage::WrapExternal(desc, planes);
+        if (!dst) {
+            if (error) *error = "wrap runner input as AXCL device AxImage failed";
+            return false;
+        }
+        if (!imgproc_->Process(frame, req, *dst)) {
+            if (error) *error = "preprocess failed";
             return false;
         }
         return true;
@@ -617,7 +654,7 @@ bool AxModelBase::RunRunner(std::string* error, std::vector<TensorView>* outputs
     }
     auto& r = *runner_->runner;
 
-    // AXCL runner does sync in inference(); MSP runner needs explicit cache invalidation for outputs.
+    // AXCL runner auto-syncs outputs in inference(); MSP runner needs explicit cache invalidation for outputs.
     const int ret = r.inference();
     if (ret != 0) {
         if (error) *error = "runner inference failed: ret=" + std::to_string(ret);
@@ -660,8 +697,8 @@ bool AxModelBase::Infer(const axvsdk::common::AxImage& frame,
     if (!PrepareInput(frame, error, &lb)) return false;
     tm.preprocess_us = NowUs() - t_pre0;
 
-    // For AXCL: input D2H above; H2D is done inside inference() (auto sync).
-    // For MSP: input already in CMM; no sync needed.
+    // For AXCL: PrepareInput writes directly into runner input device buffer (D2D/hardware preprocess).
+    // For MSP: input is already in CMM; no sync needed.
 
     std::vector<TensorView> outputs;
     const std::uint64_t t_inf0 = NowUs();

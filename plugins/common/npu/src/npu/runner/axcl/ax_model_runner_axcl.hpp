@@ -14,6 +14,11 @@ protected:
     int sub_init();
 
 public:
+    void set_auto_sync_before_inference(bool enabled) noexcept { _auto_sync_before_inference = enabled; }
+    void set_auto_sync_after_inference(bool enabled) noexcept { _auto_sync_after_inference = enabled; }
+    bool auto_sync_before_inference() const noexcept { return _auto_sync_before_inference; }
+    bool auto_sync_after_inference() const noexcept { return _auto_sync_after_inference; }
+
     int init(const void *model_data, unsigned int model_size, int devid) override;
 
     void deinit() override;

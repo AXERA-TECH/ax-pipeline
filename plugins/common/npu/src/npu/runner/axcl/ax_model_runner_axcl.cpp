@@ -1,6 +1,9 @@
 #include "ax_model_runner_axcl.hpp"
 #include "logger.hpp"
 
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
 #include <string.h>
 #include <fstream>
 #include <memory>
@@ -17,6 +20,21 @@ typedef enum
 } AX_ENGINE_ALLOC_BUFFER_STRATEGY_T;
 
 typedef std::pair<AX_ENGINE_ALLOC_BUFFER_STRATEGY_T, AX_ENGINE_ALLOC_BUFFER_STRATEGY_T> INPUT_OUTPUT_ALLOC_STRATEGY;
+
+static std::uint64_t NowUs() {
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count());
+}
+
+static bool AxclProfileEnabled() noexcept {
+    static int enabled = -1;
+    if (enabled >= 0) return enabled != 0;
+    const char* env = std::getenv("AXP_AXCL_PROFILE");
+    enabled = (env && *env && strcmp(env, "0") != 0) ? 1 : 0;
+    return enabled != 0;
+}
 
 void print_io_info(std::vector<ax_runner_tensor_t> &input, std::vector<ax_runner_tensor_t> &output)
 {
@@ -72,6 +90,7 @@ typedef struct
     int nSize;
     void *pBuf;
     void *pVirAddr;
+    bool host_pinned = false;
 
     std::string Name;
 
@@ -90,7 +109,18 @@ static void free_io_index(AXCL_IO_BUF_T *pBuf, size_t index, int _devid)
 {
     for (size_t i = 0; i < index; ++i)
     {
-        axcl_Free(pBuf[i].pBuf, _devid);
+        if (pBuf[i].pBuf) {
+            axcl_Free(pBuf[i].pBuf, _devid);
+            pBuf[i].pBuf = nullptr;
+        }
+        if (pBuf[i].pVirAddr) {
+            if (pBuf[i].host_pinned) {
+                axcl_FreeHost(pBuf[i].pVirAddr, _devid);
+            } else {
+                free(pBuf[i].pVirAddr);
+            }
+            pBuf[i].pVirAddr = nullptr;
+        }
     }
 }
 
@@ -98,11 +128,33 @@ static void free_io(AXCL_IO_DATA_T *io_data, int _devid)
 {
     for (size_t j = 0; j < io_data->nInputSize; ++j)
     {
-        axcl_Free(io_data->pInputs[j].pBuf, _devid);
+        if (io_data->pInputs[j].pBuf) {
+            axcl_Free(io_data->pInputs[j].pBuf, _devid);
+            io_data->pInputs[j].pBuf = nullptr;
+        }
+        if (io_data->pInputs[j].pVirAddr) {
+            if (io_data->pInputs[j].host_pinned) {
+                axcl_FreeHost(io_data->pInputs[j].pVirAddr, _devid);
+            } else {
+                free(io_data->pInputs[j].pVirAddr);
+            }
+            io_data->pInputs[j].pVirAddr = nullptr;
+        }
     }
     for (size_t j = 0; j < io_data->nOutputSize; ++j)
     {
-        axcl_Free(io_data->pOutputs[j].pBuf, _devid);
+        if (io_data->pOutputs[j].pBuf) {
+            axcl_Free(io_data->pOutputs[j].pBuf, _devid);
+            io_data->pOutputs[j].pBuf = nullptr;
+        }
+        if (io_data->pOutputs[j].pVirAddr) {
+            if (io_data->pOutputs[j].host_pinned) {
+                axcl_FreeHost(io_data->pOutputs[j].pVirAddr, _devid);
+            } else {
+                free(io_data->pOutputs[j].pVirAddr);
+            }
+            io_data->pOutputs[j].pVirAddr = nullptr;
+        }
     }
     delete[] io_data->pInputs;
     delete[] io_data->pOutputs;
@@ -116,8 +168,9 @@ static inline int prepare_io(int grpid, axclrtEngineIOInfo io_info, axclrtEngine
     auto outputNum = axcl_EngineGetNumOutputs(io_info, devid);
     io_data->nInputSize = inputNum;
     io_data->nOutputSize = outputNum;
-    io_data->pInputs = new AXCL_IO_BUF_T[inputNum];
-    io_data->pOutputs = new AXCL_IO_BUF_T[outputNum];
+    // Value-initialize so raw pointers start as nullptr (std::string remains valid).
+    io_data->pInputs = new AXCL_IO_BUF_T[inputNum]();
+    io_data->pOutputs = new AXCL_IO_BUF_T[outputNum]();
 
     // 1. alloc inputs
     for (uint32_t i = 0; i < inputNum; i++)
@@ -158,8 +211,18 @@ static inline int prepare_io(int grpid, axclrtEngineIOInfo io_info, axclrtEngine
         io_data->pInputs[i].pBuf = devPtr;
         io_data->pInputs[i].dims = dims;
         io_data->pInputs[i].Name = axcl_EngineGetInputNameByIndex(io_info, i, devid);
-        io_data->pInputs[i].pVirAddr = malloc(bufSize);
-        memset(io_data->pInputs[i].pVirAddr, 0, bufSize);
+        void* hostPtr = nullptr;
+        const axclError hret = axcl_MallocHost(&hostPtr, bufSize, devid);
+        if (hret == 0 && hostPtr) {
+            io_data->pInputs[i].pVirAddr = hostPtr;
+            io_data->pInputs[i].host_pinned = true;
+        } else {
+            io_data->pInputs[i].pVirAddr = malloc(bufSize);
+            io_data->pInputs[i].host_pinned = false;
+        }
+        if (io_data->pInputs[i].pVirAddr) {
+            memset(io_data->pInputs[i].pVirAddr, 0, bufSize);
+        }
         ret = axcl_EngineSetInputBufferByIndex(io, i, devPtr, bufSize, devid);
         if (ret != 0)
         {
@@ -206,8 +269,18 @@ static inline int prepare_io(int grpid, axclrtEngineIOInfo io_info, axclrtEngine
         io_data->pOutputs[i].pBuf = devPtr;
         io_data->pOutputs[i].dims = dims;
         io_data->pOutputs[i].Name = axcl_EngineGetOutputNameByIndex(io_info, i, devid);
-        io_data->pOutputs[i].pVirAddr = malloc(bufSize);
-        memset(io_data->pOutputs[i].pVirAddr, 0, bufSize);
+        void* hostPtr = nullptr;
+        const axclError hret = axcl_MallocHost(&hostPtr, bufSize, devid);
+        if (hret == 0 && hostPtr) {
+            io_data->pOutputs[i].pVirAddr = hostPtr;
+            io_data->pOutputs[i].host_pinned = true;
+        } else {
+            io_data->pOutputs[i].pVirAddr = malloc(bufSize);
+            io_data->pOutputs[i].host_pinned = false;
+        }
+        if (io_data->pOutputs[i].pVirAddr) {
+            memset(io_data->pOutputs[i].pVirAddr, 0, bufSize);
+        }
         ret = axcl_EngineSetOutputBufferByIndex(io, i, devPtr, bufSize, devid);
         if (ret != 0)
         {
@@ -496,18 +569,88 @@ int ax_runner_axcl::inference()
 
 int ax_runner_axcl::inference(int grpid)
 {
+    const bool profile = AxclProfileEnabled();
+    const std::uint64_t t_total0 = profile ? NowUs() : 0;
+    std::uint64_t t_in_sync_us = 0;
+    std::uint64_t t_exec_us = 0;
+    std::uint64_t t_out_sync_us = 0;
+    std::size_t out_bytes = 0;
+
     if (_auto_sync_before_inference)
+    {
+        const std::uint64_t t0 = profile ? NowUs() : 0;
         for (size_t i = 0; i < mgroup_input_tensors[grpid].size(); i++)
             axcl_Memcpy((void *)mgroup_input_tensors[grpid][i].phyAddr, mgroup_input_tensors[grpid][i].pVirAddr, mgroup_input_tensors[grpid][i].nSize, AXCL_MEMCPY_HOST_TO_DEVICE, _devid);
+        if (profile) t_in_sync_us = NowUs() - t0;
+    }
 
+    const std::uint64_t t_exec0 = profile ? NowUs() : 0;
     auto ret = axcl_EngineExecute(m_handle->handle, m_handle->context, grpid, m_handle->ios[grpid], _devid);
     if (ret != 0)
     {
         fprintf(stderr, "axclrtEngineExecute failed. ret=0x%x\n", ret);
         return ret;
     }
+    if (profile) t_exec_us = NowUs() - t_exec0;
+
     if (_auto_sync_after_inference)
+    {
+        const std::uint64_t t0 = profile ? NowUs() : 0;
         for (size_t i = 0; i < mgroup_output_tensors[grpid].size(); i++)
+        {
+            out_bytes += static_cast<std::size_t>(mgroup_output_tensors[grpid][i].nSize);
             axcl_Memcpy(mgroup_output_tensors[grpid][i].pVirAddr, (void *)mgroup_output_tensors[grpid][i].phyAddr, mgroup_output_tensors[grpid][i].nSize, AXCL_MEMCPY_DEVICE_TO_HOST, _devid);
+        }
+        if (profile) t_out_sync_us = NowUs() - t0;
+    }
+
+    if (profile) {
+        struct ProfileAgg {
+            std::uint64_t last_print_us{};
+            std::uint64_t n{};
+            std::uint64_t in_sync_us{};
+            std::uint64_t exec_us{};
+            std::uint64_t out_sync_us{};
+            std::uint64_t total_us{};
+            std::size_t out_bytes{};
+        };
+        thread_local ProfileAgg agg{};
+        agg.n++;
+        agg.in_sync_us += t_in_sync_us;
+        agg.exec_us += t_exec_us;
+        agg.out_sync_us += t_out_sync_us;
+        agg.total_us += (NowUs() - t_total0);
+        agg.out_bytes += out_bytes;
+
+        const std::uint64_t now_us = NowUs();
+        if (agg.last_print_us == 0) agg.last_print_us = now_us;
+        if (now_us - agg.last_print_us >= 1000000ULL && agg.n > 0) {
+            const std::uint64_t n = agg.n;
+            const std::uint64_t in_avg = agg.in_sync_us / n;
+            const std::uint64_t ex_avg = agg.exec_us / n;
+            const std::uint64_t out_avg = agg.out_sync_us / n;
+            const std::uint64_t total_avg = agg.total_us / n;
+            const std::size_t out_bytes_avg = agg.out_bytes / static_cast<std::size_t>(n);
+            std::fprintf(stderr,
+                         "[ax_runner_axcl] profile runner=%p devid=%d grpid=%d avg_us{in_sync=%llu exec=%llu out_sync=%llu total=%llu} out_bytes_avg=%zu n=%llu\n",
+                         static_cast<void*>(this),
+                         _devid,
+                         grpid,
+                         static_cast<unsigned long long>(in_avg),
+                         static_cast<unsigned long long>(ex_avg),
+                         static_cast<unsigned long long>(out_avg),
+                         static_cast<unsigned long long>(total_avg),
+                         out_bytes_avg,
+                         static_cast<unsigned long long>(n));
+            agg.last_print_us = now_us;
+            agg.n = 0;
+            agg.in_sync_us = 0;
+            agg.exec_us = 0;
+            agg.out_sync_us = 0;
+            agg.total_us = 0;
+            agg.out_bytes = 0;
+        }
+    }
+
     return 0;
 }
