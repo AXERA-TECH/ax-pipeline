@@ -34,7 +34,14 @@ struct ThreadContext {
 
     ~ThreadContext() {
         if (ctx != nullptr) {
-            (void)axclrtDestroyContext(ctx);
+            // NOTE: On some platforms, ax-video-sdk may call axclFinalize()/axclrtResetDevice()
+            // before thread-local destructors run, and axclrtDestroyContext() can throw
+            // std::system_error (EINVAL). Do not let it escape.
+            try {
+                (void)axclrtDestroyContext(ctx);
+            } catch (...) {
+                // Best-effort cleanup only.
+            }
             ctx = nullptr;
         }
         device_id = -1;
@@ -64,7 +71,11 @@ bool EnsureThreadContext(int device_id) noexcept {
     }
 
     if (g_thread_ctx.ctx != nullptr) {
-        (void)axclrtDestroyContext(g_thread_ctx.ctx);
+        try {
+            (void)axclrtDestroyContext(g_thread_ctx.ctx);
+        } catch (...) {
+            // Best-effort cleanup only.
+        }
         g_thread_ctx.ctx = nullptr;
         g_thread_ctx.device_id = -1;
         g_thread_ctx.runtime_id = -1;
