@@ -3,6 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -35,6 +36,16 @@ bool CheckInputUri(const std::string& uri, std::string* error) {
     return true;
 }
 
+void ApplyVnpuModeFromConfig(const std::string& vnpu_mode) {
+    if (vnpu_mode.empty()) {
+        return;
+    }
+    // Board/MSP: used by AX_ENGINE_Init in ax_model_runner_ax650.cpp
+    (void)::setenv("AXP_ENGINE_VNPU_MODE", vnpu_mode.c_str(), 1);
+    // AXCL: used by axclrtEngineInit in axcl_manager.cpp
+    (void)::setenv("AXP_AXCL_VNPU_KIND", vnpu_mode.c_str(), 1);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -57,6 +68,8 @@ int main(int argc, char** argv) {
         std::cerr << "LoadConfig failed: " << err << "\n";
         return 2;
     }
+
+    ApplyVnpuModeFromConfig(cfg.vnpu_mode);
 
     for (const auto& p : cfg.pipelines) {
         if (!CheckInputUri(p.sdk.input.uri, &err)) {

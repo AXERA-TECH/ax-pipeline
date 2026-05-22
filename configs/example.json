@@ -3,7 +3,8 @@
     "device_id": -1,
     "enable_vdec": true,
     "enable_venc": true,
-    "enable_ivps": true
+    "enable_ivps": true,
+    "vnpu_mode": "disable"
   },
   "pipelines": [
     {

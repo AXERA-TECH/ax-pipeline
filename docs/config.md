@@ -23,6 +23,20 @@
 - MSP 板端通常保持 `-1`
 - AXCL 建议显式指定默认卡，pipeline 级别也可单独覆盖 `device_id`
 
+`system.vnpu_mode`（可选，string）：
+
+- 控制虚拟 NPU(VNPU) 初始化模式（不同平台/SDK 支持的取值不同）
+- 本项目当前支持的字符串取值：
+  - `disable`：关闭 VNPU（所有平台都支持）
+  - `std`：标准模式（仅当当前平台 SDK 头文件中存在对应枚举时生效；AXCL 会按 `enable` 处理）
+  - `enable`：开启 VNPU（部分 MSP 平台没有 `std` 枚举时会使用该值；AXCL 的标准开启模式）
+  - `big_little` / `little_big`：多核调度模式（仅部分平台/SDK 支持）
+  - 也支持数字：`0/1/2/3`（分别对应 `disable/enable/big_little/little_big`）
+- 不配置/配置无效时的默认行为：
+  - AX650/板端（MSP，`AX_ENGINE_Init`）：使用 SDK 默认（优先 `std`，若 SDK 无 `std` 则用 `enable`；若初始化失败会回退到 `disable`）
+  - AXCL（`axclrtEngineInit`）：默认使用 `disable`；若指定的模式初始化失败会回退到 `disable`
+  - 若填了当前平台/SDK 不支持的值（例如没有对应枚举/不认识的字符串），会忽略该值并走上述默认/回退逻辑
+
 `system.vdec_max_group_count` / `system.venc_total_thread_num`:
 
 - 属于底层模块初始化参数；一般保持默认即可

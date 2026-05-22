@@ -50,6 +50,9 @@ public:
 
     struct AppCfg {
         axvsdk::common::SystemOptions system{};
+        // Optional: AX_ENGINE virtual NPU mode (board/MSP only), passed via env.
+        // Supported values depend on SDK, typical: "disable" / "std" / "big_little" / "little_big".
+        std::string vnpu_mode;
         std::vector<PipelineCfg> pipelines;
     };
 
@@ -150,6 +153,7 @@ public:
             if (!GetOptBool(s, "enable_ivps", &cfg.system.enable_ivps)) return false;
             if (!GetOptU32(s, "vdec_max_group_count", &cfg.system.vdec_max_group_count)) return false;
             if (!GetOptU32(s, "venc_total_thread_num", &cfg.system.venc_total_thread_num)) return false;
+            if (!GetOptString(s, "vnpu_mode", &cfg.vnpu_mode)) return false;
         }
 
         if (!j.contains("pipelines") || !j["pipelines"].is_array() || j["pipelines"].empty()) {

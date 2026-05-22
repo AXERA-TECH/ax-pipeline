@@ -1,5 +1,8 @@
 #include "ax_model_runner_ax650.hpp"
 #include "logger.hpp"
+#include <cstdlib>
+#include <cctype>
+#include <string>
 #include <string.h>
 #include <fstream>
 #include <memory>
@@ -30,6 +33,54 @@ typedef std::pair<AX_ENGINE_ALLOC_BUFFER_STRATEGY_T, AX_ENGINE_ALLOC_BUFFER_STRA
 
 namespace {
 
+AX_ENGINE_NPU_MODE_T ParseVnpuModeFromEnv(AX_ENGINE_NPU_MODE_T default_mode) noexcept {
+    const char* v = std::getenv("AXP_ENGINE_VNPU_MODE");
+    if (v == nullptr || *v == '\0') {
+        v = std::getenv("AXVSDK_ENGINE_VNPU_MODE");
+    }
+    if (v == nullptr || *v == '\0') {
+        return default_mode;
+    }
+
+    std::string s(v);
+    for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    if (s == "0" || s == "disable" || s == "off" || s == "false") {
+        return AX_ENGINE_VIRTUAL_NPU_DISABLE;
+    }
+
+#if defined(AX_ENGINE_VIRTUAL_NPU_STD)
+    if (s == "std" || s == "standard") {
+        return AX_ENGINE_VIRTUAL_NPU_STD;
+    }
+#endif
+
+#if defined(AX_ENGINE_VIRTUAL_NPU_ENABLE)
+    if (s == "1" || s == "enable" || s == "on" || s == "true") {
+        return AX_ENGINE_VIRTUAL_NPU_ENABLE;
+    }
+#elif defined(AX_ENGINE_VIRTUAL_NPU_STD)
+    if (s == "1" || s == "enable" || s == "on" || s == "true") {
+        return AX_ENGINE_VIRTUAL_NPU_STD;
+    }
+#endif
+
+#if defined(AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE)
+    if (s == "2" || s == "big_little") {
+        return AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
+    }
+#endif
+
+#if defined(AX_ENGINE_VIRTUAL_NPU_LITTLE_BIG)
+    if (s == "3" || s == "little_big") {
+        return AX_ENGINE_VIRTUAL_NPU_LITTLE_BIG;
+    }
+#endif
+
+    // Unknown value: keep default behavior.
+    return default_mode;
+}
+
 // AX_ENGINE is process-global and must be initialized before CreateHandle on some SDK versions.
 // Manage it with a ref-count to support multiple pipelines/models safely.
 std::mutex g_engine_mu;
@@ -51,6 +102,7 @@ int EngineAcquire() {
 #else
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
 #endif
+        npu_attr.eHardMode = ParseVnpuModeFromEnv(npu_attr.eHardMode);
 
         int ret = AX_ENGINE_Init(&npu_attr);
         if (ret != 0 && npu_attr.eHardMode != AX_ENGINE_VIRTUAL_NPU_DISABLE) {
@@ -412,7 +464,8 @@ int ax_runner_ax650::init(const void *model_data, unsigned int model_size, int d
 
         m_handle->io_info[grpid] = io_info;
 
-        ret = prepare_io(m_handle->io_info[grpid], &m_handle->io_data[grpid], std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
+        ret = prepare_io(m_handle->io_info[grpid], &m_handle->io_data[grpid],
+                         std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
         if (0 != ret)
         {
             ALOGE("prepare_io grpid=%d", grpid);

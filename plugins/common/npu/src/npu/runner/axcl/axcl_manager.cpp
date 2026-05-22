@@ -8,6 +8,7 @@
 #include <axcl_rt_engine.h>
 
 #include <atomic>
+#include <cctype>
 #include <cstdlib>
 #include <mutex>
 #include <string>
@@ -17,9 +18,10 @@ namespace {
 axclrtEngineVNpuKind ParseVnpuKindFromEnv() noexcept {
     const char* env = std::getenv("AXP_AXCL_VNPU_KIND");
     if (!env || !*env) return AXCL_VNPU_DISABLE;
-    const std::string s(env);
-    if (s == "0" || s == "disable") return AXCL_VNPU_DISABLE;
-    if (s == "1" || s == "enable") return AXCL_VNPU_ENABLE;
+    std::string s(env);
+    for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (s == "0" || s == "disable" || s == "off" || s == "false") return AXCL_VNPU_DISABLE;
+    if (s == "1" || s == "enable" || s == "on" || s == "true" || s == "std" || s == "standard") return AXCL_VNPU_ENABLE;
     if (s == "2" || s == "big_little") return AXCL_VNPU_BIG_LITTLE;
     if (s == "3" || s == "little_big") return AXCL_VNPU_LITTLE_BIG;
     return AXCL_VNPU_DISABLE;
