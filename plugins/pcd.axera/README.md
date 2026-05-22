@@ -53,6 +53,7 @@ Tested with `ax_pipeline_app -t 60` (MP4 input in `realtime_playback=true`), 10 
 - Input: 1920x1080@30 HEVC
 - Output: H.265 encode + RTSP publish (no client required)
 - NPU: `ax_plugin_pcd`, OSD/tracking disabled, `npu_max_fps=0` (unlimited)
+- Model: NHWC RGB input (`ax_ax650_pcd_tiny_algo_rgb_nhwc_V2.0.0.axmodel`)
 
 FPS calculation:
 
@@ -61,5 +62,5 @@ FPS calculation:
 
 | Platform | Channels | Decode FPS / ch (avg) | NPU FPS / ch (avg / min / max) |
 |---|---:|---:|---:|
-| AXCL (x86_64) | 10 | 29.69 | 15.71 / 15.55 / 15.88 |
-| AX650 (MSP) | 10 | 29.63 | 4.70 / 4.45 / 4.83 |
+| AXCL (x86_64) | 10 | 29.63 | 29.63 / 29.55 / 29.72 |
+| AX650 (MSP) | 10 | 29.63 | 29.63 / 29.57 / 29.67 |

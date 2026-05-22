@@ -499,12 +499,42 @@ public:
             return false;
         }
 
+#if defined(AXPIPELINE_HAVE_AXCL)
+        // AXCL optimization (NHWC model only):
+        // Keep preprocessed RGB in device memory and feed it to the engine directly,
+        // avoiding per-frame PCIe D2H + H2D transfers.
+        axcl_direct_input_ = false;
+        if (input_.layout == InputLayout::kNHWC) {
+            auto axcl_runner = std::dynamic_pointer_cast<ax_runner_axcl>(runner_);
+            if (axcl_runner) {
+                const auto dev_ptr = preprocess_rgb_->physical_address(0);
+                if (dev_ptr != 0) {
+                    axcl_runner->set_auto_sync_before_inference(false);
+                    const int sret = axcl_runner->set_input(0, 0, static_cast<unsigned long long>(dev_ptr), static_cast<unsigned long>(expect_bytes));
+                    if (sret == 0) {
+                        axcl_direct_input_ = true;
+                    } else {
+                        axcl_runner->set_auto_sync_before_inference(true);
+                    }
+                }
+            }
+        }
+#endif
+
         host_rgb_.resize(expect_bytes);
         return true;
     }
 
     void Deinit() {
         if (runner_) {
+#if defined(AXPIPELINE_HAVE_AXCL)
+            if (axcl_direct_input_) {
+                if (auto axcl_runner = std::dynamic_pointer_cast<ax_runner_axcl>(runner_)) {
+                    axcl_runner->set_auto_sync_before_inference(true);
+                }
+                axcl_direct_input_ = false;
+            }
+#endif
             runner_->deinit();
         }
         runner_.reset();
@@ -550,17 +580,19 @@ public:
         const std::uint8_t* rgb_hwc = nullptr;
 #if defined(AXPIPELINE_HAVE_AXCL)
         (void)vir0;
-        // AXCL: preprocess output is device memory; copy back to host for layout conversion.
-        if (phy0 == 0) {
-            if (error) *error = "preprocess rgb has no physical address";
-            return false;
+        if (!axcl_direct_input_) {
+            // AXCL: preprocess output is device memory; copy back to host for layout conversion.
+            if (phy0 == 0) {
+                if (error) *error = "preprocess rgb has no physical address";
+                return false;
+            }
+            const void* src_dev = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(phy0));
+            if (axcl_Memcpy(host_rgb_.data(), src_dev, bytes, AXCL_MEMCPY_DEVICE_TO_HOST, opt_.base.device_id) != 0) {
+                if (error) *error = "axcl_Memcpy(D2H preprocess rgb) failed";
+                return false;
+            }
+            rgb_hwc = host_rgb_.data();
         }
-        const void* src_dev = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(phy0));
-        if (axcl_Memcpy(host_rgb_.data(), src_dev, bytes, AXCL_MEMCPY_DEVICE_TO_HOST, opt_.base.device_id) != 0) {
-            if (error) *error = "axcl_Memcpy(D2H preprocess rgb) failed";
-            return false;
-        }
-        rgb_hwc = host_rgb_.data();
 #else
         (void)phy0;
         // MSP: CMM is CPU addressable.
@@ -581,34 +613,40 @@ public:
             rgb_hwc = host_rgb_.data();
         }
 #endif
-        if (rgb_hwc == nullptr) {
-            if (error) *error = "preprocess rgb pointer is null";
-            return false;
-        }
-
-        auto& in = runner_->get_input(0);
-        if (in.pVirAddr == nullptr || in.nSize <= 0) {
-            if (error) *error = "invalid runner input staging buffer";
-            return false;
-        }
-        auto* dst = static_cast<std::uint8_t*>(in.pVirAddr);
-
-        if (input_.layout == InputLayout::kNHWC) {
-            std::memcpy(dst, rgb_hwc, bytes);
-        } else if (input_.layout == InputLayout::kNCHW) {
-            const std::size_t plane = static_cast<std::size_t>(input_.width) * static_cast<std::size_t>(input_.height);
-            std::uint8_t* r = dst;
-            std::uint8_t* g = dst + plane;
-            std::uint8_t* b = dst + plane * 2U;
-            for (std::size_t i = 0; i < plane; ++i) {
-                r[i] = rgb_hwc[i * 3U + 0];
-                g[i] = rgb_hwc[i * 3U + 1];
-                b[i] = rgb_hwc[i * 3U + 2];
+#if defined(AXPIPELINE_HAVE_AXCL)
+        if (!axcl_direct_input_) {
+#endif
+            if (rgb_hwc == nullptr) {
+                if (error) *error = "preprocess rgb pointer is null";
+                return false;
             }
-        } else {
-            if (error) *error = "unknown input layout";
-            return false;
+
+            auto& in = runner_->get_input(0);
+            if (in.pVirAddr == nullptr || in.nSize <= 0) {
+                if (error) *error = "invalid runner input staging buffer";
+                return false;
+            }
+            auto* dst = static_cast<std::uint8_t*>(in.pVirAddr);
+
+            if (input_.layout == InputLayout::kNHWC) {
+                std::memcpy(dst, rgb_hwc, bytes);
+            } else if (input_.layout == InputLayout::kNCHW) {
+                const std::size_t plane = static_cast<std::size_t>(input_.width) * static_cast<std::size_t>(input_.height);
+                std::uint8_t* r = dst;
+                std::uint8_t* g = dst + plane;
+                std::uint8_t* b = dst + plane * 2U;
+                for (std::size_t i = 0; i < plane; ++i) {
+                    r[i] = rgb_hwc[i * 3U + 0];
+                    g[i] = rgb_hwc[i * 3U + 1];
+                    b[i] = rgb_hwc[i * 3U + 2];
+                }
+            } else {
+                if (error) *error = "unknown input layout";
+                return false;
+            }
+#if defined(AXPIPELINE_HAVE_AXCL)
         }
+#endif
 
         // Run.
         const int ret = runner_->inference();
@@ -717,6 +755,9 @@ private:
     std::unique_ptr<axvsdk::common::ImageProcessor> imgproc_{};
     axvsdk::common::AxImage::Ptr preprocess_rgb_{};
     std::vector<std::uint8_t> host_rgb_{};
+#if defined(AXPIPELINE_HAVE_AXCL)
+    bool axcl_direct_input_{false};
+#endif
 
     std::vector<float> anchor_cx_;
     std::vector<float> anchor_cy_;
