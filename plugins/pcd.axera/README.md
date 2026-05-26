@@ -64,3 +64,22 @@ FPS calculation:
 |---|---:|---:|---:|
 | AXCL (x86_64) | 10 | 29.63 | 29.63 / 29.55 / 29.72 |
 | AX650 (MSP) | 10 | 29.63 | 29.63 / 29.57 / 29.67 |
+
+## Benchmark (10x 1080p decode + NPU)
+
+Tested with `ax_pipeline_app -t 30` (MP4 input in `realtime_playback=true`), 10 pipelines, each pipeline:
+
+- Input: 1920x1080@30 HEVC
+- Output: omitted (decode + NPU only)
+- NPU: `ax_plugin_pcd`, OSD/tracking disabled, `npu_max_fps=0` (unlimited)
+- Model: NHWC RGB input (`ax_ax650_pcd_tiny_algo_rgb_nhwc_V2.0.0.axmodel`)
+- AXCL (riscv64) host CPU: Spacemit X100/A100, 16 cores, up to 2.4GHz (as reported by `lscpu`)
+
+FPS calculation:
+
+- Decode FPS / channel: `decoded / 30`
+- NPU FPS / channel: `npu_ok / 30`
+
+| Platform | Channels | Decode FPS / ch (avg) | NPU FPS / ch (avg / min / max) |
+|---|---:|---:|---:|
+| AXCL (riscv64) | 10 | 29.19 | 29.18 / 29.03 / 29.33 |
