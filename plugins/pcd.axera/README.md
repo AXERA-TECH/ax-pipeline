@@ -73,7 +73,7 @@ Tested with `ax_pipeline_app -t 30` (MP4 input in `realtime_playback=true`), 10 
 - Output: omitted (decode + NPU only)
 - NPU: `ax_plugin_pcd`, OSD/tracking disabled, `npu_max_fps=0` (unlimited)
 - Model: NHWC RGB input (`ax_ax650_pcd_tiny_algo_rgb_nhwc_V2.0.0.axmodel`)
-- AXCL (riscv64) host CPU: Spacemit X100/A100, 16 cores, up to 2.4GHz (as reported by `lscpu`)
+- AXCL (riscv64) host CPU: Spacemit K3, 16 cores, up to 2.4GHz (as reported by `lscpu`)
 
 FPS calculation:
 
