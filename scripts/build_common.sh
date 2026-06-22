@@ -61,8 +61,8 @@ case "${CHIP}" in
     MSP_URL_DEFAULT="https://github.com/ZHEQIUSHUI/assets/releases/download/ax_3.6.2/msp_20e_3.0.0.zip"
     MSP_EXTRACT_DIR="${ROOT_DIR}/.ci/msp/ax620e"
     TOOLCHAIN_FILE="${ROOT_DIR}/toolchains/arm-linux-gnueabihf.toolchain.cmake"
-    TOOLCHAIN_ARCHIVE_NAME="gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz"
-    TOOLCHAIN_URL_DEFAULT="https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/${TOOLCHAIN_ARCHIVE_NAME}"
+    TOOLCHAIN_ARCHIVE_NAME="gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar"
+    TOOLCHAIN_URL_DEFAULT="https://github.com/ZHEQIUSHUI/assets/releases/download/arm-gcc/${TOOLCHAIN_ARCHIVE_NAME}"
     TOOLCHAIN_DIR="${ROOT_DIR}/.ci/toolchains/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf"
     TOOLCHAIN_BIN="${TOOLCHAIN_DIR}/bin"
     COMPILER_CHECK="arm-linux-gnueabihf-g++"
@@ -128,6 +128,7 @@ if [[ -n "${TOOLCHAIN_BIN}" ]]; then
     mkdir -p "${ROOT_DIR}/.ci/toolchains"
     case "${TOOLCHAIN_ARCHIVE_PATH}" in
       *.tar.xz) tar -C "${ROOT_DIR}/.ci/toolchains" -xf "${TOOLCHAIN_ARCHIVE_PATH}" ;;
+      *.tar) tar -C "${ROOT_DIR}/.ci/toolchains" -xf "${TOOLCHAIN_ARCHIVE_PATH}" ;;
       *.tgz) tar -C "${ROOT_DIR}/.ci/toolchains" -xzf "${TOOLCHAIN_ARCHIVE_PATH}" ;;
       *) echo "unknown toolchain archive: ${TOOLCHAIN_ARCHIVE_PATH}" >&2; exit 1 ;;
     esac
