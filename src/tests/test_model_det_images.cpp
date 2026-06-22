@@ -212,6 +212,9 @@ int main(int argc, char** argv) {
     parser.add<float>("conf", 0, "confidence threshold for drawing", false, 0.25F);
     parser.add<int>("topk", 0, "print top-k detections", false, 10);
     parser.add("no_save", 0, "do not write annotated images");
+    parser.add<int>("num_classes", 0, "override num_classes", false, 80);
+    parser.add<std::string>("strides", 0, "comma-separated strides (yolov5/yolov8), e.g. 8,16,32", false, "");
+    parser.add<std::string>("anchors", 0, "yolov5: comma-separated anchors w,h,... (len = strides*6)", false, "");
 
     if (!parser.parse(argc, argv)) {
         std::cerr << parser.usage();
@@ -263,9 +266,34 @@ int main(int argc, char** argv) {
     opt.base.h_align = axvsdk::common::ResizeAlign::kCenter;
     opt.base.v_align = axvsdk::common::ResizeAlign::kCenter;
     opt.base.background_color = 0;  // black
-    opt.num_classes = 80;
+    opt.num_classes = std::max(1, parser.get<int>("num_classes"));
     opt.conf_threshold = std::max(0.0F, parser.get<float>("conf"));
     opt.nms_threshold = 0.45F;
+
+    auto split_floats = [](const std::string& s, std::vector<float>* out) {
+        if (!out) return;
+        out->clear();
+        std::string cur;
+        for (char ch : s) {
+            if (ch == ',' || ch == ' ' || ch == ';') {
+                if (!cur.empty()) { out->push_back(std::stof(cur)); cur.clear(); }
+            } else {
+                cur.push_back(ch);
+            }
+        }
+        if (!cur.empty()) out->push_back(std::stof(cur));
+    };
+    const std::string strides_str = parser.get<std::string>("strides");
+    if (!strides_str.empty()) {
+        std::vector<float> fs;
+        split_floats(strides_str, &fs);
+        opt.strides.clear();
+        for (float f : fs) opt.strides.push_back(static_cast<int>(f));
+    }
+    const std::string anchors_str = parser.get<std::string>("anchors");
+    if (!anchors_str.empty()) {
+        split_floats(anchors_str, &opt.yolov5_anchors);
+    }
 
     const std::string type = parser.get<std::string>("type");
     std::unique_ptr<axpipeline::npu::AxModelBase> model;

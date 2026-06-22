@@ -1,0 +1,256 @@
+// Plugin for AXERA-TECH/Helmet-axera (yolov5-style, 4 classes, 2 strides).
+//
+// Model: https://huggingface.co/AXERA-TECH/Helmet-axera
+// Classes: 0=helmet, 1=head, 2=e-bike, 3=bike
+// Input  : 256x192 RGB (model reports format/size; plugin does not assume)
+// Strides: [8, 16]   (no stride 32 — the model has only two output heads)
+// Anchors: per stride 3 pairs, pixel-space:
+//          stride  8 : (31,28), (38,32), (60,83)
+//          stride 16 : (84,110), (133,118), (200,113)
+// Postprocess: classic YOLOv5 (sigmoid all, (xy*2-0.5+grid)*stride, (wh*2)^2*anchor)
+//
+// init_json (all optional except model_path):
+//   {
+//     "model_path"      : "/abs/path/ax_ax650_hel_algo_V1.0.0.axmodel",  // required
+//     "device_id"       : -1,
+//     "conf_threshold"  : 0.25,
+//     "nms_threshold"   : 0.45,
+//     "pre_nms_topk"    : 1000,
+//     "max_det"         : 50,
+//     "class_agnostic_nms": false,
+//     "enable_tracking" : false,
+//     "track_fps"       : 30,
+//     "track_buffer"    : 30,
+//     "track_min_score" : 0.0
+//   }
+
+#define AX_PLUGIN_BUILD_DLL 1
+
+#include "ax_plugin/ax_plugin.h"
+
+#include <algorithm>
+#include <array>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "json.hpp"
+
+#include "common/ax_image.h"
+#include "npu/models/ax_model_det.hpp"
+#include "tracking/ax_bytetrack.hpp"
+
+namespace {
+
+using json = nlohmann::json;
+
+struct PluginCtx {
+    axpipeline::npu::AxModelYoloV5 model;
+    std::vector<ax_plugin_det_t> out_dets;
+    std::unique_ptr<axpipeline::tracking::ByteTrack> tracker;
+};
+
+bool BuildAxImageView(const ax_plugin_image_view_t& view, axvsdk::common::AxImage::Ptr* out) {
+    if (out == nullptr) return false;
+    *out = nullptr;
+    if (view.width == 0 || view.height == 0 || view.plane_count == 0) return false;
+
+    axvsdk::common::ImageDescriptor desc{};
+    switch (view.format) {
+    case AX_PLUGIN_PIXEL_FORMAT_NV12:  desc.format = axvsdk::common::PixelFormat::kNv12;  break;
+    case AX_PLUGIN_PIXEL_FORMAT_RGB24: desc.format = axvsdk::common::PixelFormat::kRgb24; break;
+    case AX_PLUGIN_PIXEL_FORMAT_BGR24: desc.format = axvsdk::common::PixelFormat::kBgr24; break;
+    default:                           desc.format = axvsdk::common::PixelFormat::kUnknown; break;
+    }
+    if (desc.format == axvsdk::common::PixelFormat::kUnknown) return false;
+    desc.width = view.width;
+    desc.height = view.height;
+    for (std::size_t i = 0; i < 3 && i < view.plane_count; ++i) {
+        desc.strides[i] = view.strides[i];
+    }
+
+    std::array<axvsdk::common::ExternalImagePlane, axvsdk::common::kMaxImagePlanes> planes{};
+    for (std::size_t i = 0; i < axvsdk::common::kMaxImagePlanes; ++i) {
+        planes[i].virtual_address = nullptr;
+        planes[i].physical_address = 0;
+        planes[i].block_id = axvsdk::common::kInvalidPoolId;
+    }
+    for (std::size_t i = 0; i < view.plane_count && i < axvsdk::common::kMaxImagePlanes; ++i) {
+        planes[i].virtual_address = view.virtual_addrs[i];
+        planes[i].physical_address = view.physical_addrs[i];
+        planes[i].block_id = view.block_ids[i];
+    }
+
+    auto img = axvsdk::common::AxImage::WrapExternal(desc, planes);
+    if (!img) return false;
+    *out = std::move(img);
+    return true;
+}
+
+}  // namespace
+
+extern "C" {
+
+int ax_plugin_get_api_version(void) {
+    return AX_PLUGIN_API_VERSION;
+}
+
+int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t* out_handle) {
+    if (out_handle == nullptr) return -1;
+    *out_handle = nullptr;
+
+    json j;
+    try {
+        j = json::parse(init_json ? init_json : "{}");
+    } catch (...) {
+        return -2;
+    }
+
+    axpipeline::npu::YoloDetOptions opt{};
+    opt.base.device_id = device_id;
+    if (j.contains("device_id") && j["device_id"].is_number_integer()) {
+        opt.base.device_id = j["device_id"].get<int>();
+    }
+
+    if (j.contains("model_path") && j["model_path"].is_string()) {
+        opt.base.model_path = j["model_path"].get<std::string>();
+    }
+    if (opt.base.model_path.empty()) {
+        return -3;
+    }
+
+    // Helmet-axera fixed model spec (yolov5-style, 4 classes, 2 strides).
+    opt.num_classes = 4;
+    opt.strides = {8, 16};
+    opt.yolov5_anchors = {
+        31, 28,   38, 32,   60, 83,     // stride  8
+        84, 110, 133, 118, 200, 113,    // stride 16
+    };
+
+    // Tunable defaults match ax_hed_infer.py.
+    opt.conf_threshold = 0.25F;
+    opt.nms_threshold = 0.45F;
+    opt.pre_nms_topk = 1000;
+    opt.max_det = 50;
+    opt.class_agnostic_nms = false;
+
+    if (j.contains("conf_threshold") && j["conf_threshold"].is_number()) {
+        opt.conf_threshold = static_cast<float>(j["conf_threshold"].get<double>());
+    }
+    if (j.contains("nms_threshold") && j["nms_threshold"].is_number()) {
+        opt.nms_threshold = static_cast<float>(j["nms_threshold"].get<double>());
+    }
+    if (j.contains("pre_nms_topk") && j["pre_nms_topk"].is_number_integer()) {
+        const int v = j["pre_nms_topk"].get<int>();
+        if (v >= 0) opt.pre_nms_topk = v;
+    }
+    if (j.contains("max_det") && j["max_det"].is_number_integer()) {
+        const int v = j["max_det"].get<int>();
+        if (v >= 0) opt.max_det = v;
+    }
+    if (j.contains("class_agnostic_nms") && j["class_agnostic_nms"].is_boolean()) {
+        opt.class_agnostic_nms = j["class_agnostic_nms"].get<bool>();
+    }
+
+    auto ctx = std::make_unique<PluginCtx>();
+    std::string err;
+    if (!ctx->model.Init(opt, &err)) {
+        return -4;
+    }
+
+    // Optional plugin-side tracking.
+    bool enable_tracking = false;
+    axpipeline::tracking::ByteTrackOptions topt{};
+    topt.frame_rate = 30;
+    topt.track_buffer = 30;
+    topt.min_score = 0.0F;
+    if (j.contains("enable_tracking") && j["enable_tracking"].is_boolean()) {
+        enable_tracking = j["enable_tracking"].get<bool>();
+    }
+    if (j.contains("track_fps") && j["track_fps"].is_number_integer()) {
+        const int v = j["track_fps"].get<int>();
+        if (v > 0) topt.frame_rate = v;
+    }
+    if (j.contains("track_buffer") && j["track_buffer"].is_number_integer()) {
+        const int v = j["track_buffer"].get<int>();
+        if (v > 0) topt.track_buffer = v;
+    }
+    if (j.contains("track_min_score") && j["track_min_score"].is_number()) {
+        const auto v = static_cast<float>(j["track_min_score"].get<double>());
+        if (v >= 0.0F) topt.min_score = v;
+    }
+    if (enable_tracking) {
+        ctx->tracker = std::make_unique<axpipeline::tracking::ByteTrack>(topt);
+    }
+
+    *out_handle = reinterpret_cast<ax_plugin_handle_t>(ctx.release());
+    return 0;
+}
+
+void ax_plugin_deinit(ax_plugin_handle_t handle) {
+    auto* ctx = reinterpret_cast<PluginCtx*>(handle);
+    if (!ctx) return;
+    ctx->model.Deinit();
+    delete ctx;
+}
+
+int ax_plugin_infer(ax_plugin_handle_t handle,
+                    const ax_plugin_image_view_t* image,
+                    ax_plugin_det_result_t* out_result) {
+    auto* ctx = reinterpret_cast<PluginCtx*>(handle);
+    if (!ctx || !image || !out_result) return -1;
+
+    axvsdk::common::AxImage::Ptr frame;
+    if (!BuildAxImageView(*image, &frame) || !frame) return -2;
+
+    std::vector<axpipeline::npu::Detection> dets;
+    std::string err;
+    if (!ctx->model.Infer(*frame, &dets, &err, nullptr)) return -3;
+
+    ctx->out_dets.clear();
+    if (ctx->tracker) {
+        std::vector<axpipeline::ai::Detection> dets_ai;
+        dets_ai.reserve(dets.size());
+        for (const auto& d : dets) {
+            axpipeline::ai::Detection dd{};
+            dd.x0 = d.x0; dd.y0 = d.y0; dd.x1 = d.x1; dd.y1 = d.y1;
+            dd.score = d.score;
+            dd.class_id = d.class_id;
+            dets_ai.push_back(dd);
+        }
+        const auto tracks = ctx->tracker->Update(dets_ai);
+        ctx->out_dets.reserve(tracks.size());
+        for (const auto& t : tracks) {
+            ax_plugin_det_t dd{};
+            dd.x0 = t.x0; dd.y0 = t.y0; dd.x1 = t.x1; dd.y1 = t.y1;
+            dd.score = t.score;
+            dd.class_id = t.class_id;
+            dd.track_id = t.track_id;
+            ctx->out_dets.push_back(dd);
+        }
+    } else {
+        ctx->out_dets.reserve(dets.size());
+        for (const auto& d : dets) {
+            ax_plugin_det_t dd{};
+            dd.x0 = d.x0; dd.y0 = d.y0; dd.x1 = d.x1; dd.y1 = d.y1;
+            dd.score = d.score;
+            dd.class_id = d.class_id;
+            dd.track_id = -1;
+            ctx->out_dets.push_back(dd);
+        }
+    }
+
+    out_result->dets = ctx->out_dets.empty() ? nullptr : ctx->out_dets.data();
+    out_result->det_count = ctx->out_dets.size();
+    return 0;
+}
+
+void ax_plugin_release_result(ax_plugin_handle_t handle, ax_plugin_det_result_t* result) {
+    auto* ctx = reinterpret_cast<PluginCtx*>(handle);
+    if (!ctx || result == nullptr) return;
+    result->dets = nullptr;
+    result->det_count = 0;
+}
+
+}  // extern "C"
