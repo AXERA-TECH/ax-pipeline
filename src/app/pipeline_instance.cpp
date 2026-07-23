@@ -225,10 +225,10 @@ void PipelineInstance::StartNpuIfEnabled() {
                                 const auto h = static_cast<std::int32_t>(y1f - y0f);
                                 if (w <= 1 || h <= 1) continue;
                                 axvsdk::common::DrawRect r{};
-                                r.x = static_cast<std::int32_t>(x0f);
-                                r.y = static_cast<std::int32_t>(y0f);
-                                r.width = static_cast<std::uint32_t>(w);
-                                r.height = static_cast<std::uint32_t>(h);
+                                r.x = static_cast<std::int32_t>(x0f) + 1;
+                                r.y = static_cast<std::int32_t>(y0f) + 1;
+                                r.width = static_cast<std::uint32_t>(w > 2 ? w - 2 : w);
+                                r.height = static_cast<std::uint32_t>(h > 2 ? h - 2 : h);
                                 r.thickness = 2;
                                 r.alpha = 255;
                                 r.color = tracking::ByteTrack::ColorForTrackId(static_cast<std::uint64_t>(t.track_id));
@@ -252,10 +252,10 @@ void PipelineInstance::StartNpuIfEnabled() {
                                 const auto h = static_cast<std::int32_t>(y1f - y0f);
                                 if (w <= 1 || h <= 1) continue;
                                 axvsdk::common::DrawRect r{};
-                                r.x = static_cast<std::int32_t>(x0f);
-                                r.y = static_cast<std::int32_t>(y0f);
-                                r.width = static_cast<std::uint32_t>(w);
-                                r.height = static_cast<std::uint32_t>(h);
+                                r.x = static_cast<std::int32_t>(x0f) + 1;
+                                r.y = static_cast<std::int32_t>(y0f) + 1;
+                                r.width = static_cast<std::uint32_t>(w > 2 ? w - 2 : w);
+                                r.height = static_cast<std::uint32_t>(h > 2 ? h - 2 : h);
                                 r.thickness = 2;
                                 r.alpha = 255;
                                 if (d.track_id >= 0) {
