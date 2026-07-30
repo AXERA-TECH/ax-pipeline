@@ -72,20 +72,14 @@ duplicates, confirming the one-to-one (NMS-free) head.
 
 ## Speed
 
-Single-stream inference latency measured via `axengine` on an **AXCL AX650N**
-card. AXCL adds a fixed ~13–14 ms PCIe host↔device round-trip per call, so these
-numbers are **transfer-bound** — a tiny model like yolo26n is dominated by the
-PCIe hop, not compute.
-
-| Model | Input | ms/infer (AXCL) | FPS (AXCL) |
-|---|---|---:|---:|
-| yolo26n | 640×640 | 15.0 | 67 |
-
-**On-chip** performance (from the model card, AX650N, NPU3 mode, pure NPU):
+Pure NPU inference latency on **AX650N** (NPU3 / full 3-core), excluding
+pre/post-processing and host I/O. We measured `yolo26n` with `ax_run_model`
+(VNPU Disable, 100 runs) at **1.37 ms / 728 FPS**, matching the model card's
+726 FPS; the rest of the size ladder is from the model card:
 
 | Model | ms | FPS |
 |---|---:|---:|
-| yolo26n | 1.378 | 726 |
+| yolo26n | 1.37 (measured) | 728 |
 | yolo26s | 3.166 | 316 |
 | yolo26m | 8.644 | 116 |
 | yolo26l | 11.174 | 90 |
@@ -94,3 +88,6 @@ PCIe hop, not compute.
 Postprocess is minimal: no DFL (box is a direct 4-value regression) and the
 one-to-one head yields only a handful of candidates per frame, so decode is
 sub-millisecond.
+
+(Over an AXCL PCIe card `yolo26n` measures ~15 ms end-to-end via `axengine`,
+dominated by the host↔device round-trip — not representative of on-chip compute.)

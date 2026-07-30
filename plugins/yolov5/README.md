@@ -70,9 +70,12 @@ Optional tracking (plugin-side ByteTrack): `enable_tracking`, `track_fps`, `trac
 
 ## Speed
 
-Single-stream inference latency via `axengine` on an **AXCL AX650N** card
-(includes a fixed ~13–14 ms PCIe host↔device round-trip; on-chip is far faster).
+Pure NPU inference latency on **AX650N**, measured with `ax_run_model`
+(VNPU Disable = full 3-core; 100 runs; excludes pre/post-processing and host I/O):
 
-| Model | Input | ms/infer (AXCL) | FPS (AXCL) |
+| Model | Input | on-chip ms | on-chip FPS |
 |---|---|---:|---:|
-| yolov5s | 640×640 | 35.2 | 28 |
+| yolov5s | 640×640 | 6.28 | 159 |
+
+(Over an AXCL PCIe card the same model measures ~35 ms end-to-end via `axengine`,
+dominated by the host↔device round-trip — not representative of on-chip compute.)

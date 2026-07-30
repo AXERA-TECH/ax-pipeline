@@ -61,6 +61,12 @@ scenes.
 
 ## Speed
 
-The head is smaller (256×192, 2 strides) than the 640×640 YOLO models, so both
-inference and postprocess are lighter. Measure on your target with
-`ax_plugin_init_info.debug_timing = true`.
+Pure NPU inference latency on **AX650N**, measured with `ax_run_model`
+(VNPU Disable = full 3-core; 100 runs; excludes pre/post-processing and host I/O):
+
+| Model | Input | on-chip ms | on-chip FPS |
+|---|---|---:|---:|
+| Helmet-axera | 256×192 | 0.18 | ~5500 |
+
+The head is small (256×192, 2 strides), so both inference and postprocess are
+very light.

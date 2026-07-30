@@ -72,15 +72,16 @@ Optional tracking (plugin-side ByteTrack, same as `yolov5/yolov8`):
 
 ## Speed
 
-Single-stream inference latency measured via `axengine` on an **AXCL AX650N**
-card. AXCL adds a fixed ~13–14 ms PCIe host↔device round-trip per call, so these
-numbers are **transfer-bound for small models** and are far higher than on-chip
-latency (e.g. on an M4N-Dock / M.2 card the same model runs several times faster).
+Pure NPU inference latency on **AX650N**, measured with `ax_run_model`
+(VNPU Disable = full 3-core; 100 runs; excludes pre/post-processing and host I/O):
 
-| Model | Input | ms/infer (AXCL) | FPS (AXCL) |
+| Model | Input | on-chip ms | on-chip FPS |
 |---|---|---:|---:|
-| yolo11s | 640×640 | 21.7 | 46 |
+| yolo11s | 640×640 | 3.18 | 315 |
 
 Postprocess uses the DFL top-K fast path in `AxModelYoloV8Native` (top-`pre_nms_topk`
 cells by class logit, DFL decoded only for those), so per-frame decode cost is
 sub-millisecond for typical scenes.
+
+(Over an AXCL PCIe card the same model measures ~22 ms end-to-end via `axengine`,
+dominated by the host↔device round-trip — not representative of on-chip compute.)
