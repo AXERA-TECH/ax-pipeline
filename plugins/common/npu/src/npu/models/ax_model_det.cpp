@@ -1060,19 +1060,16 @@ bool AxModelYolo26::Postprocess(const std::vector<TensorView>& outputs,
         return -1;
     };
 
-    // Match cls (channels==num_classes) vs box (channels==4) tensors to strides by feature-map size.
+    // Match box (channels==4) vs cls (channels==num_classes) tensors to strides by feature-map size.
+    // Box is probed FIRST: 4 channels is unambiguous, whereas probing a box tensor [H,W,4] with
+    // expected==num_classes can misfire when num_classes equals a feature-map dimension -- e.g.
+    // COCO 80 classes at stride 8 of a 640 input gives feat_h==80==num_classes, and MakeFeatureView
+    // would then read the box tensor as an NCHW cls tensor [C=80,H=80,W=4].
     // When num_classes==4 the two are ambiguous by channel count, so fall back to declaration order
     // (even index = box, odd = cls per stride), which matches the AXERA export order.
     const bool ambiguous = (cls == box_ch);
     for (std::size_t oi = 0; oi < outputs.size(); ++oi) {
         FeatureView tv{};
-        if (!ambiguous && MakeFeatureView(outputs[oi], cls, &tv) && tv.channels == cls) {
-            const int si = find_stride_index(tv.feat_h, tv.feat_w);
-            if (si < 0) { if (error) *error = "unmatched cls output at index " + std::to_string(oi); return false; }
-            pairs[static_cast<std::size_t>(si)].tv_cls = tv;
-            pairs[static_cast<std::size_t>(si)].has_cls = true;
-            continue;
-        }
         if (MakeFeatureView(outputs[oi], box_ch, &tv) && tv.channels == box_ch) {
             const int si = find_stride_index(tv.feat_h, tv.feat_w);
             if (si < 0) { if (error) *error = "unmatched box output at index " + std::to_string(oi); return false; }
@@ -1084,6 +1081,13 @@ bool AxModelYolo26::Postprocess(const std::vector<TensorView>& outputs,
                 pairs[static_cast<std::size_t>(si)].tv_box = tv;
                 pairs[static_cast<std::size_t>(si)].has_box = true;
             }
+            continue;
+        }
+        if (!ambiguous && MakeFeatureView(outputs[oi], cls, &tv) && tv.channels == cls) {
+            const int si = find_stride_index(tv.feat_h, tv.feat_w);
+            if (si < 0) { if (error) *error = "unmatched cls output at index " + std::to_string(oi); return false; }
+            pairs[static_cast<std::size_t>(si)].tv_cls = tv;
+            pairs[static_cast<std::size_t>(si)].has_cls = true;
             continue;
         }
         if (error) *error = "unexpected yolo26 output channels at index " + std::to_string(oi);
