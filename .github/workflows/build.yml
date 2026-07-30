@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -48,8 +50,17 @@ jobs:
           chmod +x ./build_ax650.sh ./build_ax630c.sh ./build_ax620q.sh ./build_ax620qp.sh ./build_axcl_x86.sh ./build_axcl_aarch64.sh ./build_axcl_riscv64.sh ./scripts/build_common.sh
           ${{ matrix.script }}
 
-      - name: Upload Artifacts (${{ matrix.chip }})
-        uses: actions/upload-artifact@v6
-        with:
-          name: ax-pipeline-${{ matrix.chip }}
-          path: artifacts/${{ matrix.chip }}/*.tar.gz
+      # Actions artifacts storage is full, so publish the per-chip tarball to a single
+      # fixed-tag prerelease instead, overwriting the previous asset on every push to main.
+      - name: Publish build to rolling CI release (${{ matrix.chip }})
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ci-latest
+        run: |
+          # Create the rolling release once; ignore "already exists" (races between matrix jobs).
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --prerelease --title "CI latest build" \
+              --notes "Rolling CI build output, overwritten on every push to main." || true
+          # Each chip uploads ax_pipeline_<chip>.tar.gz (distinct names), --clobber overwrites last run.
+          gh release upload "$TAG" artifacts/${{ matrix.chip }}/*.tar.gz --clobber
