@@ -68,6 +68,11 @@ inline float Sigmoid(float x) noexcept {
     return 1.0F / (1.0F + std::exp(-x));
 }
 
+inline float Logit(float p) noexcept {
+    p = std::min(std::max(p, 1e-7F), 1.0F - 1e-7F);
+    return std::log(p / (1.0F - p));
+}
+
 struct ModelBaseOptions {
     int device_id{-1};
     std::string model_path;
@@ -691,25 +696,38 @@ public:
         dets.reserve(static_cast<std::size_t>(opt_.max_det > 0 ? opt_.max_det : 256));
 
         const float conf_thr = opt_.conf_threshold;
+        const float logit_thr = Logit(conf_thr);
+        const int C = opt_.num_classes;
+        // Hoist DenseAt() to a per-anchor base pointer + channel stride, and argmax on raw logits
+        // (Sigmoid is monotonic) so Sigmoid runs at most once per surviving anchor instead of C
+        // times per anchor. channel_first [C][N]: stride = anchors; else [N][C]: stride = 1.
+        const std::ptrdiff_t scstep = scores.channel_first ? static_cast<std::ptrdiff_t>(scores.anchors) : 1;
+        const std::ptrdiff_t bxstep = boxes.channel_first ? static_cast<std::ptrdiff_t>(boxes.anchors) : 1;
         for (std::size_t n = 0; n < anchors; ++n) {
+            const float* sc0 = scores.channel_first
+                ? scores.data + n
+                : scores.data + n * static_cast<std::size_t>(scores.channels);
             int best_cls = 0;
-            float best_prob = 0.0F;
-            for (int c = 0; c < opt_.num_classes; ++c) {
-                const float p = Sigmoid(DenseAt(scores, c, n));
-                if (p > best_prob) {
-                    best_prob = p;
+            float best_logit = sc0[0];
+            for (int c = 1; c < C; ++c) {
+                const float v = sc0[static_cast<std::ptrdiff_t>(c) * scstep];
+                if (v > best_logit) {
+                    best_logit = v;
                     best_cls = c;
                 }
             }
+            if (best_logit <= logit_thr) continue;  // equivalent to best_prob <= conf_thr
 
-            const float obj = best_prob;
-            if (obj <= conf_thr) continue;
-            const float score = obj * best_prob;
+            const float best_prob = Sigmoid(best_logit);
+            const float score = best_prob * best_prob;  // preserves original obj*best_prob
 
-            const float l = DenseAt(boxes, 0, n);
-            const float t = DenseAt(boxes, 1, n);
-            const float r = DenseAt(boxes, 2, n);
-            const float b = DenseAt(boxes, 3, n);
+            const float* bx0 = boxes.channel_first
+                ? boxes.data + n
+                : boxes.data + n * static_cast<std::size_t>(boxes.channels);
+            const float l = bx0[0];
+            const float t = bx0[1 * bxstep];
+            const float r = bx0[2 * bxstep];
+            const float b = bx0[3 * bxstep];
 
             const float s = anchor_stride_[n];
             const float cx = anchor_cx_[n];

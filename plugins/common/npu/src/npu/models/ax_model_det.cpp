@@ -166,17 +166,27 @@ bool DecodeYolov5One(const FeatureView& tv,
     if (tv.channels != A * step) return false;
 
     const float obj_logit_thr = Logit(conf_thr);
+    // Hoist a per-cell base pointer + channel stride once, instead of calling At() per element
+    // (which recomputes the flat index and re-branches on layout every access).
+    // NHWC: channels are contiguous (cstep=1, vectorizable); NCHW: strided by feat_h*feat_w.
+    const bool nhwc = (tv.layout == Layout::kNHWC);
+    const std::ptrdiff_t cstep = nhwc ? 1 : static_cast<std::ptrdiff_t>(tv.feat_h) * tv.feat_w;
     for (int h = 0; h < tv.feat_h; ++h) {
         for (int w = 0; w < tv.feat_w; ++w) {
+            const int idx = h * tv.feat_w + w;
+            const float* cell0 = nhwc
+                ? tv.ptr + static_cast<std::ptrdiff_t>(idx) * tv.channels
+                : tv.ptr + idx;
             for (int a = 0; a < A; ++a) {
                 const int base = a * step;
-                const float obj_logit = At(tv, h, w, base + 4);
+                const float obj_logit = cell0[static_cast<std::ptrdiff_t>(base + 4) * cstep];
                 if (obj_logit < obj_logit_thr) continue;
 
+                const float* cls0 = cell0 + static_cast<std::ptrdiff_t>(base + 5) * cstep;
                 int best_cls = 0;
-                float best_cls_logit = -std::numeric_limits<float>::infinity();
-                for (int c = 0; c < num_classes; ++c) {
-                    const float v = At(tv, h, w, base + 5 + c);
+                float best_cls_logit = cls0[0];
+                for (int c = 1; c < num_classes; ++c) {
+                    const float v = cls0[static_cast<std::ptrdiff_t>(c) * cstep];
                     if (v > best_cls_logit) {
                         best_cls_logit = v;
                         best_cls = c;
@@ -188,10 +198,10 @@ bool DecodeYolov5One(const FeatureView& tv,
                 const float score = obj * Sigmoid(best_cls_logit);
                 if (score < conf_thr) continue;
 
-                const float dx = Sigmoid(At(tv, h, w, base + 0));
-                const float dy = Sigmoid(At(tv, h, w, base + 1));
-                const float dw = Sigmoid(At(tv, h, w, base + 2));
-                const float dh = Sigmoid(At(tv, h, w, base + 3));
+                const float dx = Sigmoid(cell0[static_cast<std::ptrdiff_t>(base + 0) * cstep]);
+                const float dy = Sigmoid(cell0[static_cast<std::ptrdiff_t>(base + 1) * cstep]);
+                const float dw = Sigmoid(cell0[static_cast<std::ptrdiff_t>(base + 2) * cstep]);
+                const float dh = Sigmoid(cell0[static_cast<std::ptrdiff_t>(base + 3) * cstep]);
 
                 const float cx = (dx * 2.0F - 0.5F + static_cast<float>(w)) * static_cast<float>(stride);
                 const float cy = (dy * 2.0F - 0.5F + static_cast<float>(h)) * static_cast<float>(stride);
@@ -227,12 +237,21 @@ bool DecodeYolov8NativeOne(const FeatureView& tv,
 
     const int cls_offset = 4 * reg_max;
     const float logit_thr = Logit(conf_thr);
+    // Hoist a per-cell base pointer + channel stride once (see DecodeYolov5One).
+    const bool nhwc = (tv.layout == Layout::kNHWC);
+    const std::ptrdiff_t cstep = nhwc ? 1 : static_cast<std::ptrdiff_t>(tv.feat_h) * tv.feat_w;
     for (int h = 0; h < tv.feat_h; ++h) {
         for (int w = 0; w < tv.feat_w; ++w) {
+            const int idx = h * tv.feat_w + w;
+            const float* cell0 = nhwc
+                ? tv.ptr + static_cast<std::ptrdiff_t>(idx) * tv.channels
+                : tv.ptr + idx;
+
+            const float* cls0 = cell0 + static_cast<std::ptrdiff_t>(cls_offset) * cstep;
             int best_cls = 0;
-            float best_logit = -std::numeric_limits<float>::infinity();
-            for (int c = 0; c < num_classes; ++c) {
-                const float v = At(tv, h, w, cls_offset + c);
+            float best_logit = cls0[0];
+            for (int c = 1; c < num_classes; ++c) {
+                const float v = cls0[static_cast<std::ptrdiff_t>(c) * cstep];
                 if (v > best_logit) {
                     best_logit = v;
                     best_cls = c;
@@ -244,16 +263,15 @@ bool DecodeYolov8NativeOne(const FeatureView& tv,
 
             float ltrb[4];
             for (int k = 0; k < 4; ++k) {
-                const int base = k * reg_max;
-                float alpha = At(tv, h, w, base);
+                const float* p = cell0 + static_cast<std::ptrdiff_t>(k * reg_max) * cstep;
+                float alpha = p[0];
                 for (int i = 1; i < reg_max; ++i) {
-                    alpha = std::max(alpha, At(tv, h, w, base + i));
+                    alpha = std::max(alpha, p[static_cast<std::ptrdiff_t>(i) * cstep]);
                 }
                 float expsum = 0.0F;
                 float exwsum = 0.0F;
                 for (int i = 0; i < reg_max; ++i) {
-                    const float raw = At(tv, h, w, base + i);
-                    const float e = std::exp(raw - alpha);
+                    const float e = std::exp(p[static_cast<std::ptrdiff_t>(i) * cstep] - alpha);
                     expsum += e;
                     exwsum += static_cast<float>(i) * e;
                 }
