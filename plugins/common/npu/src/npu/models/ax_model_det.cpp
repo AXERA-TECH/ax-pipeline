@@ -680,20 +680,10 @@ bool AxModelYoloV8Split::Postprocess(const std::vector<TensorView>& outputs,
 
     for (std::size_t oi = 0; oi < outputs.size(); ++oi) {
         FeatureView tv{};
-        if (MakeFeatureView(outputs[oi], cls, &tv) && tv.channels == cls) {
-            const int si = find_stride_index(tv.feat_h, tv.feat_w);
-            if (si < 0) {
-                if (error) *error = "unmatched cls output shape at index " + std::to_string(oi);
-                return false;
-            }
-            if (pairs[static_cast<std::size_t>(si)].has_cls) {
-                if (error) *error = "duplicate cls output for stride index " + std::to_string(si);
-                return false;
-            }
-            pairs[static_cast<std::size_t>(si)].tv_cls = tv;
-            pairs[static_cast<std::size_t>(si)].has_cls = true;
-            continue;
-        }
+        // Probe reg (channels==4*reg_max) FIRST: reg_ch is a fixed geometry count, whereas probing a
+        // reg tensor [H,W,reg_ch] with expected==num_classes can misfire when num_classes equals a
+        // feature-map dimension -- e.g. COCO 80 classes at stride 8 of a 640 input gives feat_h==80==
+        // num_classes, and MakeFeatureView would then read the reg tensor as an NCHW cls tensor.
         if (MakeFeatureView(outputs[oi], reg_ch, &tv) && tv.channels == reg_ch) {
             const int si = find_stride_index(tv.feat_h, tv.feat_w);
             if (si < 0) {
@@ -706,6 +696,20 @@ bool AxModelYoloV8Split::Postprocess(const std::vector<TensorView>& outputs,
             }
             pairs[static_cast<std::size_t>(si)].tv_reg = tv;
             pairs[static_cast<std::size_t>(si)].has_reg = true;
+            continue;
+        }
+        if (MakeFeatureView(outputs[oi], cls, &tv) && tv.channels == cls) {
+            const int si = find_stride_index(tv.feat_h, tv.feat_w);
+            if (si < 0) {
+                if (error) *error = "unmatched cls output shape at index " + std::to_string(oi);
+                return false;
+            }
+            if (pairs[static_cast<std::size_t>(si)].has_cls) {
+                if (error) *error = "duplicate cls output for stride index " + std::to_string(si);
+                return false;
+            }
+            pairs[static_cast<std::size_t>(si)].tv_cls = tv;
+            pairs[static_cast<std::size_t>(si)].has_cls = true;
             continue;
         }
 
