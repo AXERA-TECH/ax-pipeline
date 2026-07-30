@@ -993,4 +993,162 @@ bool AxModelYoloV8Split::Postprocess(const std::vector<TensorView>& outputs,
     return true;
 }
 
+bool AxModelYolo26::Init(const YoloDetOptions& opt, std::string* error) {
+    opt_ = opt;
+    return AxModelBase::Init(opt_.base, error);
+}
+
+bool AxModelYolo26::ValidateModel(std::string* error) {
+    if (opt_.strides.empty()) {
+        if (error) *error = "strides is empty";
+        return false;
+    }
+    if (opt_.num_classes <= 0) {
+        if (error) *error = "invalid num_classes";
+        return false;
+    }
+    return true;
+}
+
+// YOLO26 head: anchor-free, DFL-free, NMS-free. Two tensors per stride:
+//   - cls: channels = num_classes
+//   - box: channels = 4  (raw l,t,r,b distances in grid units; no DFL/softmax)
+// Decode per cell: score = sigmoid(max class logit); box = (cx +/- d*stride).
+// A light NMS is still applied as a safety net (the one-to-one head is NMS-free,
+// so it is effectively a no-op; set nms_threshold >= 1.0 to disable entirely).
+bool AxModelYolo26::Postprocess(const std::vector<TensorView>& outputs,
+                                const LetterboxInfo& /*lb*/,
+                                std::uint32_t /*src_w*/,
+                                std::uint32_t /*src_h*/,
+                                std::vector<Detection>* out,
+                                std::string* error) {
+    if (!out) return false;
+    out->clear();
+
+    const std::size_t nstrides = opt_.strides.size();
+    const std::size_t expected_outputs = nstrides * 2U;
+    if (outputs.size() != expected_outputs) {
+        if (error) *error = "unexpected output tensor count: got " + std::to_string(outputs.size()) +
+                            " expect " + std::to_string(expected_outputs);
+        return false;
+    }
+
+    const int cls = opt_.num_classes;
+    const int box_ch = 4;
+    const float conf = opt_.conf_threshold;
+    const float logit_thr = Logit(conf);
+
+    struct Pair {
+        FeatureView tv_cls{};
+        FeatureView tv_box{};
+        bool has_cls{false};
+        bool has_box{false};
+    };
+    std::vector<Pair> pairs(nstrides);
+
+    const auto in = input_spec();
+    std::vector<std::pair<int, int>> expected_feat(nstrides);
+    for (std::size_t i = 0; i < nstrides; ++i) {
+        const int stride = opt_.strides[i];
+        expected_feat[i] = {stride > 0 ? static_cast<int>(in.height / static_cast<std::uint32_t>(stride)) : 0,
+                            stride > 0 ? static_cast<int>(in.width / static_cast<std::uint32_t>(stride)) : 0};
+    }
+    auto find_stride_index = [&](int feat_h, int feat_w) -> int {
+        for (std::size_t i = 0; i < nstrides; ++i) {
+            if (expected_feat[i].first == feat_h && expected_feat[i].second == feat_w) return static_cast<int>(i);
+        }
+        return -1;
+    };
+
+    // Match cls (channels==num_classes) vs box (channels==4) tensors to strides by feature-map size.
+    // When num_classes==4 the two are ambiguous by channel count, so fall back to declaration order
+    // (even index = box, odd = cls per stride), which matches the AXERA export order.
+    const bool ambiguous = (cls == box_ch);
+    for (std::size_t oi = 0; oi < outputs.size(); ++oi) {
+        FeatureView tv{};
+        if (!ambiguous && MakeFeatureView(outputs[oi], cls, &tv) && tv.channels == cls) {
+            const int si = find_stride_index(tv.feat_h, tv.feat_w);
+            if (si < 0) { if (error) *error = "unmatched cls output at index " + std::to_string(oi); return false; }
+            pairs[static_cast<std::size_t>(si)].tv_cls = tv;
+            pairs[static_cast<std::size_t>(si)].has_cls = true;
+            continue;
+        }
+        if (MakeFeatureView(outputs[oi], box_ch, &tv) && tv.channels == box_ch) {
+            const int si = find_stride_index(tv.feat_h, tv.feat_w);
+            if (si < 0) { if (error) *error = "unmatched box output at index " + std::to_string(oi); return false; }
+            const bool as_cls = ambiguous && (oi % 2U == 1U);  // odd -> cls in the ambiguous nc==4 case
+            if (as_cls) {
+                pairs[static_cast<std::size_t>(si)].tv_cls = tv;
+                pairs[static_cast<std::size_t>(si)].has_cls = true;
+            } else {
+                pairs[static_cast<std::size_t>(si)].tv_box = tv;
+                pairs[static_cast<std::size_t>(si)].has_box = true;
+            }
+            continue;
+        }
+        if (error) *error = "unexpected yolo26 output channels at index " + std::to_string(oi);
+        return false;
+    }
+    for (std::size_t i = 0; i < nstrides; ++i) {
+        if (!pairs[i].has_cls || !pairs[i].has_box) {
+            if (error) *error = "missing cls/box output for stride index " + std::to_string(i);
+            return false;
+        }
+    }
+
+    std::vector<Detection> dets;
+    dets.reserve(256);
+    for (std::size_t si = 0; si < nstrides; ++si) {
+        const int stride = opt_.strides[si];
+        const FeatureView& tvc = pairs[si].tv_cls;
+        const FeatureView& tvb = pairs[si].tv_box;
+        const int fh = tvc.feat_h;
+        const int fw = tvc.feat_w;
+        const bool cls_nhwc = (tvc.layout == Layout::kNHWC);
+        const std::ptrdiff_t cstep = cls_nhwc ? 1 : static_cast<std::ptrdiff_t>(fh) * fw;
+        const bool box_nhwc = (tvb.layout == Layout::kNHWC);
+        const std::ptrdiff_t bstep = box_nhwc ? 1 : static_cast<std::ptrdiff_t>(tvb.feat_h) * tvb.feat_w;
+        for (int h = 0; h < fh; ++h) {
+            for (int w = 0; w < fw; ++w) {
+                const int idx = h * fw + w;
+                const float* cls0 = cls_nhwc ? tvc.ptr + static_cast<std::ptrdiff_t>(idx) * tvc.channels : tvc.ptr + idx;
+                int best_cls = 0;
+                float best_logit = cls0[0];
+                for (int c = 1; c < cls; ++c) {
+                    const float v = cls0[static_cast<std::ptrdiff_t>(c) * cstep];
+                    if (v > best_logit) { best_logit = v; best_cls = c; }
+                }
+                if (best_logit < logit_thr) continue;
+                const float score = Sigmoid(best_logit);
+                if (score < conf) continue;
+
+                const float* b0 = box_nhwc ? tvb.ptr + static_cast<std::ptrdiff_t>(idx) * tvb.channels : tvb.ptr + idx;
+                const float dl = b0[0];
+                const float dt = b0[static_cast<std::ptrdiff_t>(1) * bstep];
+                const float dr = b0[static_cast<std::ptrdiff_t>(2) * bstep];
+                const float db = b0[static_cast<std::ptrdiff_t>(3) * bstep];
+
+                const float cx = (static_cast<float>(w) + 0.5F) * static_cast<float>(stride);
+                const float cy = (static_cast<float>(h) + 0.5F) * static_cast<float>(stride);
+
+                Detection det{};
+                det.x0 = cx - dl * static_cast<float>(stride);
+                det.y0 = cy - dt * static_cast<float>(stride);
+                det.x1 = cx + dr * static_cast<float>(stride);
+                det.y1 = cy + db * static_cast<float>(stride);
+                det.score = score;
+                det.class_id = best_cls;
+                dets.push_back(det);
+            }
+        }
+    }
+
+    if (opt_.pre_nms_topk > 0) {
+        LimitTopK(&dets, static_cast<std::size_t>(opt_.pre_nms_topk));
+    }
+    Nms(&dets, opt_.nms_threshold, static_cast<std::size_t>(opt_.max_det), opt_.class_agnostic_nms);
+    *out = std::move(dets);
+    return true;
+}
+
 }  // namespace axpipeline::npu

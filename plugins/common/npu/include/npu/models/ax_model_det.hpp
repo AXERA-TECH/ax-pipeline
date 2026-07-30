@@ -89,4 +89,23 @@ private:
     YoloDetOptions opt_{};
 };
 
+// YOLO26 head: anchor-free, DFL-free, NMS-free. Two tensors per stride:
+// - cls: channels = num_classes
+// - box: channels = 4  (raw l,t,r,b distances in grid units)
+class AxModelYolo26 final : public AxModelBase {
+public:
+    bool Init(const YoloDetOptions& opt, std::string* error);
+
+private:
+    bool ValidateModel(std::string* error) override;
+    bool Postprocess(const std::vector<TensorView>& outputs,
+                     const LetterboxInfo& lb,
+                     std::uint32_t src_w,
+                     std::uint32_t src_h,
+                     std::vector<Detection>* out,
+                     std::string* error) override;
+
+    YoloDetOptions opt_{};
+};
+
 }  // namespace axpipeline::npu
