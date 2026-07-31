@@ -185,6 +185,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         npu["enable_osd"] = cfg.npu.enable_osd;
         npu["enable_tracking"] = cfg.npu.enable_tracking;
         npu["track_buffer"] = cfg.npu.track_buffer;
+        npu["kalman_smooth"] = cfg.npu.kalman_smooth;
         npu["ax_plugin_path"] = cfg.npu.ax_plugin_path;
         npu["ax_plugin_isolation"] = cfg.npu.ax_plugin_isolation;
         if (!cfg.npu.ax_plugin_init_json.empty()) {
@@ -423,6 +424,13 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
                 return;
             }
             current.npu.track_buffer = npuj["track_buffer"].get<std::int32_t>();
+        }
+        if (npuj.contains("kalman_smooth")) {
+            if (!npuj["kalman_smooth"].is_boolean()) {
+                ReplyError(res, 400, "npu.kalman_smooth must be boolean");
+                return;
+            }
+            current.npu.kalman_smooth = npuj["kalman_smooth"].get<bool>();
         }
         if (npuj.contains("ax_plugin_path")) {
             if (!npuj["ax_plugin_path"].is_string()) {

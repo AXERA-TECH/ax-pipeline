@@ -164,6 +164,7 @@ void PipelineInstance::StartNpuIfEnabled() {
         topt.frame_rate = fps > 0 ? fps : 30;
         topt.track_buffer = cfg_.npu.track_buffer > 0 ? static_cast<int>(cfg_.npu.track_buffer) : 30;
         topt.min_score = 0.0F;
+        topt.smooth = cfg_.npu.kalman_smooth;
         tracker = std::make_shared<tracking::ByteTrack>(topt);
     }
 

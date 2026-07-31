@@ -22,7 +22,13 @@ struct ByteTrackOptions {
     int frame_rate{30};
     int track_buffer{30};
     float min_score{0.0F};
+    // Kalman-smooth the output boxes per track_id (steadier OSD boxes). Off by default.
+    bool smooth{false};
 };
+
+// Per-track box-smoothing state (defined in the .cpp). Held via unique_ptr so the
+// container is created only when smoothing is on, and stale track_ids are purged.
+struct SmoothState;
 
 class ByteTrack {
 public:
@@ -40,6 +46,7 @@ public:
 private:
     ByteTrackOptions opt_{};
     void* handle_{nullptr};  // bytetracker_t
+    std::unique_ptr<SmoothState> smooth_;  // null unless opt_.smooth
 };
 
 }  // namespace axpipeline::tracking

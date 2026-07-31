@@ -36,6 +36,8 @@ public:
             bool enable_tracking{false};
             // Track buffer in frames (roughly: how long a lost track is kept before removal).
             std::int32_t track_buffer{30};
+            // Kalman-smooth the tracked OSD boxes per track_id (steadier boxes). Off by default.
+            bool kalman_smooth{false};
             // Plugin .so path.
             std::string ax_plugin_path;
             // Plugin isolation mode:
@@ -355,6 +357,7 @@ private:
             if (!GetOptBool(n, "enable_osd", &out->npu.enable_osd)) return false;
             if (!GetOptBool(n, "enable_tracking", &out->npu.enable_tracking)) return false;
             if (!GetOptI32(n, "track_buffer", &out->npu.track_buffer)) return false;
+            if (!GetOptBool(n, "kalman_smooth", &out->npu.kalman_smooth)) return false;
             if (!GetOptString(n, "ax_plugin_path", &out->npu.ax_plugin_path)) return false;
             if (!GetOptString(n, "ax_plugin_isolation", &out->npu.ax_plugin_isolation)) return false;
             if (n.contains("ax_plugin_init_info")) {

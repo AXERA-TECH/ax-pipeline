@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <unordered_map>
 
 #include "bytetrack.h"
 
@@ -59,13 +61,62 @@ std::uint32_t Hash32(std::uint32_t x) noexcept {
     return x;
 }
 
+// 1D constant-velocity Kalman filter, used to low-pass one box coordinate.
+struct Kf1 {
+    float x{0}, v{0}, P00{0}, P01{0}, P10{0}, P11{0};
+    bool init{false};
+    float step(float z, float q, float r) {
+        if (!init) {
+            x = z; v = 0; P00 = P11 = r; P01 = P10 = 0; init = true;
+            return x;
+        }
+        // predict (dt = 1 frame):  x += v ;  P = F P Fᵀ + Q
+        x += v;
+        const float p00 = P00 + P01 + P10 + P11 + q;
+        const float p01 = P01 + P11;
+        const float p10 = P10 + P11;
+        const float p11 = P11 + q;
+        // update with measurement z  (H = [1 0], R = r)
+        const float S = p00 + r;
+        const float K0 = p00 / S;
+        const float K1 = p10 / S;
+        const float y = z - x;
+        x += K0 * y;
+        v += K1 * y;
+        P00 = (1.0F - K0) * p00;
+        P01 = (1.0F - K0) * p01;
+        P10 = p10 - K1 * p00;
+        P11 = p11 - K1 * p01;
+        return x;
+    }
+};
+
+// Per-track smoother: one Kf1 per box corner (x0,y0,x1,y1) + last-seen frame.
+struct BoxKf {
+    Kf1 f[4];
+    std::int64_t last{0};
+};
+
 }  // namespace
+
+// Container for the per-track_id box smoothers (created only when smoothing is on).
+struct SmoothState {
+    std::unordered_map<std::int64_t, BoxKf> tracks;
+    std::int64_t frame{0};
+    int max_age{300};  // purge a track's filter after this many frames unseen (~ frame_rate * 10)
+    float q{1.0F};     // process noise
+    float r{20.0F};    // measurement noise (bigger = smoother, laggier)
+};
 
 ByteTrack::ByteTrack(const ByteTrackOptions& opt)
     : opt_(opt) {
     const int fps = opt_.frame_rate > 0 ? opt_.frame_rate : 30;
     const int buf = opt_.track_buffer > 0 ? opt_.track_buffer : 30;
     handle_ = bytetracker_create(fps, buf);
+    if (opt_.smooth) {
+        smooth_ = std::make_unique<SmoothState>();
+        smooth_->max_age = std::max(1, fps * 10);  // purge a track's filter after ~10s unseen
+    }
 }
 
 ByteTrack::~ByteTrack() {
@@ -117,6 +168,28 @@ std::vector<TrackedObject> ByteTrack::Update(const std::vector<axpipeline::ai::D
         o.x1 = t.rect.x + t.rect.width;
         o.y1 = t.rect.y + t.rect.height;
         out.push_back(o);
+    }
+
+    if (smooth_) {
+        auto& st = *smooth_;
+        ++st.frame;
+        for (auto& o : out) {
+            auto& bk = st.tracks[o.track_id];
+            o.x0 = bk.f[0].step(o.x0, st.q, st.r);
+            o.y0 = bk.f[1].step(o.y0, st.q, st.r);
+            o.x1 = bk.f[2].step(o.x1, st.q, st.r);
+            o.y1 = bk.f[3].step(o.y1, st.q, st.r);
+            bk.last = st.frame;
+        }
+        // Purge track filters not updated for a while, so the map can't grow unbounded on
+        // long-running real-time streams (track_ids keep increasing forever).
+        for (auto it = st.tracks.begin(); it != st.tracks.end();) {
+            if (st.frame - it->second.last > st.max_age) {
+                it = st.tracks.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
     return out;
 }

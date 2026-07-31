@@ -204,6 +204,9 @@ int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t*
         const auto v = static_cast<float>(j["track_min_score"].get<double>());
         if (v >= 0.0F) topt.min_score = v;
     }
+    if (j.contains("kalman_smooth") && j["kalman_smooth"].is_boolean()) {
+        topt.smooth = j["kalman_smooth"].get<bool>();
+    }
     if (enable_tracking) {
         ctx->tracker = std::make_unique<axpipeline::tracking::ByteTrack>(topt);
     }
