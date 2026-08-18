@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><title>路侧视觉事件中心</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#0e1118;--panel:#161b24;--panel2:#1b212c;--sunk:#11151d;--line:#28303c;--line2:#333d4b;
+ --text:#e7ebf2;--muted:#939daf;--faint:#6b7688;--accent:#f2a53c;--accent-soft:#3a2c12;--accent-ink:#1a1204;
+ --person:#e8695c;--vehicle:#5b9bd5;--twowheel:#4bbd8c;--ok:#43b581;--warn:#f2a53c;
+ --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",monospace;
+ --ui:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;}
+@media(prefers-color-scheme:light){:root{--bg:#eef1f5;--panel:#fff;--panel2:#f6f8fb;--sunk:#eaeef3;--line:#dde2ea;--line2:#c9d1dc;
+ --text:#191e28;--muted:#5c6675;--faint:#8b95a5;--accent:#c67a12;--accent-soft:#f6e2c2;--accent-ink:#2a1a02;
+ --person:#d6483f;--vehicle:#2f74c0;--twowheel:#1f9e6f;}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.5}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.shell{max-width:1360px;margin:0 auto;padding:16px clamp(12px,3vw,26px) 40px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 2px 14px}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+.logo{width:36px;height:36px;border-radius:10px;background:radial-gradient(120% 120% at 30% 20%,var(--accent),#7a3f06);
+ display:grid;place-items:center;color:#fff;flex:none}.logo svg{width:21px;height:21px}
+.brand h1{font-size:15.5px;margin:0}.brand p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.sys{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.si{display:flex;flex-direction:column}.si b{font-family:var(--mono);font-size:13px}
+.live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ok);
+ border:1px solid var(--line);background:var(--panel);padding:6px 10px;border-radius:999px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.tbtn{font:inherit;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+.tbtn:hover{border-color:var(--line2);color:var(--text)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:15px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.kpi .big{font-family:var(--mono);font-size:25px;font-variant-numeric:tabular-nums;line-height:1;margin-top:8px}
+.kpi .sub{font-size:11.5px;color:var(--muted);margin-top:7px}
+.grid{display:grid;grid-template-columns:1.55fr 1fr;gap:15px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.hd{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--line)}
+.hd h2{font-size:13px;margin:0}.hd .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.filters{display:flex;gap:7px;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--line)}
+.chipbtn{font:inherit;font-size:12px;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+ padding:5px 11px;border-radius:999px;display:inline-flex;gap:6px;align-items:center}
+.chipbtn:hover{border-color:var(--line2);color:var(--text)}
+.chipbtn[aria-pressed=true]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--text)}
+.sw{width:8px;height:8px;border-radius:50%}.spacer{flex:1}
+.sel{font:inherit;font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px}
+.stream{max-height:72vh;overflow-y:auto;padding:7px}
+.ev{display:grid;grid-template-columns:96px 1fr auto;gap:12px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent;position:relative}
+.ev::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--cat)}
+.ev:hover{background:var(--panel2)}.ev[aria-selected=true]{background:var(--panel2);border-color:var(--line2)}
+.ev:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.thumb{width:96px;height:66px;border-radius:7px;overflow:hidden;background:var(--sunk);border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.evtop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.cat{font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:6px;color:var(--cat);background:color-mix(in srgb,var(--cat) 15%,transparent)}
+.ch{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.badge{font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
+.desc{font-size:13px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.evmeta{display:flex;gap:11px;margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.evright{display:flex;flex-direction:column;align-items:flex-end;gap:6px;white-space:nowrap}
+.time{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.newflag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--accent-ink);background:var(--accent);padding:1px 6px;border-radius:5px}
+@keyframes slidein{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.ev.enter{animation:slidein .35s ease}
+.detail{position:sticky;top:12px}
+.shot{width:100%;aspect-ratio:16/10;background:var(--sunk);border-radius:12px 12px 0 0;overflow:hidden;border-bottom:1px solid var(--line)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.dbody{padding:15px}
+.dcat{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.ddesc{font-size:15px;line-height:1.55;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:12.5px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);text-align:right}
+.empty{padding:40px;text-align:center;color:var(--faint);font-size:13px}
+footer{margin-top:20px;padding-top:13px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);display:flex;gap:8px;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:10.5px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted)}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.detail{position:static}.stream{max-height:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<div class="shell">
+ <header>
+  <div class="brand">
+   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 20h18M6 20V8h12v12M9 20v-4h6v4"/></svg></div>
+   <div><h1>路侧视觉事件中心</h1><p>Edge Vision Event Center · pcd_vlm</p></div>
+  </div>
+  <div class="sys">
+   <div class="si"><span class="eyebrow">模型</span><b id="s-model">—</b></div>
+   <div class="si"><span class="eyebrow">已处理</span><b id="s-proc">0</b></div>
+   <div class="si"><span class="eyebrow">队列/丢弃</span><b id="s-q">0 / 0</b></div>
+   <span class="live"><span class="dot"></span>LIVE</span>
+   <button class="tbtn" id="theme" aria-label="切换主题">◐</button>
+  </div>
+ </header>
+ <section class="kpis">
+  <div class="kpi"><div class="eyebrow">累计事件</div><div class="big" id="k-total">0</div><div class="sub">全部路号</div></div>
+  <div class="kpi"><div class="eyebrow">人 / 车 / 非机动车</div><div class="big" id="k-cls">0 / 0 / 0</div><div class="sub">按类别</div></div>
+  <div class="kpi"><div class="eyebrow">平均 VLM 延迟</div><div class="big" id="k-lat">— <span style="font-size:13px;color:var(--muted)">ms</span></div><div class="sub">端到端解析</div></div>
+  <div class="kpi"><div class="eyebrow">取帧模式</div><div class="big" id="k-mode" style="font-size:19px">—</div><div class="sub" id="k-rps">—</div></div>
+ </section>
+ <div class="grid">
+  <section class="card">
+   <div class="hd"><h2>实时事件流</h2><span class="count" id="cnt"></span></div>
+   <div class="filters">
+    <button class="chipbtn" data-cls="-1" aria-pressed="true">全部</button>
+    <button class="chipbtn" data-cls="0" aria-pressed="false"><span class="sw" style="background:var(--person)"></span>人</button>
+    <button class="chipbtn" data-cls="1" aria-pressed="false"><span class="sw" style="background:var(--vehicle)"></span>车</button>
+    <button class="chipbtn" data-cls="2" aria-pressed="false"><span class="sw" style="background:var(--twowheel)"></span>非机动车</button>
+    <span class="spacer"></span>
+    <select class="sel" id="chsel"><option value="">全部路号</option></select>
+   </div>
+   <div class="stream" id="stream"><div class="empty">等待事件…（启动 feeder 或接入插件后,这里会实时刷新）</div></div>
+  </section>
+  <section class="card detail" id="detail" style="display:none">
+   <div class="shot" id="d-shot"></div>
+   <div class="dbody">
+    <div class="dcat"><span class="cat" id="d-cat">—</span><span class="ch mono" id="d-ch"></span><span class="time mono" id="d-time" style="margin-left:auto"></span></div>
+    <p class="ddesc" id="d-desc"></p>
+    <dl class="kv">
+     <dt>track_id</dt><dd id="d-tid"></dd>
+     <dt>置信度</dt><dd id="d-score"></dd>
+     <dt>目标框</dt><dd id="d-box"></dd>
+     <dt>VLM 延迟</dt><dd id="d-lat"></dd>
+     <dt>取帧</dt><dd id="d-mode"></dd>
+     <dt>时间</dt><dd id="d-abs"></dd>
+    </dl>
+   </div>
+  </section>
+ </div>
+ <footer><span class="pill">pcd_vlm</span><span id="foot">单卡 VLM · 插件调 API,平台无关(AX650 板端 / AXCL 卡通用)</span></footer>
+</div>
+<script>
+const CAT={0:{cn:"人",v:"var(--person)"},1:{cn:"车",v:"var(--vehicle)"},2:{cn:"非机动车",v:"var(--twowheel)"}};
+let events=[],selId=null,fCls=-1,fCh="";
+const $=id=>document.getElementById(id);
+function catOf(c){return CAT[c]||{cn:"目标",v:"var(--muted)"};}
+function ageStr(ts){const s=Math.max(0,Date.now()/1000-ts);return s<60?Math.floor(s)+"s 前":s<3600?Math.floor(s/60)+"m 前":Math.floor(s/3600)+"h 前";}
+function absStr(ts){return new Date(ts*1000).toTimeString().slice(0,8);}
+function thumb(e){return e.img?`<img src="/img/${e.img}" alt="" loading="lazy">`:"";}
+
+function renderStream(){
+ const list=events.filter(e=>(fCls<0||e.cls==fCls)&&(!fCh||e.stream==fCh));
+ $("cnt").textContent=list.length+" 条";
+ const el=$("stream");
+ if(!list.length){el.innerHTML='<div class="empty">暂无匹配事件</div>';return;}
+ el.innerHTML="";
+ for(const e of list){
+  const c=catOf(e.cls);const d=document.createElement("div");
+  d.className="ev"+(e._new?" enter":"");e._new=false;d.tabIndex=0;
+  d.style.setProperty("--cat",c.v);d.setAttribute("aria-selected",e.id===selId);
+  d.innerHTML=`<div class="thumb">${thumb(e)}</div>
+   <div><div class="evtop"><span class="cat" style="--cat:${c.v}">${c.cn}</span><span class="ch">${e.stream||""}</span>
+     ${e.mode==="clip"?'<span class="badge">视频</span>':''}</div>
+    <div class="desc">${e.desc||"(无描述)"}</div>
+    <div class="evmeta"><span>id ${e.id}</span><span>track ${e.track_id}</span><span>${Math.round((e.score||0)*100)}%</span></div></div>
+   <div class="evright">${(Date.now()/1000-e.ts)<12?'<span class="newflag">NEW</span>':''}<span class="time">${ageStr(e.ts)}</span></div>`;
+  d.onclick=()=>select(e.id);d.onkeydown=k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();select(e.id);}};
+  el.appendChild(d);
+ }
+}
+function select(id){
+ selId=id;const e=events.find(x=>x.id===id);if(!e)return;
+ $("detail").style.display="";const c=catOf(e.cls);
+ $("d-shot").innerHTML=e.img?`<img src="/img/${e.img}" alt="">`:"";
+ const ct=$("d-cat");ct.textContent=c.cn;ct.style.setProperty("--cat",c.v);
+ $("d-ch").textContent=e.stream||"";$("d-time").textContent=ageStr(e.ts);
+ $("d-desc").textContent=e.desc||"(无描述)";
+ $("d-tid").textContent=e.track_id;$("d-score").textContent=Math.round((e.score||0)*100)+"%";
+ $("d-box").textContent="["+(e.box||[]).map(v=>Math.round(v)).join(", ")+"]";
+ $("d-lat").textContent=(e.latency_ms||0)+" ms";$("d-mode").textContent=e.mode==="clip"?"多帧视频":"单帧";
+ $("d-abs").textContent=absStr(e.ts);
+ renderStream();
+}
+function updateKPI(){
+ $("k-total").textContent=events.length;
+ const cnt={0:0,1:0,2:0};let lat=0,n=0;
+ for(const e of events){if(e.cls in cnt)cnt[e.cls]++;if(e.latency_ms){lat+=e.latency_ms;n++;}}
+ $("k-cls").textContent=`${cnt[0]} / ${cnt[1]} / ${cnt[2]}`;
+ $("k-lat").innerHTML=(n?Math.round(lat/n):"—")+' <span style="font-size:13px;color:var(--muted)">ms</span>';
+ const chs=[...new Set(events.map(e=>e.stream).filter(Boolean))].sort();
+ const cur=$("chsel").value;
+ $("chsel").innerHTML='<option value="">全部路号</option>'+chs.map(c=>`<option ${c===cur?"selected":""}>${c}</option>`).join("");
+}
+async function loadStats(){try{const s=await(await fetch("/api/stats")).json();
+ $("s-model").textContent=(s.model||"—").split("/").pop();$("s-proc").textContent=s.processed;
+ $("s-q").textContent=`${s.queue} / ${s.dropped}`;$("k-mode").textContent=s.cfg.frame_mode==="clip"?"多帧视频":"单帧";
+ $("k-rps").textContent="限流 "+s.cfg.global_max_rps+" req/s";}catch(e){}}
+async function loadEvents(){events=await(await fetch("/api/events?limit=200")).json();updateKPI();renderStream();if(events[0])select(events[0].id);}
+function onEvent(e){events.unshift(e);e._new=true;if(events.length>500)events.pop();updateKPI();renderStream();
+ if(!selId)select(e.id);}
+const es=new EventSource("/stream");es.onmessage=m=>{try{onEvent(JSON.parse(m.data));}catch(_){}};
+document.querySelectorAll(".chipbtn").forEach(b=>b.onclick=()=>{document.querySelectorAll(".chipbtn").forEach(x=>x.setAttribute("aria-pressed","false"));
+ b.setAttribute("aria-pressed","true");fCls=+b.dataset.cls;renderStream();});
+$("chsel").onchange=()=>{fCh=$("chsel").value;renderStream();};
+$("theme").onclick=()=>{const r=document.documentElement,cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");r.setAttribute("data-theme",cur==="dark"?"light":"dark");};
+loadStats();loadEvents();setInterval(loadStats,4000);setInterval(()=>renderStream(),15000);
+</script>
+</body></html>

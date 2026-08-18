@@ -1,0 +1,84 @@
+{
+  "system": {
+    "device_id": -1,
+    "enable_vdec": true,
+    "enable_venc": true,
+    "enable_ivps": true,
+    "vnpu_mode": "disable"
+  },
+  "pipelines": [
+    {
+      "name": "pcd_vlm",
+      "uri": "/root/demo.mp4",
+      "realtime_playback": true,
+      "loop_playback": true,
+      "log_every_n_frames": 30,
+      "frame_output": {
+        "format": "rgb",
+        "resize": {
+          "mode": "keep_aspect",
+          "background_color": 0
+        }
+      },
+      "npu": {
+        "enable": true,
+        "enable_osd": true,
+        "ax_plugin_path": "lib/plugins/libax_plugin_pcd_vlm.so",
+        "ax_plugin_isolation": "inproc",
+        "ax_plugin_init_info": {
+          "model_path": "/root/pcd.axmodel",
+          "num_classes": 3,
+          "strides": [
+            16,
+            32
+          ],
+          "conf_threshold": 0.3,
+          "pcd_plugin_path": "lib/plugins/libax_plugin_pcd.so",
+          "stream_name": "CH01",
+          "vlm": {
+            "enable": true,
+            "url": "http://127.0.0.1:8013",
+            "api_key": "",
+            "model": "AXERA-TECH/Qwen3-VL-2B-Instruct",
+            "system_prompt": "必须始终用简体中文回答,禁止输出英文。你是路口视频画面分析助手,画面来自固定路侧摄像头。请用一段话(两句以内、不超过60个字)描述画面:先说最主要的车辆或行人(类型、颜色、正在做什么),再简述周围目标和交通状况;看不清的不要编造,禁止分点、列表、标题。",
+            "prompt": "用简体中文描述这张画面。",
+            "max_tokens": 80,
+            "temperature": 0.7,
+            "report_url": "http://127.0.0.1:8900/ingest",
+            "trigger": {
+              "classes": [
+                0,
+                1,
+                2
+              ],
+              "min_score": 0.4,
+              "min_box_h": 64,
+              "min_track_age": 8,
+              "reject_border": true,
+              "per_track_once": true,
+              "per_track_cooldown_s": 0,
+              "select_frame": "best",
+              "select_window_s": 1.5
+            },
+            "rate": {
+              "per_stream_interval_s": 30,
+              "queue_size": 4,
+              "retry_once": false
+            },
+            "crop_mode": "frame",
+            "roi_expand": 0.0,
+            "jpeg_quality": 80
+          }
+        }
+      },
+      "outputs": [
+        {
+          "codec": "h264",
+          "uris": [
+            "rtsp://0.0.0.0:8554/pcd_vlm"
+          ]
+        }
+      ]
+    }
+  ]
+}
