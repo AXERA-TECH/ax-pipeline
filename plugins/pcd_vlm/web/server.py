@@ -49,12 +49,30 @@ def db():
     c.row_factory = sqlite3.Row
     return c
 
+MAX_EVENTS = int(os.environ.get("MAX_EVENTS", "100"))   # 只保留最近 N 个事件(DB+抓拍文件同步清理)
+
 def init_db():
     with db() as c:
         c.execute("""CREATE TABLE IF NOT EXISTS events(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, stream TEXT, track_id INTEGER,
-            cls INTEGER, score REAL, box TEXT, latency_ms INTEGER, desc TEXT, img TEXT, mode TEXT)""")
+            cls INTEGER, score REAL, box TEXT, latency_ms INTEGER, desc TEXT, img TEXT, mode TEXT,
+            replay TEXT)""")
+        try:
+            c.execute("ALTER TABLE events ADD COLUMN replay TEXT")   # 旧库平滑升级
+        except sqlite3.OperationalError:
+            pass
         c.execute("CREATE INDEX IF NOT EXISTS idx_ts ON events(ts DESC)")
+
+def prune_events(c):
+    """只保留最近 MAX_EVENTS 条,连同抓拍/轮播图片文件一起删,防磁盘无限膨胀。"""
+    rows = c.execute("SELECT id,img,replay FROM events ORDER BY id DESC LIMIT -1 OFFSET ?",
+                     (MAX_EVENTS,)).fetchall()
+    for r in rows:
+        for name in [r["img"]] + json.loads(r["replay"] or "[]"):
+            if name:
+                with contextlib.suppress(OSError):
+                    os.remove(os.path.join(CFG["imgdir"], name))
+        c.execute("DELETE FROM events WHERE id=?", (r["id"],))
 
 # ---------------- global state ----------------
 Q: "asyncio.Queue" = None
@@ -108,24 +126,34 @@ async def broadcast(ev):
 
 async def persist_and_broadcast(item, desc, ms, mode):
     """写图 + 落库 + SSE 推送。插件已带 desc(方案A) 或 web 补调后(方案B) 都走这里。"""
+    stamp = f"{int(item['ts']*1000)}_{item.get('stream','')}_{item.get('track_id',0)}"
     img_b64 = item.get("image") or (item.get("frames") or [None])[0]
     img_name = ""
     if img_b64:
-        img_name = f"{int(item['ts']*1000)}_{item.get('stream','')}_{item.get('track_id',0)}.jpg"
+        img_name = f"{stamp}.jpg"
         with open(os.path.join(CFG["imgdir"], img_name), "wb") as f:
             f.write(base64.b64decode(img_b64))
+    # 轮播帧(插件送来的 ±2s 每秒1帧)逐张落盘
+    replay_names = []
+    for i, fb64 in enumerate(item.get("replay") or []):
+        name = f"{stamp}_r{i}.jpg"
+        with open(os.path.join(CFG["imgdir"], name), "wb") as f:
+            f.write(base64.b64decode(fb64))
+        replay_names.append(name)
     with db() as c:
-        cur = c.execute("INSERT INTO events(ts,stream,track_id,cls,score,box,latency_ms,desc,img,mode)"
-                        " VALUES(?,?,?,?,?,?,?,?,?,?)",
+        cur = c.execute("INSERT INTO events(ts,stream,track_id,cls,score,box,latency_ms,desc,img,mode,replay)"
+                        " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         (item["ts"], item.get("stream", ""), item.get("track_id", -1),
                          item.get("cls", -1), item.get("score", 0), json.dumps(item.get("box", [])),
-                         ms, desc, img_name, mode))
+                         ms, desc, img_name, mode, json.dumps(replay_names)))
         eid = cur.lastrowid
+        prune_events(c)          # 滚动清理:只留最近 MAX_EVENTS 条(含图片文件)
     STATS["processed"] += 1
     await broadcast({"id": eid, "ts": item["ts"], "stream": item.get("stream", ""),
                      "track_id": item.get("track_id", -1), "cls": item.get("cls", -1),
                      "score": item.get("score", 0), "box": item.get("box", []),
-                     "latency_ms": ms, "desc": desc, "img": img_name, "mode": mode})
+                     "latency_ms": ms, "desc": desc, "img": img_name, "mode": mode,
+                     "replay": replay_names})
     return eid
 
 async def worker():
@@ -205,6 +233,7 @@ async def events(limit: int = 100, stream: str = "", cls: int = -1):
         rows = [dict(r) for r in c.execute(q, args)]
     for r in rows:
         r["box"] = json.loads(r["box"] or "[]")
+        r["replay"] = json.loads(r.get("replay") or "[]")
     return rows
 
 @app.get("/img/{name}")

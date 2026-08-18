@@ -128,7 +128,7 @@ footer{margin-top:20px;padding-top:13px;border-top:1px solid var(--line);font-si
 </div>
 <script>
 const CAT={0:{cn:"人",v:"var(--person)"},1:{cn:"车",v:"var(--vehicle)"},2:{cn:"非机动车",v:"var(--twowheel)"}};
-let events=[],selId=null,fCls=-1,fCh="";
+let events=[],selId=null,fCls=-1,fCh="";let replayTimer=null;
 const $=id=>document.getElementById(id);
 function catOf(c){return CAT[c]||{cn:"目标",v:"var(--muted)"};}
 function ageStr(ts){const s=Math.max(0,Date.now()/1000-ts);return s<60?Math.floor(s)+"s 前":s<3600?Math.floor(s/60)+"m 前":Math.floor(s/3600)+"h 前";}
@@ -139,6 +139,7 @@ function renderStream(){
  const list=events.filter(e=>(fCls<0||e.cls==fCls)&&(!fCh||e.stream==fCh));
  $("cnt").textContent=list.length+" 条";
  const el=$("stream");
+ const st=el.scrollTop;              // 重绘会重置滚动位置,导致列表永远滚不到底 —— 保存并恢复
  if(!list.length){el.innerHTML='<div class="empty">暂无匹配事件</div>';return;}
  el.innerHTML="";
  for(const e of list){
@@ -154,11 +155,20 @@ function renderStream(){
   d.onclick=()=>select(e.id);d.onkeydown=k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();select(e.id);}};
   el.appendChild(d);
  }
+ el.scrollTop=st;
 }
 function select(id){
  selId=id;const e=events.find(x=>x.id===id);if(!e)return;
  $("detail").style.display="";const c=catOf(e.cls);
- $("d-shot").innerHTML=e.img?`<img src="/img/${e.img}" alt="">`:"";
+ if(replayTimer){clearInterval(replayTimer);replayTimer=null;}
+ if(e.replay&&e.replay.length>1){
+  $("d-shot").innerHTML=`<img id="d-replay" src="/img/${e.replay[0]}" alt="">`;
+  let ri=0;
+  replayTimer=setInterval(()=>{ri=(ri+1)%e.replay.length;
+   const im=$("d-replay"); if(im) im.src="/img/"+e.replay[ri]; else {clearInterval(replayTimer);replayTimer=null;}},600);
+ } else {
+  $("d-shot").innerHTML=e.img?`<img src="/img/${e.img}" alt="">`:"";
+ }
  const ct=$("d-cat");ct.textContent=c.cn;ct.style.setProperty("--cat",c.v);
  $("d-ch").textContent=e.stream||"";$("d-time").textContent=ageStr(e.ts);
  $("d-desc").textContent=e.desc||"(无描述)";
@@ -183,7 +193,7 @@ async function loadStats(){try{const s=await(await fetch("/api/stats")).json();
  $("s-q").textContent=`${s.queue} / ${s.dropped}`;$("k-mode").textContent=s.cfg.frame_mode==="clip"?"多帧视频":"单帧";
  $("k-rps").textContent="限流 "+s.cfg.global_max_rps+" req/s";}catch(e){}}
 async function loadEvents(){events=await(await fetch("/api/events?limit=200")).json();updateKPI();renderStream();if(events[0])select(events[0].id);}
-function onEvent(e){events.unshift(e);e._new=true;if(events.length>500)events.pop();updateKPI();renderStream();
+function onEvent(e){events.unshift(e);e._new=true;if(events.length>100)events.pop();updateKPI();renderStream();
  if(!selId)select(e.id);}
 const es=new EventSource("/stream");es.onmessage=m=>{try{onEvent(JSON.parse(m.data));}catch(_){}};
 document.querySelectorAll(".chipbtn").forEach(b=>b.onclick=()=>{document.querySelectorAll(".chipbtn").forEach(x=>x.setAttribute("aria-pressed","false"));

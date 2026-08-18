@@ -14,6 +14,7 @@
 #include <chrono>
 #include <memory>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -43,6 +44,7 @@ struct GateCfg {
     std::string crop_mode{"frame"};     // frame=整帧 | roi=抠检测框
     float roi_expand{0.0F};             // roi 模式按框比例四周外扩
     int   jpeg_quality{80};
+    bool  motion_replay{true};          // 事件附带 ±2s 共5帧轮播(网页里"会动");关=只有主帧
     std::string jitter_key;             // 抖动随机序列的种子盐(用路名,避免各路同步)
 };
 
@@ -52,8 +54,9 @@ struct Event {
     int   cls{-1};
     float score{0};
     int   box[4]{0, 0, 0, 0};
-    double ts{0};              // 墙钟 epoch 秒
-    std::string image_b64;     // JPEG base64(不含 data: 前缀)
+    double ts{0};              // 墙钟 epoch 秒(主帧时刻)
+    std::string image_b64;     // 主帧 JPEG base64(VLM 用;不含 data: 前缀)
+    std::vector<std::string> replay;  // 轮播帧(约 T-2s..T+2s 每秒1帧,含主帧;motion_replay 开时为5帧)
 };
 
 class EventGate {
@@ -69,6 +72,36 @@ public:
                  const ax_plugin_det_t* dets, std::size_t n, double now, Event* out) {
         if (!ip_ || !out) return false;
         const int fw = (int)frame.width(), fh = (int)frame.height();
+
+        // 轮播预缓存:每秒存一帧整帧 JPEG,只留最近 3 张(事件的"前2秒"只能来自这里——
+        // 触发时刻之前的帧早已流走,必须持续缓存)
+        if (cfg_.motion_replay && now - last_cache_ >= 1.0) {
+            std::string jpg = axvsdk::codec::EncodeJpegToBase64(frame, {(std::uint32_t)cfg_.jpeg_quality});
+            if (!jpg.empty()) {
+                precache_.push_back(std::move(jpg));
+                while (precache_.size() > 3) precache_.pop_front();
+                last_cache_ = now;
+            }
+        }
+
+        // 有攒帧中的事件:每隔1秒补一帧"事件后"画面,凑满即产出(延迟约2s,VLM 本来就要3s)
+        if (pending_) {
+            for (std::size_t i = 0; i < n; i++) Touch(dets[i].track_id, now);
+            if (now >= pend_next_) {
+                std::string jpg = axvsdk::codec::EncodeJpegToBase64(frame, {(std::uint32_t)cfg_.jpeg_quality});
+                if (!jpg.empty()) {
+                    pend_.replay.push_back(std::move(jpg));
+                    pend_next_ = now + 1.0;
+                }
+                if ((int)pend_.replay.size() >= 5) {
+                    *out = std::move(pend_);
+                    pend_ = {};
+                    pending_ = false;
+                    return true;
+                }
+            }
+            return false;
+        }
 
         // 过期 track 状态清理(防长时间运行内存膨胀)
         for (auto it = tracks_.begin(); it != tracks_.end();)
@@ -99,19 +132,35 @@ public:
         if (h == last_img_hash_) return false;
         last_img_hash_ = h;
 
-        out->track_id = best->track_id;
-        out->cls = best->class_id;
-        out->score = best->score;
-        out->box[0] = (int)best->x0; out->box[1] = (int)best->y0;
-        out->box[2] = (int)best->x1; out->box[3] = (int)best->y1;
-        out->ts = std::chrono::duration<double>(
+        Event ev;
+        ev.image_b64 = std::move(out->image_b64);
+        ev.track_id = best->track_id;
+        ev.cls = best->class_id;
+        ev.score = best->score;
+        ev.box[0] = (int)best->x0; ev.box[1] = (int)best->y0;
+        ev.box[2] = (int)best->x1; ev.box[3] = (int)best->y1;
+        ev.ts = std::chrono::duration<double>(
             std::chrono::system_clock::now().time_since_epoch()).count();
 
         last_sent_ = now;
         tracks_[best->track_id].last_sent = now;
         tracks_[best->track_id].ever_sent = true;
         NextGap();
-        return true;
+
+        if (!cfg_.motion_replay) {
+            ev.replay.push_back(ev.image_b64);
+            *out = std::move(ev);
+            return true;
+        }
+        // 轮播模式:前2帧取自预缓存,加上主帧;转入攒帧,等 T+1s / T+2s 再补2帧后产出
+        for (std::size_t i = precache_.size() >= 2 ? precache_.size() - 2 : 0; i < precache_.size(); ++i)
+            ev.replay.push_back(precache_[i]);
+        ev.replay.push_back(ev.image_b64);
+        while ((int)ev.replay.size() > 3) ev.replay.erase(ev.replay.begin());
+        pend_ = std::move(ev);
+        pend_next_ = now + 1.0;
+        pending_ = true;
+        return false;
     }
 
 private:
@@ -184,6 +233,12 @@ private:
     double cur_gap_{0};        // 首个事件立即可发,其后带抖动
     std::uint32_t jseed_{20260818U};
     std::size_t last_img_hash_{0};
+    // 轮播帧状态
+    std::deque<std::string> precache_;  // 最近3秒、每秒1帧的整帧JPEG(b64)
+    double last_cache_{0};
+    bool pending_{false};               // 事件已触发,正在攒"事件后"帧
+    Event pend_;
+    double pend_next_{0};
 };
 
 }  // namespace pcdvlm

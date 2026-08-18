@@ -137,6 +137,7 @@ python3 feed_demo.py --ingest http://127.0.0.1:8900/ingest --frames_dir <图目�
 
 ### web 事件中心 `web/`
 纯展示,不参与调度(也支持"只收图、由 web 补调 VLM"的旁路模式,方便无板卡演示)。
+事件只保留最近 **100** 条(env `MAX_EVENTS` 可调),超出的连抓拍/轮播图片文件一起滚动删除,长期运行不膨胀。
 接口:`POST /ingest`、`GET /`(页面)、`GET /stream`(SSE)、`GET /api/events`、
 `GET /api/stats`、`GET /img/{name}`。生产可 systemd 常驻或 pyinstaller 打单文件。
 
@@ -168,6 +169,7 @@ python3 feed_demo.py --ingest http://127.0.0.1:8900/ingest --frames_dir <图目�
 | `crop_mode` | frame | `frame`=整帧送 VLM(上下文全,**推荐**;InternVL/Qwen 固定小分辨率输入,耗时与抠图相同);`roi`=抠检测框(远处小目标特写) |
 | `roi_expand` | 0.0 | roi 模式按框比例四周外扩(0.5=每边扩50%) |
 | `jpeg_quality` | 80 | 抓拍 JPEG 质量 |
+| `motion_replay` | true | 事件附带 **±2s 共5帧**(每秒1帧,事件前2帧来自插件内预缓存环)——网页详情页 0.6s/帧循环轮播,点开"会动";关=只有主帧。VLM 仍只看主帧 |
 
 ### `vlm.trigger`(事件触发策略 —— 检测到 ≠ 一定送)
 

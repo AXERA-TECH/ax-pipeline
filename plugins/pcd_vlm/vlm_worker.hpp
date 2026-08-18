@@ -164,6 +164,7 @@ private:
             {"stream", cfg_.stream_name}, {"track_id", e.track_id}, {"cls", e.cls},
             {"score", e.score}, {"box", {e.box[0], e.box[1], e.box[2], e.box[3]}},
             {"ts", e.ts}, {"desc", desc}, {"mode", "single"}, {"image", e.image_b64}};
+        if (e.replay.size() > 1) item["replay"] = e.replay;  // ±2s 轮播帧(网页详情页循环播放)
         std::string resp;
         HttpPostJson(cfg_.report_url, item.dump(), "", &resp, 15);
     }

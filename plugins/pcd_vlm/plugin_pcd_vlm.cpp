@@ -91,10 +91,11 @@ void ParseCfg(const json& j, const std::string& stream_name,
     v->report_url    = vj.value("report_url", v->report_url);
 
     // 事件层
-    g->crop_mode    = vj.value("crop_mode", g->crop_mode);
-    g->roi_expand   = vj.value("roi_expand", g->roi_expand);
-    g->jpeg_quality = vj.value("jpeg_quality", g->jpeg_quality);
-    g->jitter_key   = stream_name;
+    g->crop_mode     = vj.value("crop_mode", g->crop_mode);
+    g->roi_expand    = vj.value("roi_expand", g->roi_expand);
+    g->jpeg_quality  = vj.value("jpeg_quality", g->jpeg_quality);
+    g->motion_replay = vj.value("motion_replay", g->motion_replay);
+    g->jitter_key    = stream_name;
     if (vj.contains("trigger") && vj["trigger"].is_object()) {
         const auto& t = vj["trigger"]; auto& d = g->trig;
         if (t.contains("classes") && t["classes"].is_array())
