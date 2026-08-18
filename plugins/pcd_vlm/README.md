@@ -207,7 +207,7 @@ python3 feed_demo.py --ingest http://127.0.0.1:8900/ingest --frames_dir <图目�
   `AXERA-TECH/InternVL3_5-1B_GPTQ_INT4`(选 **AX650** 版;AX620E 版在 AX650/AXCL 上会 `AXCLWorker exit`)。
   pcd 检测模型:`AXERA-TECH/Person_car-axera` 的 `ax_ax650_pcd_tiny_algo_rgb_nhwc_V2.0.0.axmodel`。
 - **并发=串行**:ax-llm serve `Max concurrency: 1`,并发请求串行处理、内容正常;超限返回 503(本插件默认丢弃)。
-- 速度瓶颈在 vision 编码 + prefill(~2.3s 固定),压缩输出 token 收益有限。
+- **事件延迟公式**(Qwen3-VL-2B 实测):`延迟 ≈ 1.5s(vision编码0.97s+prefill0.54s,固定) + 输出字数 ÷ 9.73 token/s`。30字描述 ≈ 4.5s,60字详细描述 ≈ 6~8s;两路同时触发时后到的还要加排队。**这是异步事件记录的正常成本**(主链路不受任何影响),想快就把描述缩到40字内(`max_tokens 56`)或多卡分流。
 
 ### 多少路 ↔ 间隔多大(单卡 VLM 串行,单张 ≈ 3~4s)
 
