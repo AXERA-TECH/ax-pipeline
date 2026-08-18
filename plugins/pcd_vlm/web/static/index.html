@@ -92,7 +92,7 @@ footer{margin-top:20px;padding-top:13px;border-top:1px solid var(--line);font-si
  <section class="kpis">
   <div class="kpi"><div class="eyebrow">累计事件</div><div class="big" id="k-total">0</div><div class="sub">全部路号</div></div>
   <div class="kpi"><div class="eyebrow">人 / 车 / 非机动车</div><div class="big" id="k-cls">0 / 0 / 0</div><div class="sub">按类别</div></div>
-  <div class="kpi"><div class="eyebrow">平均 VLM 延迟</div><div class="big" id="k-lat">— <span style="font-size:13px;color:var(--muted)">ms</span></div><div class="sub">端到端解析</div></div>
+  <div class="kpi"><div class="eyebrow">平均 VLM 延迟</div><div class="big" id="k-lat">— <span style="font-size:13px;color:var(--muted)">s</span></div><div class="sub">端到端解析</div></div>
   <div class="kpi"><div class="eyebrow">取帧模式</div><div class="big" id="k-mode" style="font-size:19px">—</div><div class="sub" id="k-rps">—</div></div>
  </section>
  <div class="grid">
@@ -174,7 +174,7 @@ function select(id){
  $("d-desc").textContent=e.desc||"(无描述)";
  $("d-tid").textContent=e.track_id;$("d-score").textContent=Math.round((e.score||0)*100)+"%";
  $("d-box").textContent="["+(e.box||[]).map(v=>Math.round(v)).join(", ")+"]";
- $("d-lat").textContent=(e.latency_ms||0)+" ms";$("d-mode").textContent=e.mode==="clip"?"多帧视频":"单帧";
+ $("d-lat").textContent=((e.latency_ms||0)/1000).toFixed(1)+" s";$("d-mode").textContent=e.mode==="clip"?"多帧视频":"单帧";
  $("d-abs").textContent=absStr(e.ts);
  renderStream();
 }
@@ -183,7 +183,7 @@ function updateKPI(){
  const cnt={0:0,1:0,2:0};let lat=0,n=0;
  for(const e of events){if(e.cls in cnt)cnt[e.cls]++;if(e.latency_ms){lat+=e.latency_ms;n++;}}
  $("k-cls").textContent=`${cnt[0]} / ${cnt[1]} / ${cnt[2]}`;
- $("k-lat").innerHTML=(n?Math.round(lat/n):"—")+' <span style="font-size:13px;color:var(--muted)">ms</span>';
+ $("k-lat").innerHTML=(n?(lat/n/1000).toFixed(1):"—")+' <span style="font-size:13px;color:var(--muted)">s</span>';
  const chs=[...new Set(events.map(e=>e.stream).filter(Boolean))].sort();
  const cur=$("chsel").value;
  $("chsel").innerHTML='<option value="">全部路号</option>'+chs.map(c=>`<option ${c===cur?"selected":""}>${c}</option>`).join("");

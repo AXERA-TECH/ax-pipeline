@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -121,9 +122,12 @@ private:
                 q_.pop_front();
             }
             std::string desc;
+            const auto t0 = std::chrono::steady_clock::now();
             if (CallVlm(e.image_b64, &desc)) {
-                std::fprintf(stderr, "[pcdvlm %s] VLM ok: %.40s\n", cfg_.stream_name.c_str(), desc.c_str());
-                Report(e, desc);
+                const int ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - t0).count();
+                std::fprintf(stderr, "[pcdvlm %s] VLM ok(%dms): %.40s\n", cfg_.stream_name.c_str(), ms, desc.c_str());
+                Report(e, desc, ms);
             } else {
                 std::fprintf(stderr, "[pcdvlm %s] VLM call FAILED\n", cfg_.stream_name.c_str());
             }
@@ -157,13 +161,13 @@ private:
         return true;
     }
 
-    void Report(const Event& e, const std::string& desc) const {
+    void Report(const Event& e, const std::string& desc, int latency_ms) const {
         if (cfg_.report_url.empty()) return;
         using json = nlohmann::json;
         json item = {
             {"stream", cfg_.stream_name}, {"track_id", e.track_id}, {"cls", e.cls},
             {"score", e.score}, {"box", {e.box[0], e.box[1], e.box[2], e.box[3]}},
-            {"ts", e.ts}, {"desc", desc}, {"mode", "single"}, {"image", e.image_b64}};
+            {"ts", e.ts}, {"desc", desc}, {"mode", "single"}, {"latency_ms", latency_ms}, {"image", e.image_b64}};
         if (e.replay.size() > 1) item["replay"] = e.replay;  // ±2s 轮播帧(网页详情页循环播放)
         std::string resp;
         HttpPostJson(cfg_.report_url, item.dump(), "", &resp, 15);
