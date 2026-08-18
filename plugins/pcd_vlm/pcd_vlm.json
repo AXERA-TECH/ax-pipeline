@@ -22,7 +22,7 @@
       },
       "npu": {
         "enable": true,
-        "enable_osd": true,
+        "enable_osd": false,
         "ax_plugin_path": "lib/plugins/libax_plugin_pcd_vlm.so",
         "ax_plugin_isolation": "inproc",
         "ax_plugin_init_info": {
@@ -70,15 +70,7 @@
             "jpeg_quality": 80
           }
         }
-      },
-      "outputs": [
-        {
-          "codec": "h264",
-          "uris": [
-            "rtsp://0.0.0.0:8554/pcd_vlm"
-          ]
-        }
-      ]
+      }
     }
   ]
 }

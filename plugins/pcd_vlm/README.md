@@ -26,7 +26,7 @@ plugins/pcd_vlm/
 ├── event_gate.hpp         # ② 事件层:触发/选帧/节流抖动/去重/硬件JPEG抓拍 → Event
 ├── vlm_worker.hpp         # ③ VLM层:异步worker,调VLM + 上报web
 ├── CMakeLists.txt
-├── pcd_vlm_rtsp.json      # 单路配置示例
+├── pcd_vlm.json           # 单路配置示例(无视频输出,产出即事件)
 ├── README.md
 └── web/                   # 网页事件中心(Python FastAPI)
     ├── server.py          # /ingest 接收 → SQLite+抓拍落盘 → SSE + 页面
@@ -84,7 +84,7 @@ pcd_vlm_demo/
 
 ### 4) 或者手写配置跑单路
 
-参考 `pcd_vlm_rtsp.json`(字段见「五、配置项」),要点:
+参考 `pcd_vlm.json`(字段见「五、配置项」),要点:
 - `npu.ax_plugin_path` → `libax_plugin_pcd_vlm.so`;
 - `ax_plugin_init_info.pcd_plugin_path` → 内层检测插件(默认 `libax_plugin_pcd.so`);
 - `vlm.url` → VLM 服务;`vlm.report_url` → web 的 `/ingest`;
@@ -241,6 +241,8 @@ web 的 `/ingest` 已支持 `frames:[b64,...]` 多帧格式(`CLIP_STYLE` 适配 
 
 ## 九、平台说明与已知坑
 
+- **本场景不需要 `outputs`**:产出就是「事件+抓拍+描述」,去掉 outputs(和 `enable_osd`)可省 VENC 通道;如需带框视频流再加回 `outputs` + `enable_osd:true`。
+- **但 `system.enable_venc` 必须保留 `true`**:抓拍的硬件 JPEG 编码也走 VENC 模块,关掉会报 `AX_VENC_JpegEncodeOneFrame 0x8007020a`、事件全无。
 - 抓拍用 **ax-video-sdk 硬件 JPEG**(`ImageProcessor` 裁剪 + `EncodeJpegToBase64`),
   直接吃卡上的帧,**AX650 板端(CMM)与 AXCL(device 帧)都支持**,无需 CPU 读像素。
 - `ax_plugin_isolation` 用 `inproc` 或 `subprocess` 都可(每路独立、无跨路共享状态)。
