@@ -172,6 +172,14 @@ public:
                 if (error) *error = "invalid pipelines[" + std::to_string(i) + "]";
                 return false;
             }
+            // Multi-card AXCL: a pipeline without an explicit device_id inherits the
+            // system one, so SDK modules and NPU plugins stay on the same card.
+            // (Otherwise plugins receive -1 and typically normalize it to card 0,
+            //  while VDEC/IVPS run on system.device_id -> cross-card garbage input.)
+            if (p.device_id < 0 && cfg.system.device_id >= 0) {
+                p.device_id = cfg.system.device_id;
+                p.sdk.device_id = cfg.system.device_id;
+            }
             ResolvePathsRelativeToBase(base_dir, &p);
             cfg.pipelines.push_back(std::move(p));
         }
