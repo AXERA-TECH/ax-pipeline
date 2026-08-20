@@ -237,58 +237,58 @@ async function refresh(immediate){
  }catch(e){}
 }
 function fmtUp(s){if(s==null)return"—";const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h+"h "+m+"m";}
+let pvCache={};
 function renderPipes(arr){
- pipes=arr;const g=$("grid");g.innerHTML="";
+ pipes=arr;const g=$("grid");
+ const names=arr.map(x=>x.name).join(",");
+ if(g.dataset.names!==names){            // 结构变化(增删路)才重建骨架;平时只改数字,img 不动 → 不闪
+  g.dataset.names=names;g.innerHTML="";
+  arr.forEach(s=>{
+   const d=document.createElement("div");d.className="pc";d.dataset.name=s.name;
+   d.innerHTML=`
+    <div class="pv"><span class="badge stop">…</span>
+      <img data-pv="${s.name}" style="display:none"><div class="noimg">无预览</div></div>
+    <div class="pb">
+     <div class="pn"><b>${s.name}</b><span class="dev">dev ${s.device_id}</span></div>
+     <div class="fps">
+      <div><div class="v f-dec">—</div><div class="k">解码fps</div></div>
+      <div><div class="v f-enc">—</div><div class="k">编码fps</div></div>
+      <div><div class="v f-ai">—</div><div class="k">AI fps</div></div>
+      <div><div class="v f-err">0</div><div class="k">AI错误</div></div>
+     </div>
+     <div class="acts"></div>
+    </div>`;
+   const im=d.querySelector("img[data-pv]");
+   if(pvCache[s.name]){im.src=pvCache[s.name];im.style.display="";im.nextElementSibling.style.display="none";}
+   g.appendChild(d);
+  });
+  refreshPreviews();
+ }
  arr.forEach(s=>{
-  const d=document.createElement("div");d.className="pc";
-  const dec=fpsOf(s.name,s.decoded,"decoded"),nf=fpsOf(s.name,s.npu_ok,"npu_ok");
-  const enc=(s.outputs&&s.outputs[0])?fpsOf(s.name,s.outputs[0].encoded_pkts,"enc"):"—";
-  d.innerHTML=`
-   <div class="pv"><span class="badge ${s.running?"run":"stop"}">${s.running?"RUNNING":"STOPPED"}</span>
-     <img data-pv="${s.name}" style="display:none"><div class="noimg">无预览</div></div>
-   <div class="pb">
-    <div class="pn"><b>${s.name}</b><span class="dev">dev ${s.device_id}</span></div>
-    <div class="fps">
-     <div><div class="v">${dec}</div><div class="k">解码fps</div></div>
-     <div><div class="v">${enc}</div><div class="k">编码fps</div></div>
-     <div><div class="v">${nf}</div><div class="k">AI fps</div></div>
-     <div><div class="v ${s.npu_err>0?"bad":""}">${s.npu_err}</div><div class="k">AI错误</div></div>
-    </div>
-    <div class="acts">
-     ${s.running?`<button class="btn small" onclick="pact('${s.name}','stop')">停止</button>`
-                :`<button class="btn small" onclick="pact('${s.name}','start')">启动</button>`}
-     <button class="btn small" onclick="editPipe('${s.name}')">配置</button>
-     <span class="spacer"></span>
-     <button class="btn small danger" onclick="delPipe('${s.name}')">删除</button>
-    </div>
-   </div>`;
-  g.appendChild(d);
+  const d=g.querySelector(`.pc[data-name="${CSS.escape(s.name)}"]`);if(!d)return;
+  const b=d.querySelector(".badge");
+  b.className="badge "+(s.running?"run":"stop");b.textContent=s.running?"RUNNING":"STOPPED";
+  d.querySelector(".f-dec").textContent=fpsOf(s.name,s.decoded,"decoded");
+  d.querySelector(".f-enc").textContent=(s.outputs&&s.outputs[0])?fpsOf(s.name,s.outputs[0].encoded_pkts,"enc"):"—";
+  d.querySelector(".f-ai").textContent=fpsOf(s.name,s.npu_ok,"npu_ok");
+  const fe=d.querySelector(".f-err");fe.textContent=s.npu_err;fe.className="v f-err"+(s.npu_err>0?" bad":"");
+  if(d.dataset.running!==String(s.running)){
+   d.dataset.running=String(s.running);
+   d.querySelector(".acts").innerHTML=`
+    ${s.running?`<button class="btn small" onclick="pact('${s.name}','stop')">停止</button>`
+               :`<button class="btn small" onclick="pact('${s.name}','start')">启动</button>`}
+    <button class="btn small" onclick="editPipe('${s.name}')">配置</button>
+    <span class="spacer"></span>
+    <button class="btn small danger" onclick="delPipe('${s.name}')">删除</button>`;
+  }
  });
- refreshPreviews();
-}
-async function pact(n,a){try{await api(`/api/v1/pipelines/${n}/${a}`,{method:"POST"});toast(n+" "+a+" ok");refresh(true);}catch(e){toast(a+" 失败: "+e.message);}}
-async function delPipe(n){if(!confirm("删除 "+n+" ?"))return;
- try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});toast("已删除 "+n);refresh(true);}catch(e){toast("删除失败: "+e.message);}}
-function editPipe(n){
- const saved=localStorage.getItem("plcfg_"+n);
- openNew();$("m-title").textContent="编辑 "+n+"(删除后按此配置重建)";
- if(saved){$("f-json").value=saved;const c=JSON.parse(saved);$("f-name").value=c.name||n;$("f-uri").value=c.uri||"";}
- else{$("f-name").value=n;genJson();toast("无本地缓存配置,请核对后提交");}
- $("m-submit").textContent="重建并启动";
- $("m-submit").onclick=async()=>{
-  let cfg;try{cfg=JSON.parse($("f-json").value)}catch(e){toast("JSON 有误");return;}
-  try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});}catch(e){}
-  try{await api("/api/v1/pipelines",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
-   localStorage.setItem("plcfg_"+cfg.name,JSON.stringify(cfg));toast("已重建 "+cfg.name);closeNew();refresh(true);
-  }catch(e){toast("重建失败: "+e.message);}
- };
 }
 function refreshPreviews(){
  document.querySelectorAll("img[data-pv]").forEach(im=>{
   const n=im.dataset.pv;
   const u=`/api/v1/pipelines/${n}/preview.jpg?ts=${Date.now()}`+(TOKEN?`&token=${TOKEN}`:"");
   const probe=new Image();
-  probe.onload=()=>{im.src=probe.src;im.style.display="";im.nextElementSibling.style.display="none";};
+  probe.onload=()=>{pvCache[n]=probe.src;im.src=probe.src;im.style.display="";im.nextElementSibling.style.display="none";};
   probe.src=u;
  });
 }
