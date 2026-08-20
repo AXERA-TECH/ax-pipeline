@@ -9,6 +9,8 @@
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <dirent.h>
+#include <dlfcn.h>
 #include <unistd.h>
 #include <utility>
 
@@ -121,6 +123,43 @@ json SnapshotToJson(const PipelineSnapshot& s) {
     }
     j["outputs"] = std::move(outs);
     return j;
+}
+
+// ---------- 插件发现:扫 plugins/*/libax_plugin_*.so,取可选的 config schema ----------
+json ScanPlugins() {
+    json arr = json::array();
+    DIR* root = opendir("plugins");
+    if (!root) return arr;
+    dirent* e;
+    while ((e = readdir(root)) != nullptr) {
+        if (e->d_name[0] == '.') continue;
+        const std::string sub = std::string("plugins/") + e->d_name;
+        DIR* d = opendir(sub.c_str());
+        if (!d) continue;
+        dirent* f;
+        while ((f = readdir(d)) != nullptr) {
+            const std::string fn = f->d_name;
+            if (fn.rfind("libax_plugin_", 0) != 0 || fn.size() < 3 ||
+                fn.substr(fn.size() - 3) != ".so") continue;
+            const std::string path = sub + "/" + fn;
+            json item = {{"path", path},
+                         {"name", fn.substr(13, fn.size() - 16)}};  // libax_plugin_<name>.so
+            void* dl = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+            if (dl) {
+                using SchemaFn = const char* (*)(void);
+                if (auto fp = reinterpret_cast<SchemaFn>(dlsym(dl, "ax_plugin_get_config_schema"))) {
+                    try {
+                        item["schema"] = json::parse(fp());
+                    } catch (...) {}
+                }
+                dlclose(dl);
+            }
+            arr.push_back(std::move(item));
+        }
+        closedir(d);
+    }
+    closedir(root);
+    return arr;
 }
 
 // ---------- 系统资源采集(CPU / DDR / CMM) ----------
@@ -281,6 +320,15 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
 
     svr.Get("/api/v1/system", [this](const httplib::Request&, httplib::Response& res) {
         ReplyJson(res, 200, SystemStatsJson(service_));
+    });
+
+    // 插件清单 + 各自的配置 schema(首次扫描后缓存;控制台"新建 Pipeline"用它生成表单)
+    svr.Get("/api/v1/plugins", [](const httplib::Request&, httplib::Response& res) {
+        static std::mutex mu;
+        static json cache;
+        std::lock_guard<std::mutex> lk(mu);
+        if (cache.is_null()) cache = ScanPlugins();
+        ReplyJson(res, 200, json{{"ok", true}, {"plugins", cache}});
     });
 
     svr.Get("/api/v1/pipelines", [&](const httplib::Request& req, httplib::Response& res) {

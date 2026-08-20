@@ -109,9 +109,7 @@ footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-si
    <div class="hint">RTSP 拉流或本地 MP4 文件路径</div>
    <label>device_id</label><input id="f-dev" placeholder="留空=继承 system" style="width:120px">
    <label>AI 插件</label><select id="f-preset" onchange="applyPreset()"></select>
-   <label id="l-model">模型路径</label><input id="f-model" placeholder="/root/pcd.axmodel">
-   <label id="l-vlmurl">VLM 服务</label><input id="f-vlmurl" placeholder="http://127.0.0.1:8014">
-   <label id="l-report">事件中心</label><input id="f-report" placeholder="http://127.0.0.1:8900/ingest">
+   <div id="f-dyn" style="display:contents"></div>
    <label>输出</label><select id="f-out">
      <option value="none">无(只做 AI / 事件)</option>
      <option value="rtsp">RTSP 推流</option>
@@ -139,55 +137,63 @@ async function api(path,opt={}){opt.headers=Object.assign({},H,opt.headers||{});
  if(!r.ok){let m="";try{m=(await r.json()).error||r.statusText}catch(e){m=r.statusText}throw new Error(m||("HTTP "+r.status));}
  const ct=r.headers.get("content-type")||"";return ct.includes("json")?r.json():r.text();}
 
-/* ---------- 插件预设:选一个就把 ax_plugin_path + init_info 模板填好 ---------- */
-const PRESETS={
- none:{label:"无(纯转码)"},
- pcd_vlm:{label:"pcd_vlm — 人车非检测 + VLM 描述",path:"plugins/pcd_vlm/libax_plugin_pcd_vlm.so",
-  fields:["model","vlmurl","report"],
-  init:f=>({model_path:f.model||"/root/pcd.axmodel",num_classes:3,strides:[16,32],conf_threshold:0.3,
-   pcd_plugin_path:"plugins/pcd.axera/libax_plugin_pcd.so",stream_name:f.name||"CH01",
-   vlm:{enable:true,url:f.vlmurl||"http://127.0.0.1:8014",model:"AXERA-TECH/Qwen3-VL-2B-Instruct",
-    frame_mode:"clip",
-    system_prompt:"必须始终用简体中文回答,禁止输出英文。你是路侧摄像头画面分析助手。输入是同一画面约4秒内每秒1帧的连续序列。请用一段话(两句以内、不超过60个字)描述这段时间发生了什么:主要的人和车、他们的动作与移动方向;看不清的不要编造,禁止分点、列表、标题。",
-    prompt:"用简体中文描述这段画面里发生了什么。",max_tokens:80,temperature:0.7,
-    report_url:f.report||"http://127.0.0.1:8900/ingest",
-    trigger:{classes:[0,1,2],min_score:0.4,min_box_h:48,min_track_age:8,reject_border:true,per_track_once:true,select_frame:"best"},
-    rate:{per_stream_interval_s:30,queue_size:4}}})},
- pcd:{label:"pcd — 人车非检测",path:"plugins/pcd.axera/libax_plugin_pcd.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/pcd.axmodel",num_classes:3,strides:[16,32],conf_threshold:0.3,enable_tracking:true})},
- yolov5:{label:"yolov5 (COCO)",path:"plugins/yolov5/libax_plugin_yolov5.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/yolov5s.axmodel",num_classes:80,conf_threshold:0.25})},
- yolov8:{label:"yolov8 (COCO)",path:"plugins/yolov8/libax_plugin_yolov8.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/yolov8s.axmodel",num_classes:80,conf_threshold:0.25})},
- yolo11:{label:"yolo11(写死头结构,给模型即可)",path:"plugins/yolo11/libax_plugin_yolo11.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/yolo11s.axmodel"})},
- yolo26:{label:"yolo26(写死头结构,给模型即可)",path:"plugins/yolo26/libax_plugin_yolo26.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/yolo26n.axmodel"})},
- helmet:{label:"helmet — 头盔/电动车检测(用 rgb_nhwc 版模型)",path:"plugins/helmet/libax_plugin_helmet.so",fields:["model"],
-  init:f=>({model_path:f.model||"/root/helmet.axmodel"})},
-};
-(function(){const sel=$("f-preset");for(const k in PRESETS){const o=document.createElement("option");o.value=k;o.textContent=PRESETS[k].label;sel.appendChild(o);}sel.value="pcd_vlm";})();
-
+/* ---------- 插件动态发现:GET /api/v1/plugins,由各插件的 config schema 生成表单 ---------- */
+let PLUGINS={none:{label:"无(纯转码)"}};
+let curDefaults={};
+async function loadPlugins(){
+ try{
+  const r=await api("/api/v1/plugins");
+  (r.plugins||[]).forEach(p=>{
+   const sc=p.schema||{};
+   PLUGINS[p.name]={label:sc.label||p.name,path:p.path,defaults:sc.defaults||{},fields:sc.fields||[]};
+  });
+ }catch(e){toast("插件列表获取失败: "+e.message);}
+ const sel=$("f-preset");sel.innerHTML="";
+ for(const k in PLUGINS){const o=document.createElement("option");o.value=k;o.textContent=PLUGINS[k].label;sel.appendChild(o);}
+ if(PLUGINS.pcd_vlm)sel.value="pcd_vlm";
+}
+function getPath(o,p){return p.split(".").reduce((a,k)=>a&&a[k],o);}
+function setPath(o,p,v){const ks=p.split(".");let t=o;
+ for(let i=0;i<ks.length-1;i++){if(typeof t[ks[i]]!=="object"||t[ks[i]]===null)t[ks[i]]={};t=t[ks[i]];}
+ t[ks[ks.length-1]]=v;}
 function applyPreset(){
- const p=PRESETS[$("f-preset").value]||{};const f=p.fields||[];
- const show=(id,on)=>{const a=$(id),b=$(id.replace("f-","l-"));
-  if(a)a.style.display=on?"":"none";if(b)b.style.display=on?"":"none";};
- show("f-model",f.includes("model"));show("f-vlmurl",f.includes("vlmurl"));show("f-report",f.includes("report"));
+ const p=PLUGINS[$("f-preset").value]||{};
+ curDefaults=JSON.parse(JSON.stringify(p.defaults||{}));
+ const dyn=$("f-dyn");dyn.innerHTML="";
+ (p.fields||[]).forEach(f=>{
+  const lab=document.createElement("label");lab.textContent=f.label||f.key;dyn.appendChild(lab);
+  let inp;
+  if(f.type==="bool"){inp=document.createElement("input");inp.type="checkbox";
+   inp.checked=!!getPath(curDefaults,f.key);inp.style.width="18px";}
+  else if(f.type==="select"){inp=document.createElement("select");
+   (f.options||[]).forEach(o=>{const op=document.createElement("option");op.value=o;op.textContent=o;inp.appendChild(op);});
+   inp.value=getPath(curDefaults,f.key)??"";}
+  else{inp=document.createElement("input");inp.value=getPath(curDefaults,f.key)??"";}
+  inp.addEventListener("change",()=>{
+   let v=(f.type==="bool")?inp.checked:inp.value;
+   if(f.type==="number")v=parseFloat(v);
+   if(f.type==="int")v=parseInt(v);
+   setPath(curDefaults,f.key,v);genJson();
+  });
+  dyn.appendChild(inp);
+ });
  genJson();
 }
 function outChanged(){const on=$("f-out").value!=="none";$("f-outuri").style.display=on?"":"none";$("l-outuri").style.display=on?"":"none";genJson();}
 $("f-out").addEventListener("change",outChanged);
-["f-name","f-uri","f-dev","f-model","f-vlmurl","f-report","f-outuri"].forEach(id=>$(id).addEventListener("change",genJson));
+["f-name","f-uri","f-dev","f-outuri"].forEach(id=>$(id).addEventListener("change",genJson));
 
 function genJson(){
  const name=$("f-name").value.trim()||("CH"+String(pipes.length+1).padStart(2,"0"));
- const key=$("f-preset").value,p=PRESETS[key];
+ const key=$("f-preset").value,p=PLUGINS[key]||{};
  const cfg={name:name,uri:$("f-uri").value.trim()||"/root/demo.mp4",realtime_playback:true,loop_playback:true,
   frame_output:{format:"rgb",resize:{mode:"keep_aspect",background_color:0}}};
  const dev=$("f-dev").value.trim();if(dev!=="")cfg.device_id=parseInt(dev);
- if(key!=="none"){
-  cfg.npu={enable:true,enable_osd:$("f-out").value!=="none",ax_plugin_path:p.path,ax_plugin_isolation:"inproc",
-   ax_plugin_init_info:p.init({name:name,model:$("f-model").value.trim(),vlmurl:$("f-vlmurl").value.trim(),report:$("f-report").value.trim()})};
+ if(key!=="none"&&p.path){
+  const init=JSON.parse(JSON.stringify(curDefaults));
+  if("stream_name" in init)init.stream_name=name;
+  cfg.npu={enable:true,enable_osd:$("f-out").value!=="none",ax_plugin_path:p.path,
+   ax_plugin_isolation:"inproc",ax_plugin_init_info:init};
  }
  if($("f-out").value!=="none"){
   const u=$("f-outuri").value.trim()||($("f-out").value==="rtsp"?("rtsp://0.0.0.0:8554/"+name.toLowerCase()):("/tmp/"+name+".mp4"));
@@ -300,6 +306,7 @@ function refreshPreviews(){
 }
 setInterval(refresh,2000);
 setInterval(refreshPreviews,4000);
+loadPlugins();
 refresh(true);
 </script>
 </body></html>

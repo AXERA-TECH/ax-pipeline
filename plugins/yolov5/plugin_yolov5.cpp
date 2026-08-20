@@ -94,6 +94,15 @@ bool BuildAxImageView(const ax_plugin_image_view_t& view, axvsdk::common::AxImag
 
 extern "C" {
 
+const char* ax_plugin_get_config_schema(void) {
+    return R"AXSCHEMA({
+ "label":"yolov5 (COCO)",
+ "defaults":{"model_path":"/root/yolov5s.axmodel","num_classes":80,"conf_threshold":0.25,"nms_threshold":0.45},
+ "fields":[{"key":"model_path","label":"模型路径","type":"string","required":true},
+  {"key":"num_classes","label":"类别数","type":"int"},
+  {"key":"conf_threshold","label":"置信度阈值","type":"number"}]})AXSCHEMA";
+}
+
 int ax_plugin_get_api_version(void) {
     return AX_PLUGIN_API_VERSION;
 }

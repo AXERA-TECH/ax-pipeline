@@ -120,6 +120,28 @@ void ParseCfg(const json& j, const std::string& stream_name,
 
 extern "C" {
 
+const char* ax_plugin_get_config_schema(void) {
+    return R"AXSCHEMA({
+ "label":"pcd_vlm — 人车非检测 + VLM 描述",
+ "defaults":{"model_path":"/root/pcd.axmodel","num_classes":3,"strides":[16,32],"conf_threshold":0.3,
+  "pcd_plugin_path":"plugins/pcd.axera/libax_plugin_pcd.so","stream_name":"CH01",
+  "vlm":{"enable":true,"url":"http://127.0.0.1:8014","api_key":"","model":"AXERA-TECH/Qwen3-VL-2B-Instruct",
+   "frame_mode":"clip",
+   "system_prompt":"必须始终用简体中文回答,禁止输出英文。你是路侧摄像头画面分析助手。输入是同一画面约4秒内每秒1帧的连续序列。请用一段话(两句以内、不超过60个字)描述这段时间发生了什么:主要的人和车、他们的动作与移动方向;看不清的不要编造,禁止分点、列表、标题。",
+   "prompt":"用简体中文描述这段画面。","max_tokens":80,"temperature":0.7,
+   "report_url":"http://127.0.0.1:8900/ingest","crop_mode":"frame","jpeg_quality":80,"motion_replay":true,
+   "trigger":{"classes":[0,1,2],"min_score":0.4,"min_box_h":48,"min_track_age":8,"reject_border":true,
+    "per_track_once":true,"per_track_cooldown_s":0,"select_frame":"best"},
+   "rate":{"per_stream_interval_s":30,"queue_size":4,"retry_once":false}}},
+ "fields":[{"key":"model_path","label":"检测模型路径","type":"string","required":true},
+  {"key":"vlm.url","label":"VLM 服务地址","type":"string"},
+  {"key":"vlm.model","label":"VLM 模型名(须与 /v1/models 一致)","type":"string"},
+  {"key":"vlm.report_url","label":"事件中心地址","type":"string"},
+  {"key":"vlm.frame_mode","label":"取帧模式","type":"select","options":["clip","single"]},
+  {"key":"vlm.rate.per_stream_interval_s","label":"事件间隔(秒/路)","type":"number"},
+  {"key":"vlm.trigger.min_box_h","label":"最小框高(px)","type":"int"}]})AXSCHEMA";
+}
+
 int ax_plugin_get_api_version(void) { return AX_PLUGIN_API_VERSION; }
 
 int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t* out_handle) {

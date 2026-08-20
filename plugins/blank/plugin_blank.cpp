@@ -6,6 +6,13 @@
 
 extern "C" {
 
+const char* ax_plugin_get_config_schema(void) {
+    return R"AXSCHEMA({
+ "label":"blank — 空插件(无AI)",
+ "defaults":{},
+ "fields":[]})AXSCHEMA";
+}
+
 int ax_plugin_get_api_version(void) {
     return AX_PLUGIN_API_VERSION;
 }

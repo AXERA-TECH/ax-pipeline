@@ -67,6 +67,16 @@ typedef void* ax_plugin_handle_t;
 
 AX_PLUGIN_API int ax_plugin_get_api_version(void);
 
+// 可选导出:返回插件配置 schema(静态 JSON 字符串,UTF-8),供控制台等宿主动态生成配置界面:
+//   {
+//     "label":   "人类可读名称",
+//     "defaults": { ...完整的 ax_plugin_init_info 默认值... },
+//     "fields": [ {"key":"model_path","label":"模型路径","type":"string","required":true},
+//                 {"key":"vlm.url","label":"VLM服务","type":"string"}, ... ]   // 重点字段(嵌套用点路径)
+//   }
+// 旧插件可不实现;宿主用 dlsym 探测,取不到则视为无 schema。
+AX_PLUGIN_API const char* ax_plugin_get_config_schema(void);
+
 // init_json: a JSON string for plugin-specific initialization options.
 // device_id: used for AXCL multi-card selection (pass -1 for default).
 AX_PLUGIN_API int ax_plugin_init(const char* init_json, int32_t device_id, ax_plugin_handle_t* out_handle);

@@ -127,6 +127,14 @@ bool BuildAxImageView(const ax_plugin_image_view_t& view, axvsdk::common::AxImag
 
 extern "C" {
 
+const char* ax_plugin_get_config_schema(void) {
+    return R"AXSCHEMA({
+ "label":"yolo11(头结构固定,给模型即可)",
+ "defaults":{"model_path":"/root/yolo11s.axmodel","conf_threshold":0.25},
+ "fields":[{"key":"model_path","label":"模型路径","type":"string","required":true},
+  {"key":"conf_threshold","label":"置信度阈值","type":"number"}]})AXSCHEMA";
+}
+
 int ax_plugin_get_api_version(void) {
     return AX_PLUGIN_API_VERSION;
 }

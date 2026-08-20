@@ -839,6 +839,16 @@ struct PluginCtx {
 
 extern "C" {
 
+const char* ax_plugin_get_config_schema(void) {
+    return R"AXSCHEMA({
+ "label":"pcd — 人车非检测",
+ "defaults":{"model_path":"/root/pcd.axmodel","num_classes":3,"strides":[16,32],
+  "conf_threshold":0.3,"nms_threshold":0.45,"max_det":50,"enable_tracking":true},
+ "fields":[{"key":"model_path","label":"模型路径","type":"string","required":true},
+  {"key":"conf_threshold","label":"置信度阈值","type":"number"},
+  {"key":"enable_tracking","label":"启用跟踪","type":"bool"}]})AXSCHEMA";
+}
+
 int ax_plugin_get_api_version(void) {
     return AX_PLUGIN_API_VERSION;
 }

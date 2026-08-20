@@ -137,6 +137,7 @@ python3 feed_demo.py --ingest http://127.0.0.1:8900/ingest --frames_dir <图目�
 - **换检测器**:config 里把 `pcd_plugin_path` 指到别的插件(yolov5/yolov8/helmet…),
   同时把检测参数(`num_classes` 等)换成该插件的参数即可,本层代码零改动。
 - 注:插件会强制给内层开 `enable_tracking`(事件层的去重/选帧需要 `track_id`)。
+- **配置自描述**:插件可导出可选的 `ax_plugin_get_config_schema()`(返回 JSON:label + 完整默认 init_info + 重点字段说明),控制台 `GET /api/v1/plugins` 扫描后据此**动态生成新建表单**——加新插件或新配置项,网页零改动。本仓库全部插件已实现。
 
 ### ② 事件层 `event_gate.hpp`
 把"每帧检测结果"过滤成稀疏「事件」(默认策略:新目标出现→挑最清晰一刻→抓拍一次)。
