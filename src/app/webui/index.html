@@ -38,7 +38,7 @@ h1{font-size:15.5px;margin:0}.sub{margin:2px 0 0;font-size:11px;color:var(--mute
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .pv{aspect-ratio:16/9;background:var(--sunk);position:relative}
-.pv img{width:100%;height:100%;object-fit:cover;display:block}
+.pv img{width:100%;height:100%;object-fit:contain;display:block;background:var(--sunk)}
 .pc.stopped .pv img{filter:grayscale(1) brightness(.45)}
 .pv .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
 .badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:6px}
