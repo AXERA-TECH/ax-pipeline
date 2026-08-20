@@ -109,8 +109,8 @@ footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-si
    <label>device_id</label><input id="f-dev" placeholder="留空=继承 system" style="width:120px">
    <label>AI 插件</label><select id="f-preset" onchange="applyPreset()"></select>
    <label id="l-model">模型路径</label><input id="f-model" placeholder="/root/pcd.axmodel">
-   <label id="l-vlm">VLM 服务</label><input id="f-vlmurl" placeholder="http://127.0.0.1:8014">
-   <label id="l-rep">事件中心</label><input id="f-report" placeholder="http://127.0.0.1:8900/ingest">
+   <label id="l-vlmurl">VLM 服务</label><input id="f-vlmurl" placeholder="http://127.0.0.1:8014">
+   <label id="l-report">事件中心</label><input id="f-report" placeholder="http://127.0.0.1:8900/ingest">
    <label>输出</label><select id="f-out">
      <option value="none">无(只做 AI / 事件)</option>
      <option value="rtsp">RTSP 推流</option>
@@ -169,7 +169,8 @@ const PRESETS={
 
 function applyPreset(){
  const p=PRESETS[$("f-preset").value]||{};const f=p.fields||[];
- const show=(id,on)=>{$(id).style.display=on?"":"none";$(id.replace("f-","l-")).style.display=on?"":"none";};
+ const show=(id,on)=>{const a=$(id),b=$(id.replace("f-","l-"));
+  if(a)a.style.display=on?"":"none";if(b)b.style.display=on?"":"none";};
  show("f-model",f.includes("model"));show("f-vlmurl",f.includes("vlmurl"));show("f-report",f.includes("report"));
  genJson();
 }
