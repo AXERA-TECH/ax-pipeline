@@ -307,6 +307,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
 
     // 内嵌控制台:GET / 直接吐编进二进制的页面;--http_webroot 指定目录时磁盘优先(方便改UI)
     svr.Get("/", [this](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Cache-Control", "no-store");   // 控制台页禁缓存,改版后普通刷新即生效
         if (!impl_->opt.webroot.empty()) {
             std::ifstream f(impl_->opt.webroot + "/index.html", std::ios::binary);
             if (f) {
