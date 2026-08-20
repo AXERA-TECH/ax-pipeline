@@ -39,6 +39,7 @@ h1{font-size:15.5px;margin:0}.sub{margin:2px 0 0;font-size:11px;color:var(--mute
 .pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .pv{aspect-ratio:16/9;background:var(--sunk);position:relative}
 .pv img{width:100%;height:100%;object-fit:cover;display:block}
+.pc.stopped .pv img{filter:grayscale(1) brightness(.45)}
 .pv .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
 .badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:6px}
 .badge.run{background:color-mix(in srgb,var(--ok) 25%,#0008);color:var(--ok)}
@@ -194,7 +195,10 @@ function genJson(){
  }
  $("f-json").value=JSON.stringify(cfg,null,2);
 }
-function openNew(){$("mask").classList.add("open");applyPreset();outChanged();}
+function openNew(){$("mask").classList.add("open");
+ $("m-title").textContent="新建 Pipeline";
+ const sb=$("m-submit");sb.textContent="创建并启动";sb.onclick=submitNew;
+ applyPreset();outChanged();}
 function closeNew(){$("mask").classList.remove("open");}
 async function submitNew(){
  let cfg;try{cfg=JSON.parse($("f-json").value)}catch(e){toast("配置 JSON 有误: "+e.message);return;}
@@ -267,6 +271,7 @@ function renderPipes(arr){
  }
  arr.forEach(s=>{
   const d=g.querySelector(`.pc[data-name="${CSS.escape(s.name)}"]`);if(!d)return;
+  d.classList.toggle("stopped",!s.running);
   const b=d.querySelector(".badge");
   b.className="badge "+(s.running?"run":"stop");b.textContent=s.running?"RUNNING":"STOPPED";
   d.querySelector(".f-dec").textContent=fpsOf(s.name,s.decoded,"decoded");

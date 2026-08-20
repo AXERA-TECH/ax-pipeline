@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
         hopts.port = http_port;
         hopts.bearer_token = parser.get<std::string>("http_token");
         hopts.webroot = parser.get<std::string>("http_webroot");
+        hopts.default_device_id = cfg.system.device_id;
         if (!http.Start(hopts, &err)) {
             std::cerr << "HTTP server start failed: " << err << "\n";
             service.StopAll();

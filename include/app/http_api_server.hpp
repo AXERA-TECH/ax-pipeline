@@ -15,6 +15,9 @@ struct HttpServerOptions {
     std::string bearer_token;  // optional
     // 控制台页面:留空 = 用编进二进制的内嵌页;指定目录 = 优先从磁盘读(方便改 UI 不重编)
     std::string webroot;
+    // system.device_id:HTTP 动态添加/修改的 pipeline 未显式写 device_id 时继承它,
+    // 与 config 文件加载路径的行为一致(否则插件落到卡0,多卡下跨卡读数据、检测恒为0)。
+    int default_device_id{-1};
 };
 
 class HttpApiServer {

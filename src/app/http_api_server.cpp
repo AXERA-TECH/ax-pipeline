@@ -389,6 +389,10 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
             ReplyError(res, 400, "pipeline.name is required");
             return;
         }
+        if (cfg.device_id < 0 && impl_->opt.default_device_id >= 0) {
+            cfg.device_id = impl_->opt.default_device_id;
+            cfg.sdk.device_id = impl_->opt.default_device_id;
+        }
         if (!service_->AddPipeline(cfg, autostart, &err)) {
             ReplyError(res, 400, err.empty() ? "add pipeline failed" : err);
             return;
@@ -489,6 +493,10 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         if (cfg.name != name_it->second) {
             ReplyError(res, 400, "pipeline.name mismatch with URL");
             return;
+        }
+        if (cfg.device_id < 0 && impl_->opt.default_device_id >= 0) {
+            cfg.device_id = impl_->opt.default_device_id;
+            cfg.sdk.device_id = impl_->opt.default_device_id;
         }
 
         if (!service_->ReplacePipeline(cfg, autostart, &err)) {
