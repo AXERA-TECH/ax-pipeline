@@ -197,6 +197,7 @@ $("f-out").addEventListener("change",outChanged);
 ["f-name","f-uri","f-dev","f-outuri"].forEach(id=>$(id).addEventListener("change",genJson));
 
 function genJson(){
+ if(editMode)return;
  const name=$("f-name").value.trim()||("CH"+String(pipes.length+1).padStart(2,"0"));
  const key=$("f-preset").value,p=PLUGINS[key]||{};
  const cfg={name:name,uri:$("f-uri").value.trim()||"/root/demo.mp4",realtime_playback:true,loop_playback:true,
@@ -215,6 +216,7 @@ function genJson(){
  $("f-json").value=JSON.stringify(cfg,null,2);
 }
 function openNew(){$("mask").classList.add("open");
+ editMode=false;
  $("m-title").textContent="新建 Pipeline";
  const sb=$("m-submit");sb.textContent="创建并启动";sb.onclick=submitNew;
  applyPreset();outChanged();}
@@ -261,6 +263,33 @@ async function refresh(immediate){
  }catch(e){}
 }
 function fmtUp(s){if(s==null)return"—";const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h+"h "+m+"m";}
+let editMode=false;
+async function pact(n,a){
+ try{await api(`/api/v1/pipelines/${n}/${a}`,{method:"POST"});toast(n+" "+a+" 完成");refresh(true);}
+ catch(e){toast(a+" 失败: "+e.message);}}
+async function delPipe(n){
+ if(!confirm("删除 "+n+" ?"))return;
+ try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});toast("已删除 "+n);refresh(true);}
+ catch(e){toast("删除失败: "+e.message);}}
+async function editPipe(n){
+ try{
+  const r=await api("/api/v1/pipelines/"+n+"?config=1").catch(()=>api("/api/v1/pipelines/"+n));
+  const cfg=r.pipeline||r.config||r;
+  openNew();
+  editMode=true;
+  $("m-title").textContent="编辑 "+n+"(提交 = 删除后按下方 JSON 重建)";
+  $("f-name").value=cfg.name||n;$("f-uri").value=cfg.uri||"";
+  $("f-json").value=JSON.stringify(cfg,null,2);
+  const sb=$("m-submit");sb.textContent="重建并启动";
+  sb.onclick=async()=>{
+   let c;try{c=JSON.parse($("f-json").value)}catch(e){toast("JSON 有误: "+e.message);return;}
+   try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});}catch(e){}
+   try{await api("/api/v1/pipelines",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(c)});
+    toast("已重建 "+c.name);closeNew();refresh(true);}
+   catch(e){toast("重建失败: "+e.message);}
+  };
+ }catch(e){toast("读取配置失败: "+e.message);}}
+window.addEventListener("error",e=>toast("页面脚本错误: "+e.message));
 function openLive(n){
  $("lv-name").textContent=n;
  $("lv-img").src=`/api/v1/pipelines/${n}/stream.mjpeg?fps=10&max_w=1280&with_boxes=1&ts=${Date.now()}`+(TOKEN?`&token=${TOKEN}`:"");
