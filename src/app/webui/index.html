@@ -37,10 +37,10 @@ h1{font-size:15.5px;margin:0}.sub{margin:2px 0 0;font-size:11px;color:var(--mute
 /* pipeline grid */
 .grid{columns:320px;column-gap:14px}
 .pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;break-inside:avoid;margin-bottom:14px}
-.pv{aspect-ratio:16/9;background:var(--sunk);position:relative}
-.pv img{width:100%;height:100%;object-fit:cover;display:block;background:var(--sunk)}
+.pv{position:relative;padding-top:56.25%;background:var(--sunk);overflow:hidden}
+.pv img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:var(--sunk)}
 .pc.stopped .pv img{filter:grayscale(1) brightness(.45)}
-.pv .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
+.pv .noimg{position:absolute;top:0;left:0;right:0;bottom:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
 .badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:6px}
 .badge.run{background:color-mix(in srgb,var(--ok) 25%,#0008);color:var(--ok)}
 .badge.stop{background:color-mix(in srgb,var(--err) 25%,#0008);color:var(--err)}
@@ -74,7 +74,8 @@ textarea{font-family:var(--mono);font-size:11.5px;background:var(--sunk);border:
 .livewrap .lvhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .livewrap .lvhead b{font-size:14px}
 .lv-badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--err) 22%,transparent);color:var(--err);letter-spacing:.08em}
-.livewrap img{width:100%;aspect-ratio:16/9;max-height:78vh;object-fit:contain;background:#000;border-radius:10px;display:block}
+.lvbox{position:relative;padding-top:56.25%;background:#000;border-radius:10px;overflow:hidden}
+.lvbox img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;display:block}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line2);
  border-radius:10px;padding:10px 16px;font-size:13px;display:none;z-index:20}
 footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint)}
@@ -135,7 +136,7 @@ footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-si
   <div class="lvhead"><b id="lv-name">CH01</b><span class="lv-badge">● LIVE 实时检测</span>
    <span style="flex:1"></span>
    <button class="btn small" onclick="closeLive()">关闭</button></div>
-  <img id="lv-img" alt="">
+  <div class="lvbox"><img id="lv-img" alt=""></div>
  </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -350,7 +351,7 @@ function refreshPreviews(){
   const probe=new Image();
   probe.onload=()=>{pvCache[n]=probe.src;im.src=probe.src;im.style.display="";im.nextElementSibling.style.display="none";
    const r=Math.max(9/16,Math.min(16/9,probe.width/probe.height));
-   const pv=im.closest(".pv");if(pv)pv.style.aspectRatio=String(r);};
+   const pv=im.closest(".pv");if(pv)pv.style.paddingTop=(100/r).toFixed(2)+"%";};
   probe.src=u;
  });
 }
