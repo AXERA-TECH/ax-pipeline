@@ -50,6 +50,24 @@ AXLLM_DEVICES=7 axllm serve <Qwen3-VL-2B模型目录> --port 8014
 
 **C. 云端付费 API**:`url` 指向服务商 OpenAI 兼容端点,填 `api_key`、`model`(如 `gpt-4o`)。
 
+### 1.5) 内嵌控制台(app 自带,推荐先打开)
+
+`ax_pipeline_app` 编译时已把一个 **web 控制台嵌进二进制**,加参数即可启用:
+
+```bash
+./ax_pipeline_app -c xxx.json --http_port 8901 --http_addr 0.0.0.0
+# 浏览器打开 http://<IP>:8901
+```
+
+控制台能做:
+- **新建/删除/启停 pipeline**:表单填 RTSP/MP4 源 → 选 AI 插件预设(pcd_vlm / pcd / yolov5/v8/11/26 / helmet,
+  自动生成 init_info 模板,只需改模型路径等 2-3 项)→ 可选输出 → 生成的完整 JSON 可再手改 → 一键创建。
+  app 甚至可以**零 pipeline 启动**,全部在网页上配。
+- **每路实时状态**:解码/编码/AI 帧率(差分计算)、AI 错误数、实时画面预览(preview.jpg,4s 刷新)。
+- **系统资源**:进程/系统 CPU、DDR(进程 RSS + 系统)、**CMM**(NPU/编解码内存,AXCL 按卡查询,板端读
+  /proc/ax_proc/mem_cmm_info)、运行时长。
+- 改 UI 不想重编时:`--http_webroot <目录>` 磁盘优先加载(源码在 `src/app/webui/index.html`)。
+
 ### 2) 起网页事件中心
 ```bash
 cd plugins/pcd_vlm/web

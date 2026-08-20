@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><title>ax-pipeline 控制台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#0e1118;--panel:#161b24;--panel2:#1b212c;--sunk:#11151d;--line:#28303c;--line2:#333d4b;
+ --text:#e7ebf2;--muted:#939daf;--faint:#6b7688;--accent:#f2a53c;--accent-soft:#3a2c12;--accent-ink:#1a1204;
+ --ok:#43b581;--warn:#f2a53c;--err:#e8695c;
+ --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",monospace;
+ --ui:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;}
+@media(prefers-color-scheme:light){:root{--bg:#eef1f5;--panel:#fff;--panel2:#f6f8fb;--sunk:#eaeef3;--line:#dde2ea;--line2:#c9d1dc;
+ --text:#191e28;--muted:#5c6675;--faint:#8b95a5;--accent:#c67a12;--accent-soft:#f6e2c2;--accent-ink:#2a1a02;
+ --ok:#1f9e6f;--warn:#c67a12;--err:#d6483f;}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.5}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.shell{max-width:1360px;margin:0 auto;padding:16px clamp(12px,3vw,26px) 40px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 2px 14px}
+.logo{width:36px;height:36px;border-radius:10px;background:radial-gradient(120% 120% at 30% 20%,var(--accent),#7a3f06);
+ display:grid;place-items:center;flex:none}.logo svg{width:21px;height:21px}
+h1{font-size:15.5px;margin:0}.sub{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.brand{display:flex;gap:11px;align-items:center;margin-right:auto}
+.btn{font:inherit;font-size:12.5px;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+ padding:7px 13px;border-radius:8px}
+.btn:hover{border-color:var(--line2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.danger{color:var(--err)}
+.btn.small{padding:4px 9px;font-size:11.5px}
+/* system cards */
+.sys{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.sc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px}
+.sc .big{font-family:var(--mono);font-size:22px;margin-top:6px;font-variant-numeric:tabular-nums}
+.sc .small{font-size:11px;color:var(--muted);margin-top:4px}
+.bar{height:6px;background:var(--sunk);border-radius:4px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .5s}
+.bar i.hot{background:var(--err)}
+/* pipeline grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.pv{aspect-ratio:16/9;background:var(--sunk);position:relative}
+.pv img{width:100%;height:100%;object-fit:cover;display:block}
+.pv .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
+.badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:6px}
+.badge.run{background:color-mix(in srgb,var(--ok) 25%,#0008);color:var(--ok)}
+.badge.stop{background:color-mix(in srgb,var(--err) 25%,#0008);color:var(--err)}
+.pb{padding:11px 13px;display:flex;flex-direction:column;gap:8px;flex:1}
+.pn{display:flex;align-items:center;gap:8px}
+.pn b{font-size:13.5px}.pn .dev{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.uri{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.fps>div{background:var(--panel2);border-radius:8px;padding:6px 2px}
+.fps .v{font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
+.fps .v.bad{color:var(--err)}
+.fps .k{font-size:10px;color:var(--faint)}
+.acts{display:flex;gap:6px;margin-top:auto}
+.acts .spacer{flex:1}
+/* modal */
+.mask{position:fixed;inset:0;background:#0009;display:none;place-items:center;z-index:10}
+.mask.open{display:grid}
+.modal{width:min(680px,94vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line2);
+ border-radius:14px;padding:18px}
+.modal h2{font-size:14px;margin:0 0 14px}
+.frm{display:grid;grid-template-columns:110px 1fr;gap:10px 12px;align-items:center}
+.frm label{font-size:12px;color:var(--muted);text-align:right}
+.frm input,.frm select{font:inherit;font-size:13px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+ border-radius:8px;padding:7px 10px;width:100%}
+.frm .hint{grid-column:2;font-size:11px;color:var(--faint);margin-top:-6px}
+textarea{font-family:var(--mono);font-size:11.5px;background:var(--sunk);border:1px solid var(--line);color:var(--text);
+ border-radius:8px;padding:10px;width:100%;min-height:190px;white-space:pre;resize:vertical}
+.mrow{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+.sect{margin:14px 0 6px;font-size:11px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line2);
+ border-radius:10px;padding:10px 16px;font-size:13px;display:none;z-index:20}
+footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint)}
+@media(max-width:900px){.sys{grid-template-columns:repeat(2,1fr)}}
+</style></head><body>
+<div class="shell">
+ <header>
+  <div class="brand">
+   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="19" cy="16.5" r="2.5"/></svg></div>
+   <div><h1>ax-pipeline 控制台</h1><p class="sub" id="sub">加载中…</p></div>
+  </div>
+  <button class="btn primary" onclick="openNew()">＋ 新建 Pipeline</button>
+ </header>
+
+ <section class="sys">
+  <div class="sc"><div class="eyebrow">CPU(进程 / 系统)</div><div class="big" id="s-cpu">—</div>
+   <div class="bar"><i id="s-cpu-bar" style="width:0%"></i></div></div>
+  <div class="sc"><div class="eyebrow">内存 DDR(进程RSS / 系统)</div><div class="big" id="s-mem">—</div>
+   <div class="bar"><i id="s-mem-bar" style="width:0%"></i></div><div class="small" id="s-mem-sub"></div></div>
+  <div class="sc"><div class="eyebrow">CMM(NPU/编解码内存)</div><div class="big" id="s-cmm">—</div>
+   <div class="bar"><i id="s-cmm-bar" style="width:0%"></i></div><div class="small" id="s-cmm-sub"></div></div>
+  <div class="sc"><div class="eyebrow">Pipeline / 运行时长</div><div class="big" id="s-pl">—</div>
+   <div class="small" id="s-up"></div></div>
+ </section>
+
+ <div class="grid" id="grid"></div>
+ <footer>ax-pipeline 内嵌控制台 · 数据每 2s 刷新 · 预览每 4s 刷新</footer>
+</div>
+
+<!-- 新建/编辑 modal -->
+<div class="mask" id="mask">
+ <div class="modal">
+  <h2 id="m-title">新建 Pipeline</h2>
+  <div class="frm">
+   <label>名称</label><input id="f-name" placeholder="CH01">
+   <label>输入源</label><input id="f-uri" placeholder="rtsp://... 或 /path/video.mp4">
+   <div class="hint">RTSP 拉流或本地 MP4 文件路径</div>
+   <label>device_id</label><input id="f-dev" placeholder="留空=继承 system" style="width:120px">
+   <label>AI 插件</label><select id="f-preset" onchange="applyPreset()"></select>
+   <label id="l-model">模型路径</label><input id="f-model" placeholder="/root/pcd.axmodel">
+   <label id="l-vlm">VLM 服务</label><input id="f-vlmurl" placeholder="http://127.0.0.1:8014">
+   <label id="l-rep">事件中心</label><input id="f-report" placeholder="http://127.0.0.1:8900/ingest">
+   <label>输出</label><select id="f-out">
+     <option value="none">无(只做 AI / 事件)</option>
+     <option value="rtsp">RTSP 推流</option>
+     <option value="mp4">MP4 落盘</option></select>
+   <label id="l-outuri">输出地址</label><input id="f-outuri" placeholder="rtsp://0.0.0.0:8554/ch01 或 /tmp/out.mp4">
+  </div>
+  <div class="sect">生成的配置(可直接编辑,提交以此为准)</div>
+  <textarea id="f-json" spellcheck="false"></textarea>
+  <div class="mrow">
+   <button class="btn" onclick="closeNew()">取消</button>
+   <button class="btn" onclick="genJson()">↻ 由表单重新生成</button>
+   <button class="btn primary" id="m-submit" onclick="submitNew()">创建并启动</button>
+  </div>
+ </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN=new URLSearchParams(location.search).get("token")||"";
+const H=TOKEN?{"Authorization":"Bearer "+TOKEN}:{};
+const $=id=>document.getElementById(id);
+function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2600);}
+async function api(path,opt={}){opt.headers=Object.assign({},H,opt.headers||{});
+ const r=await fetch(path,opt);
+ if(!r.ok){let m="";try{m=(await r.json()).error||r.statusText}catch(e){m=r.statusText}throw new Error(m||("HTTP "+r.status));}
+ const ct=r.headers.get("content-type")||"";return ct.includes("json")?r.json():r.text();}
+
+/* ---------- 插件预设:选一个就把 ax_plugin_path + init_info 模板填好 ---------- */
+const PRESETS={
+ none:{label:"无(纯转码)"},
+ pcd_vlm:{label:"pcd_vlm — 人车非检测 + VLM 描述",path:"plugins/pcd_vlm/libax_plugin_pcd_vlm.so",
+  fields:["model","vlmurl","report"],
+  init:f=>({model_path:f.model||"/root/pcd.axmodel",num_classes:3,strides:[16,32],conf_threshold:0.3,
+   pcd_plugin_path:"plugins/pcd.axera/libax_plugin_pcd.so",stream_name:f.name||"CH01",
+   vlm:{enable:true,url:f.vlmurl||"http://127.0.0.1:8014",model:"AXERA-TECH/Qwen3-VL-2B-Instruct",
+    frame_mode:"clip",
+    system_prompt:"必须始终用简体中文回答,禁止输出英文。你是路侧摄像头画面分析助手。输入是同一画面约4秒内每秒1帧的连续序列。请用一段话(两句以内、不超过60个字)描述这段时间发生了什么:主要的人和车、他们的动作与移动方向;看不清的不要编造,禁止分点、列表、标题。",
+    prompt:"用简体中文描述这段画面里发生了什么。",max_tokens:80,temperature:0.7,
+    report_url:f.report||"http://127.0.0.1:8900/ingest",
+    trigger:{classes:[0,1,2],min_score:0.4,min_box_h:48,min_track_age:8,reject_border:true,per_track_once:true,select_frame:"best"},
+    rate:{per_stream_interval_s:30,queue_size:4}}})},
+ pcd:{label:"pcd — 人车非检测",path:"plugins/pcd.axera/libax_plugin_pcd.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/pcd.axmodel",num_classes:3,strides:[16,32],conf_threshold:0.3,enable_tracking:true})},
+ yolov5:{label:"yolov5 (COCO)",path:"plugins/yolov5/libax_plugin_yolov5.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/yolov5s.axmodel",num_classes:80,conf_threshold:0.25})},
+ yolov8:{label:"yolov8 (COCO)",path:"plugins/yolov8/libax_plugin_yolov8.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/yolov8s.axmodel",num_classes:80,conf_threshold:0.25})},
+ yolo11:{label:"yolo11(写死头结构,给模型即可)",path:"plugins/yolo11/libax_plugin_yolo11.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/yolo11s.axmodel"})},
+ yolo26:{label:"yolo26(写死头结构,给模型即可)",path:"plugins/yolo26/libax_plugin_yolo26.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/yolo26n.axmodel"})},
+ helmet:{label:"helmet — 头盔/电动车检测",path:"plugins/helmet/libax_plugin_helmet.so",fields:["model"],
+  init:f=>({model_path:f.model||"/root/helmet.axmodel"})},
+};
+(function(){const sel=$("f-preset");for(const k in PRESETS){const o=document.createElement("option");o.value=k;o.textContent=PRESETS[k].label;sel.appendChild(o);}sel.value="pcd_vlm";})();
+
+function applyPreset(){
+ const p=PRESETS[$("f-preset").value]||{};const f=p.fields||[];
+ const show=(id,on)=>{$(id).style.display=on?"":"none";$(id.replace("f-","l-")).style.display=on?"":"none";};
+ show("f-model",f.includes("model"));show("f-vlmurl",f.includes("vlmurl"));show("f-report",f.includes("report"));
+ genJson();
+}
+function outChanged(){const on=$("f-out").value!=="none";$("f-outuri").style.display=on?"":"none";$("l-outuri").style.display=on?"":"none";genJson();}
+$("f-out").addEventListener("change",outChanged);
+["f-name","f-uri","f-dev","f-model","f-vlmurl","f-report","f-outuri"].forEach(id=>$(id).addEventListener("change",genJson));
+
+function genJson(){
+ const name=$("f-name").value.trim()||("CH"+String(pipes.length+1).padStart(2,"0"));
+ const key=$("f-preset").value,p=PRESETS[key];
+ const cfg={name:name,uri:$("f-uri").value.trim()||"/root/demo.mp4",realtime_playback:true,loop_playback:true,
+  frame_output:{format:"rgb",resize:{mode:"keep_aspect",background_color:0}}};
+ const dev=$("f-dev").value.trim();if(dev!=="")cfg.device_id=parseInt(dev);
+ if(key!=="none"){
+  cfg.npu={enable:true,enable_osd:$("f-out").value!=="none",ax_plugin_path:p.path,ax_plugin_isolation:"inproc",
+   ax_plugin_init_info:p.init({name:name,model:$("f-model").value.trim(),vlmurl:$("f-vlmurl").value.trim(),report:$("f-report").value.trim()})};
+ }
+ if($("f-out").value!=="none"){
+  const u=$("f-outuri").value.trim()||($("f-out").value==="rtsp"?("rtsp://0.0.0.0:8554/"+name.toLowerCase()):("/tmp/"+name+".mp4"));
+  cfg.outputs=[{codec:"h264",uris:[u]}];
+ }
+ $("f-json").value=JSON.stringify(cfg,null,2);
+}
+function openNew(){$("mask").classList.add("open");applyPreset();outChanged();}
+function closeNew(){$("mask").classList.remove("open");}
+async function submitNew(){
+ let cfg;try{cfg=JSON.parse($("f-json").value)}catch(e){toast("配置 JSON 有误: "+e.message);return;}
+ try{
+  await api("/api/v1/pipelines",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+  localStorage.setItem("plcfg_"+cfg.name,JSON.stringify(cfg));
+  toast("已创建: "+cfg.name);closeNew();refresh(true);
+ }catch(e){toast("创建失败: "+e.message);}
+}
+
+/* ---------- pipeline 列表 / fps 差分 / 预览 ---------- */
+let pipes=[],prev={},prevT=0;
+function fpsOf(n,cur,key){const p=prev[n];if(!p)return"—";const dt=(Date.now()-prevT)/1000;if(dt<=0)return"—";
+ const d=(cur-(p[key]||0))/dt;return d<0?"—":d.toFixed(1);}
+async function refresh(immediate){
+ try{
+  const list=await api("/api/v1/pipelines");
+  const arr=list.pipelines||list;   // 兼容 {pipelines:[...]} 或 [...]
+  renderPipes(arr);
+  const np={};arr.forEach(s=>np[s.name]={decoded:s.decoded,npu_ok:s.npu_ok,
+    enc:(s.outputs&&s.outputs[0])?s.outputs[0].encoded_pkts:0});
+  prev=np;prevT=Date.now();
+  $("sub").textContent=arr.length+" 条 pipeline";
+ }catch(e){$("sub").textContent="API 不可达: "+e.message;}
+ try{
+  const s=await api("/api/v1/system");
+  $("s-cpu").textContent=s.cpu.proc_pct.toFixed(0)+"% / "+s.cpu.sys_pct.toFixed(0)+"%";
+  $("s-cpu-bar").style.width=Math.min(100,s.cpu.sys_pct)+"%";
+  $("s-cpu-bar").className=s.cpu.sys_pct>85?"hot":"";
+  $("s-mem").textContent=(s.mem.rss_mb/1024).toFixed(2)+"G / "+((s.mem.total_mb-s.mem.avail_mb)/1024).toFixed(1)+"G";
+  $("s-mem-sub").textContent="系统共 "+(s.mem.total_mb/1024).toFixed(0)+"G";
+  $("s-mem-bar").style.width=(100*(s.mem.total_mb-s.mem.avail_mb)/s.mem.total_mb)+"%";
+  if(s.cmm&&s.cmm.total_mb>0){
+   $("s-cmm").textContent=s.cmm.used_mb.toFixed(0)+"M / "+s.cmm.total_mb.toFixed(0)+"M";
+   $("s-cmm-bar").style.width=(100*s.cmm.used_mb/s.cmm.total_mb)+"%";
+   $("s-cmm-bar").className=(s.cmm.used_mb/s.cmm.total_mb)>0.85?"hot":"";
+   $("s-cmm-sub").textContent="device "+(s.cmm.device_id??"-")+" 剩余 "+(s.cmm.total_mb-s.cmm.used_mb).toFixed(0)+"M";
+  }else{$("s-cmm").textContent="n/a";$("s-cmm-sub").textContent="本平台不可用";}
+  $("s-pl").textContent=pipes.length+" 条";
+  $("s-up").textContent="app 已运行 "+fmtUp(s.uptime_s);
+ }catch(e){}
+}
+function fmtUp(s){if(s==null)return"—";const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h+"h "+m+"m";}
+function renderPipes(arr){
+ pipes=arr;const g=$("grid");g.innerHTML="";
+ arr.forEach(s=>{
+  const d=document.createElement("div");d.className="pc";
+  const dec=fpsOf(s.name,s.decoded,"decoded"),nf=fpsOf(s.name,s.npu_ok,"npu_ok");
+  const enc=(s.outputs&&s.outputs[0])?fpsOf(s.name,s.outputs[0].encoded_pkts,"enc"):"—";
+  d.innerHTML=`
+   <div class="pv"><span class="badge ${s.running?"run":"stop"}">${s.running?"RUNNING":"STOPPED"}</span>
+     <img data-pv="${s.name}" style="display:none"><div class="noimg">无预览</div></div>
+   <div class="pb">
+    <div class="pn"><b>${s.name}</b><span class="dev">dev ${s.device_id}</span></div>
+    <div class="fps">
+     <div><div class="v">${dec}</div><div class="k">解码fps</div></div>
+     <div><div class="v">${enc}</div><div class="k">编码fps</div></div>
+     <div><div class="v">${nf}</div><div class="k">AI fps</div></div>
+     <div><div class="v ${s.npu_err>0?"bad":""}">${s.npu_err}</div><div class="k">AI错误</div></div>
+    </div>
+    <div class="acts">
+     ${s.running?`<button class="btn small" onclick="pact('${s.name}','stop')">停止</button>`
+                :`<button class="btn small" onclick="pact('${s.name}','start')">启动</button>`}
+     <button class="btn small" onclick="editPipe('${s.name}')">配置</button>
+     <span class="spacer"></span>
+     <button class="btn small danger" onclick="delPipe('${s.name}')">删除</button>
+    </div>
+   </div>`;
+  g.appendChild(d);
+ });
+ refreshPreviews();
+}
+async function pact(n,a){try{await api(`/api/v1/pipelines/${n}/${a}`,{method:"POST"});toast(n+" "+a+" ok");refresh(true);}catch(e){toast(a+" 失败: "+e.message);}}
+async function delPipe(n){if(!confirm("删除 "+n+" ?"))return;
+ try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});toast("已删除 "+n);refresh(true);}catch(e){toast("删除失败: "+e.message);}}
+function editPipe(n){
+ const saved=localStorage.getItem("plcfg_"+n);
+ openNew();$("m-title").textContent="编辑 "+n+"(删除后按此配置重建)";
+ if(saved){$("f-json").value=saved;const c=JSON.parse(saved);$("f-name").value=c.name||n;$("f-uri").value=c.uri||"";}
+ else{$("f-name").value=n;genJson();toast("无本地缓存配置,请核对后提交");}
+ $("m-submit").textContent="重建并启动";
+ $("m-submit").onclick=async()=>{
+  let cfg;try{cfg=JSON.parse($("f-json").value)}catch(e){toast("JSON 有误");return;}
+  try{await api("/api/v1/pipelines/"+n,{method:"DELETE"});}catch(e){}
+  try{await api("/api/v1/pipelines",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+   localStorage.setItem("plcfg_"+cfg.name,JSON.stringify(cfg));toast("已重建 "+cfg.name);closeNew();refresh(true);
+  }catch(e){toast("重建失败: "+e.message);}
+ };
+}
+function refreshPreviews(){
+ document.querySelectorAll("img[data-pv]").forEach(im=>{
+  const n=im.dataset.pv;
+  const u=`/api/v1/pipelines/${n}/preview.jpg?ts=${Date.now()}`+(TOKEN?`&token=${TOKEN}`:"");
+  const probe=new Image();
+  probe.onload=()=>{im.src=probe.src;im.style.display="";im.nextElementSibling.style.display="none";};
+  probe.src=u;
+ });
+}
+setInterval(refresh,2000);
+setInterval(refreshPreviews,4000);
+refresh(true);
+</script>
+</body></html>

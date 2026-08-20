@@ -86,8 +86,18 @@ target_link_libraries(ax_pipeline_tracking PUBLIC ByteTrack)
 add_subdirectory(plugins)
 
 # ---- app ----
+# Embed the web console into the app binary.
+set(AXP_WEBUI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/app/webui/index.html)
+set(AXP_WEBUI_GEN ${CMAKE_CURRENT_BINARY_DIR}/generated/webui_html.cpp)
+add_custom_command(OUTPUT ${AXP_WEBUI_GEN}
+    COMMAND ${CMAKE_COMMAND} -DIN=${AXP_WEBUI_SRC} -DOUT=${AXP_WEBUI_GEN}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_webui.cmake
+    DEPENDS ${AXP_WEBUI_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_webui.cmake
+    COMMENT "Embedding web console")
+
 add_executable(ax_pipeline_app
     src/main.cpp
+    ${AXP_WEBUI_GEN}
     src/ai/async_infer.cpp
     src/app/pipeline_instance.cpp
     src/app/pipeline_service.cpp

@@ -2,14 +2,30 @@
 
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <chrono>
+#include <fstream>
 #include <iostream>
+#include <mutex>
 #include <sstream>
+#include <unistd.h>
 #include <utility>
 
 #include "json.hpp"
 
 // Reuse the single-header HTTP server already vendored by rtsp-sdk.
 #include "httplib.h"
+
+#if defined(AXPIPELINE_APP_PLATFORM_AXCL)
+#include "axcl.h"       // axclrtSetDevice
+#include "axcl_sys.h"   // AXCL_SYS_MemQueryStatus
+#endif
+
+namespace axpipeline::app {
+extern const unsigned char kWebuiHtml[];
+extern const unsigned long kWebuiHtmlLen;
+}
 
 namespace axpipeline::app {
 
@@ -107,6 +123,112 @@ json SnapshotToJson(const PipelineSnapshot& s) {
     return j;
 }
 
+// ---------- 系统资源采集(CPU / DDR / CMM) ----------
+bool ReadFileStr(const char* p, std::string* out) {
+    std::ifstream f(p);
+    if (!f) return false;
+    std::stringstream ss; ss << f.rdbuf();
+    *out = ss.str();
+    return true;
+}
+// /proc/self/stat 的 utime+stime 与 /proc/stat 的总 jiffies;两次采样差分出百分比
+void CpuSample(std::uint64_t* proc_j, std::uint64_t* total_j, std::uint64_t* idle_j) {
+    *proc_j = *total_j = *idle_j = 0;
+    std::string st;
+    if (ReadFileStr("/proc/self/stat", &st)) {
+        const auto rp = st.rfind(')');
+        std::istringstream is(st.substr(rp + 2));
+        std::string tok; std::uint64_t ut = 0, stime = 0;
+        for (int i = 1; is >> tok; ++i) {          // 字段(3) 起
+            if (i == 12) ut = std::stoull(tok);    // utime = 全行第14 = ')'后第12
+            if (i == 13) { stime = std::stoull(tok); break; }
+        }
+        *proc_j = ut + stime;
+    }
+    if (ReadFileStr("/proc/stat", &st)) {
+        std::istringstream is(st);
+        std::string cpu; is >> cpu;
+        std::uint64_t v, i = 0, sum = 0;
+        for (int k = 0; is >> v && k < 8; ++k) { sum += v; if (k == 3) i = v; }
+        *total_j = sum; *idle_j = i;
+    }
+}
+json SystemStatsJson(PipelineService* service) {
+    json j;
+    // CPU
+    static std::mutex mu;
+    static std::uint64_t lp = 0, lt = 0, li = 0;
+    std::uint64_t p, t, i;
+    CpuSample(&p, &t, &i);
+    double proc_pct = 0, sys_pct = 0;
+    {
+        std::lock_guard<std::mutex> lk(mu);
+        if (lt != 0 && t > lt) {
+            const double dt = double(t - lt);
+            const long nc = sysconf(_SC_NPROCESSORS_ONLN);
+            proc_pct = 100.0 * double(p - lp) / dt * double(nc > 0 ? nc : 1);
+            sys_pct  = 100.0 * double((t - lt) - (i - li)) / dt;
+        }
+        lp = p; lt = t; li = i;
+    }
+    j["cpu"] = {{"proc_pct", proc_pct}, {"sys_pct", sys_pct}};
+    // DDR
+    std::string ms; long rss_kb = 0, tot_kb = 0, avail_kb = 0;
+    if (ReadFileStr("/proc/self/status", &ms)) {
+        if (auto pos = ms.find("VmRSS:"); pos != std::string::npos) rss_kb = std::atol(ms.c_str() + pos + 6);
+    }
+    if (ReadFileStr("/proc/meminfo", &ms)) {
+        if (auto pos = ms.find("MemTotal:"); pos != std::string::npos) tot_kb = std::atol(ms.c_str() + pos + 9);
+        if (auto pos = ms.find("MemAvailable:"); pos != std::string::npos) avail_kb = std::atol(ms.c_str() + pos + 13);
+    }
+    j["mem"] = {{"rss_mb", rss_kb / 1024.0}, {"total_mb", tot_kb / 1024.0}, {"avail_mb", avail_kb / 1024.0}};
+    // CMM
+#if defined(AXPIPELINE_APP_PLATFORM_AXCL)
+    {
+        int dev = 0;
+        if (service) {
+            const auto snaps = service->ListSnapshots();
+            if (!snaps.empty() && snaps.front().device_id >= 0) dev = snaps.front().device_id;
+        }
+        // http 线程默认没有 axcl context;device_id 是索引,须经 GetDeviceList 转 runtime id,
+        // 先 SetDevice 再 CreateContext(create 即绑定本线程)。
+        static thread_local axclrtContext s_ctx = nullptr;
+        static thread_local int cur_dev = -1;
+        if (cur_dev != dev) {
+            axclrtDeviceList lst{};
+            if (axclrtGetDeviceList(&lst) == 0 && dev < (int)lst.num) {
+                const int rid = lst.devices[dev];
+                if (s_ctx) { axclrtDestroyContext(s_ctx); s_ctx = nullptr; }
+                if (axclrtSetDevice(rid) == 0 && axclrtCreateContext(&s_ctx, rid) == 0)
+                    cur_dev = dev;
+            }
+        }
+        AX_CMM_STATUS_T st{};
+        if (AXCL_SYS_MemQueryStatus(&st) == 0 && st.TotalSize > 0) {
+            // AX_SYS 惯例单位 KB
+            j["cmm"] = {{"total_mb", st.TotalSize / 1024.0},
+                        {"used_mb", (st.TotalSize - st.RemainSize) / 1024.0},
+                        {"block_cnt", st.BlockCnt}, {"device_id", dev}};
+        }
+    }
+#else
+    {
+        // 板端:/proc/ax_proc/mem_cmm_info 提供 "total size:xxxKB ... remain=xxxKB"
+        std::string cm;
+        if (ReadFileStr("/proc/ax_proc/mem_cmm_info", &cm)) {
+            long tot = 0, rem = 0;
+            if (auto pos = cm.find("total size="); pos != std::string::npos) tot = std::atol(cm.c_str() + pos + 11);
+            if (auto pos = cm.find("remain="); pos != std::string::npos) rem = std::atol(cm.c_str() + pos + 7);
+            if (tot > 0)
+                j["cmm"] = {{"total_mb", tot / 1024.0}, {"used_mb", (tot - rem) / 1024.0}, {"device_id", 0}};
+        }
+    }
+#endif
+    static const auto t0 = std::chrono::steady_clock::now();
+    j["uptime_s"] = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    return j;
+}
+
 }  // namespace
 
 class HttpApiServer::Impl {
@@ -141,6 +263,24 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
 
     svr.Get("/api/v1/health", [&](const httplib::Request&, httplib::Response& res) {
         ReplyJson(res, 200, json{{"ok", true}});
+    });
+
+    // 内嵌控制台:GET / 直接吐编进二进制的页面;--http_webroot 指定目录时磁盘优先(方便改UI)
+    svr.Get("/", [this](const httplib::Request&, httplib::Response& res) {
+        if (!impl_->opt.webroot.empty()) {
+            std::ifstream f(impl_->opt.webroot + "/index.html", std::ios::binary);
+            if (f) {
+                std::stringstream ss; ss << f.rdbuf();
+                res.set_content(ss.str(), "text/html; charset=utf-8");
+                return;
+            }
+        }
+        res.set_content(reinterpret_cast<const char*>(kWebuiHtml), kWebuiHtmlLen,
+                        "text/html; charset=utf-8");
+    });
+
+    svr.Get("/api/v1/system", [this](const httplib::Request&, httplib::Response& res) {
+        ReplyJson(res, 200, SystemStatsJson(service_));
     });
 
     svr.Get("/api/v1/pipelines", [&](const httplib::Request& req, httplib::Response& res) {

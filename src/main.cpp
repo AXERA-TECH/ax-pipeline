@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
     parser.add<std::string>("http_addr", 0, "http bind address (default 127.0.0.1)", false, "127.0.0.1");
     parser.add<int>("http_port", 0, "http port (0 = disable)", false, 0);
     parser.add<std::string>("http_token", 0, "http bearer token (optional)", false, "");
+    parser.add<std::string>("http_webroot", 0, "console webroot dir (empty = embedded page)", false, "");
 
     if (!parser.parse(argc, argv)) {
         std::cerr << parser.usage();
@@ -117,6 +118,7 @@ int main(int argc, char** argv) {
         hopts.bind_addr = parser.get<std::string>("http_addr");
         hopts.port = http_port;
         hopts.bearer_token = parser.get<std::string>("http_token");
+        hopts.webroot = parser.get<std::string>("http_webroot");
         if (!http.Start(hopts, &err)) {
             std::cerr << "HTTP server start failed: " << err << "\n";
             service.StopAll();
