@@ -33,6 +33,7 @@ struct VlmCfg {
     std::string url{"http://127.0.0.1:8013"};
     std::string api_key;            // 云端/vLLM 需要时填;ax-llm 本地留空
     std::string model;              // 建议必填(ax-llm serve 校验模型名);留空回退 "vlm"
+    std::string frame_mode{"single"};  // single=只送主帧 | clip=把事件的5帧轮播当视频送(需支持多帧的VLM,如Qwen3-VL)
     std::string system_prompt{"you are a helpful assistant."};
     std::string prompt{"用简体中文描述这张画面。"};
     int   max_tokens{80};
@@ -123,7 +124,7 @@ private:
             }
             std::string desc;
             const auto t0 = std::chrono::steady_clock::now();
-            if (CallVlm(e.image_b64, &desc)) {
+            if (CallVlm(e, &desc)) {
                 const int ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - t0).count();
                 std::fprintf(stderr, "[pcdvlm %s] VLM ok(%dms): %.40s\n", cfg_.stream_name.c_str(), ms, desc.c_str());
@@ -134,20 +135,30 @@ private:
         }
     }
 
-    bool CallVlm(const std::string& jpg_b64, std::string* desc) const {
+    bool CallVlm(const Event& e, std::string* desc) const {
         using json = nlohmann::json;
         const std::string model = cfg_.model.empty() ? std::string("vlm") : cfg_.model;
+        // clip 模式:把事件的轮播帧当"视频"送(video: 前缀,ax-llm 的多帧格式;token 次线性,
+        // 5帧仅约2.7倍单帧)。single 模式:只送主帧。
+        json content = json::array();
+        const bool clip = (cfg_.frame_mode == "clip" && e.replay.size() > 1);
+        if (clip) {
+            for (const auto& f : e.replay)
+                content.push_back({{"type", "image_url"},
+                                   {"image_url", {{"url", "video:data:image/jpeg;base64," + f}}}});
+        } else {
+            content.push_back({{"type", "image_url"},
+                               {"image_url", {{"url", "data:image/jpeg;base64," + e.image_b64}}}});
+        }
+        content.push_back({{"type", "text"}, {"text", cfg_.prompt}});
         json body = {
             {"model", model}, {"max_tokens", cfg_.max_tokens},
             {"temperature", cfg_.temperature}, {"stream", false},
             {"messages", json::array({
                 {{"role", "system"},
                  {"content", json::array({{{"type", "text"}, {"text", cfg_.system_prompt}}})}},
-                {{"role", "user"},
-                 {"content", json::array({
-                     {{"type", "image_url"},
-                      {"image_url", {{"url", "data:image/jpeg;base64," + jpg_b64}}}},
-                     {{"type", "text"}, {"text", cfg_.prompt}}})}}})}};
+                {{"role", "user"}, {"content", content}}})}};
+        if (clip) body["num_frames"] = (int)e.replay.size();
         std::string resp;
         bool ok = HttpPostJson(cfg_.url + "/v1/chat/completions", body.dump(), cfg_.api_key, &resp);
         if (!ok && cfg_.retry_once)
@@ -167,7 +178,7 @@ private:
         json item = {
             {"stream", cfg_.stream_name}, {"track_id", e.track_id}, {"cls", e.cls},
             {"score", e.score}, {"box", {e.box[0], e.box[1], e.box[2], e.box[3]}},
-            {"ts", e.ts}, {"desc", desc}, {"mode", "single"}, {"latency_ms", latency_ms}, {"image", e.image_b64}};
+            {"ts", e.ts}, {"desc", desc}, {"mode", cfg_.frame_mode}, {"latency_ms", latency_ms}, {"image", e.image_b64}};
         if (e.replay.size() > 1) item["replay"] = e.replay;  // ±2s 轮播帧(网页详情页循环播放)
         std::string resp;
         HttpPostJson(cfg_.report_url, item.dump(), "", &resp, 15);

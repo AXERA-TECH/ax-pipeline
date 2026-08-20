@@ -129,11 +129,25 @@ footer{margin-top:20px;padding-top:13px;border-top:1px solid var(--line);font-si
 <script>
 const CAT={0:{cn:"人",v:"var(--person)"},1:{cn:"车",v:"var(--vehicle)"},2:{cn:"非机动车",v:"var(--twowheel)"}};
 let events=[],selId=null,fCls=-1,fCh="";let replayTimer=null;
+function shotErr(im){if(replayTimer){clearInterval(replayTimer);replayTimer=null;}
+ im.parentNode.innerHTML="<div class=empty>\u4e8b\u4ef6\u5df2\u8fc7\u671f\uff08\u8d85\u51fa\u4fdd\u7559\u4e0a\u9650\uff09</div>";}
+// \u53ea\u8f6e\u64ad\u89c6\u53e3\u5185\u7684\u7f29\u7565\u56fe
+const thumbIO=new IntersectionObserver(es=>es.forEach(x=>x.target.classList.toggle("inview",x.isIntersecting)));
+setInterval(()=>{document.querySelectorAll("#stream .thumb img.inview").forEach(im=>{
+  const e=events.find(v=>v.id==+im.dataset.eid);
+  if(!e||!e.replay||e.replay.length<2)return;
+  const ri=((+im.dataset.ri||0)+1)%e.replay.length;
+  im.dataset.ri=ri; im.src="/img/"+e.replay[ri];
+});},700);
+// 30s \u65e0\u64cd\u4f5c\u81ea\u52a8\u8df3\u5230\u6700\u65b0\u4e8b\u4ef6
+let lastAct=Date.now();
+["mousemove","mousedown","keydown","wheel","touchstart"].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true}));
+setInterval(()=>{if(Date.now()-lastAct>30000&&events[0]&&selId!==events[0].id)select(events[0].id);},5000);
 const $=id=>document.getElementById(id);
 function catOf(c){return CAT[c]||{cn:"目标",v:"var(--muted)"};}
 function ageStr(ts){const s=Math.max(0,Date.now()/1000-ts);return s<60?Math.floor(s)+"s 前":s<3600?Math.floor(s/60)+"m 前":Math.floor(s/3600)+"h 前";}
 function absStr(ts){return new Date(ts*1000).toTimeString().slice(0,8);}
-function thumb(e){return e.img?`<img src="/img/${e.img}" alt="" loading="lazy">`:"";}
+function thumb(e){return e.img?`<img src="/img/${e.img}" data-eid="${e.id}" alt="" loading="lazy" onerror="this.style.opacity=.15">`:"";}
 
 function renderStream(){
  const list=events.filter(e=>(fCls<0||e.cls==fCls)&&(!fCh||e.stream==fCh));
@@ -156,18 +170,19 @@ function renderStream(){
   el.appendChild(d);
  }
  el.scrollTop=st;
+ el.querySelectorAll(".thumb img").forEach(im=>thumbIO.observe(im));
 }
 function select(id){
  selId=id;const e=events.find(x=>x.id===id);if(!e)return;
  $("detail").style.display="";const c=catOf(e.cls);
  if(replayTimer){clearInterval(replayTimer);replayTimer=null;}
  if(e.replay&&e.replay.length>1){
-  $("d-shot").innerHTML=`<img id="d-replay" src="/img/${e.replay[0]}" alt="">`;
+  $("d-shot").innerHTML=`<img id="d-replay" src="/img/${e.replay[0]}" alt="" onerror="shotErr(this)">`;
   let ri=0;
   replayTimer=setInterval(()=>{ri=(ri+1)%e.replay.length;
    const im=$("d-replay"); if(im) im.src="/img/"+e.replay[ri]; else {clearInterval(replayTimer);replayTimer=null;}},600);
  } else {
-  $("d-shot").innerHTML=e.img?`<img src="/img/${e.img}" alt="">`:"";
+  $("d-shot").innerHTML=e.img?`<img src="/img/${e.img}" alt="" onerror="shotErr(this)">`:"";
  }
  const ct=$("d-cat");ct.textContent=c.cn;ct.style.setProperty("--cat",c.v);
  $("d-ch").textContent=e.stream||"";$("d-time").textContent=ageStr(e.ts);

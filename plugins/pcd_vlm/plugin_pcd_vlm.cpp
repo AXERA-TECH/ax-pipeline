@@ -84,6 +84,7 @@ void ParseCfg(const json& j, const std::string& stream_name,
     v->url           = vj.value("url", v->url);
     v->api_key       = vj.value("api_key", v->api_key);
     v->model         = vj.value("model", v->model);
+    v->frame_mode    = vj.value("frame_mode", v->frame_mode);
     v->system_prompt = vj.value("system_prompt", v->system_prompt);
     v->prompt        = vj.value("prompt", v->prompt);
     v->max_tokens    = vj.value("max_tokens", v->max_tokens);
