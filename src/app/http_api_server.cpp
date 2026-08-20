@@ -9,6 +9,7 @@
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <thread>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -760,6 +761,52 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         res.status = 200;
         res.set_header("Cache-Control", "no-store");
         res.set_content(reinterpret_cast<const char*>(jpg.data()), jpg.size(), "image/jpeg");
+    });
+
+    // MJPEG 直播:multipart 连续推带检测框的 JPEG,客户端断开即停止编码(零常驻开销)。
+    // 列表页用 4s 快照,点开详情用本端点高分辨率直播。
+    svr.Get("/api/v1/pipelines/:name/stream.mjpeg", [&](const httplib::Request& req, httplib::Response& res) {
+        if (!AuthOk(req, impl_->opt.bearer_token)) {
+            res.status = 401;
+            res.set_content("unauthorized", "text/plain; charset=utf-8");
+            return;
+        }
+        const auto name_it = req.path_params.find("name");
+        if (name_it == req.path_params.end()) {
+            res.status = 400;
+            res.set_content("missing pipeline name", "text/plain; charset=utf-8");
+            return;
+        }
+        const std::string name = name_it->second;
+        PreviewOptions popt{};
+        popt.quality = 75;
+        popt.max_width = 1280;
+        popt.max_height = 1280;
+        popt.with_boxes = true;
+        int fps = 10;
+        if (req.has_param("fps")) { int v = 0; if (ParseInt(req.get_param_value("fps"), &v) && v >= 1 && v <= 30) fps = v; }
+        if (req.has_param("quality")) { int q = 0; if (ParseInt(req.get_param_value("quality"), &q)) popt.quality = q; }
+        if (req.has_param("max_w")) { std::uint32_t v = 0; if (ParseU32(req.get_param_value("max_w"), &v)) { popt.max_width = v; popt.max_height = v; } }
+        if (req.has_param("with_boxes")) { bool b = true; if (ParseBool(req.get_param_value("with_boxes"), &b)) popt.with_boxes = b; }
+        auto* service = service_;
+        const int interval_ms = 1000 / fps;
+        res.set_chunked_content_provider(
+            "multipart/x-mixed-replace; boundary=axframe",
+            [service, name, popt, interval_ms](std::size_t, httplib::DataSink& sink) {
+                std::vector<std::uint8_t> jpg;
+                std::string err;
+                while (true) {
+                    jpg.clear();
+                    if (!service->GetPreviewJpeg(name, popt, &jpg, &err) || jpg.empty())
+                        return false;  // pipeline 没了/无帧 -> 结束流
+                    std::string head = "--axframe\r\nContent-Type: image/jpeg\r\nContent-Length: " +
+                                       std::to_string(jpg.size()) + "\r\n\r\n";
+                    if (!sink.write(head.data(), head.size())) return false;   // 客户端断开
+                    if (!sink.write(reinterpret_cast<const char*>(jpg.data()), jpg.size())) return false;
+                    if (!sink.write("\r\n", 2)) return false;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+                }
+            });
     });
 
     impl_->th = std::thread([this]() {
