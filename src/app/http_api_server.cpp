@@ -25,10 +25,12 @@
 #include "axcl_sys.h"   // AXCL_SYS_MemQueryStatus
 #endif
 
+#if defined(AXP_ENABLE_WEBUI)
 namespace axpipeline::app {
 extern const unsigned char kWebuiHtml[];
 extern const unsigned long kWebuiHtmlLen;
 }
+#endif
 
 namespace axpipeline::app {
 
@@ -305,6 +307,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         ReplyJson(res, 200, json{{"ok", true}});
     });
 
+#if defined(AXP_ENABLE_WEBUI)
     // 内嵌控制台:GET / 直接吐编进二进制的页面;--http_webroot 指定目录时磁盘优先(方便改UI)
     svr.Get("/", [this](const httplib::Request&, httplib::Response& res) {
         res.set_header("Cache-Control", "no-store");   // 控制台页禁缓存,改版后普通刷新即生效
@@ -319,6 +322,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         res.set_content(reinterpret_cast<const char*>(kWebuiHtml), kWebuiHtmlLen,
                         "text/html; charset=utf-8");
     });
+#endif
 
     svr.Get("/api/v1/system", [this](const httplib::Request&, httplib::Response& res) {
         ReplyJson(res, 200, SystemStatsJson(service_));
@@ -721,6 +725,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         ReplyJson(res, 200, json{{"ok", true}});
     });
 
+#if defined(AXP_ENABLE_PREVIEW)
     svr.Get("/api/v1/pipelines/:name/preview.jpg", [&](const httplib::Request& req, httplib::Response& res) {
         if (!AuthOk(req, impl_->opt.bearer_token)) {
             res.status = 401;
@@ -809,6 +814,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
                 }
             });
     });
+#endif  // AXP_ENABLE_PREVIEW
 
     impl_->th = std::thread([this]() {
         running_.store(true);

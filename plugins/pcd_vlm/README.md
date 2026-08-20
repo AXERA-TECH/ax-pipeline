@@ -52,24 +52,49 @@ AXLLM_DEVICES=7 axllm serve <Qwen3-VL-2B模型目录> --port 8014
 
 ### 1.5) 内嵌控制台(app 自带,推荐先打开)
 
-`ax_pipeline_app` 编译时已把一个 **web 控制台嵌进二进制**,加参数即可启用:
+![控制台截图](docs/webui.png)
+> 截图占位:跑起来后浏览器随手截一张放到 `plugins/pcd_vlm/docs/webui.png` 即可。
+
+`ax_pipeline_app` 编译时把一个 **web 控制台嵌进二进制**(HTML 是独立源文件
+`src/app/webui/index.html`,CMake 构建时转成字节数组链入),加参数即可启用:
 
 ```bash
 ./ax_pipeline_app -c xxx.json --http_port 8901 --http_addr 0.0.0.0
-# 浏览器打开 http://<IP>:8901
+# 浏览器打开 http://<IP>:8901 ;app 可以零 pipeline 启动,全部在网页上配
 ```
 
-控制台能做:
-- **新建/删除/启停 pipeline**:表单填 RTSP/MP4 源 → 选 AI 插件预设(pcd_vlm / pcd / yolov5/v8/11/26 / helmet,
-  自动生成 init_info 模板,只需改模型路径等 2-3 项)→ 可选输出 → 生成的完整 JSON 可再手改 → 一键创建。
-  app 甚至可以**零 pipeline 启动**,全部在网页上配。
-- **每路实时状态**:解码/编码/AI 帧率(差分计算)、AI 错误数、快照预览(带检测框,4s 刷新)。
-- **实时检测直播**:点任意路的预览画面 → 弹出该路 **MJPEG 直播**(1280宽 @10fps,叠加检测框)。
-  直播走按需的临时 JPEG 硬编码(`GET .../stream.mjpeg?fps=&max_w=&with_boxes=`),**打开才编码、关闭即停**,
-  与 pipeline 自身的编码输出完全无关——没配 outputs 的路一样能直播。
-- **系统资源**:进程/系统 CPU、DDR(进程 RSS + 系统)、**CMM**(NPU/编解码内存,AXCL 按卡查询,板端读
-  /proc/ax_proc/mem_cmm_info)、运行时长。
-- 改 UI 不想重编时:`--http_webroot <目录>` 磁盘优先加载(源码在 `src/app/webui/index.html`)。
+**功能一览**
+- **Pipeline 管理**:表单新建(RTSP/MP4 源 → 插件下拉 → 关键字段 → 可手改的完整 JSON)/
+  启停 / 删除 / 配置回读编辑。插件下拉与表单由各插件导出的 **config schema 动态生成**
+  (`GET /api/v1/plugins`),加新插件网页零改动。
+- **每路卡片**:解码/编码/AI 帧率(差分)、AI 错误数、带检测框的快照(640宽,4s 轮询);
+  竖屏流按真实比例瀑布流排布。
+- **点开卡片 → MJPEG 实时直播**:默认 1280 宽等比缩放(**不是原始分辨率**,
+  `?max_w=` 可调)@10fps,叠加按 track 上色的检测框。
+- **系统资源**:进程/系统 CPU、DDR、**CMM**(AXCL 按卡查 / 板端读 proc)、运行时长。
+
+**性能与开销(实测)**
+- **请求驱动、无人看零开销**:快照与直播都是收到 HTTP 请求才取最新帧→硬件 JPEG 编码,
+  连接断开立即停止;没人打开网页时**一次 JPEG 都不会编**,无任何后台线程/定时器。
+- 直播成本(打开时):每路 ~10 张/s 硬件 JPEG(单张几 ms)+ ~190KB/帧@1280宽 ≈ 12Mbps;
+  8 路同时直播实测对解码/检测帧率**零影响**(A/B 压测,CPU 差 <1%)。
+- 唯一被动成本:SDK 每路保留一个"最新帧"引用(`GetLatestFrame` 的既有机制,与网页无关)。
+
+**编译开关**(默认都 ON,不需要可裁掉)
+```bash
+cmake -DAXP_ENABLE_WEBUI=OFF    # 去掉内嵌页面(GET / 404,二进制不含 HTML)
+cmake -DAXP_ENABLE_PREVIEW=OFF  # 去掉 preview.jpg / stream.mjpeg 端点(HTTP API 本身保留)
+```
+快照与直播是同一取帧机制的两种消费速率,由 `AXP_ENABLE_PREVIEW` 一个开关统一管理。
+
+**多路能力参考(NV12 零拷贝 + `npu_max_fps:10`,1080p30 + pcd 检测跟踪)**
+
+| 平台 | 满帧路数与 CPU | 极限说明 |
+|---|---|---|
+| AXCL 单卡(x86 host) | 8路 16% / 16路 21% / **24路 43%,全满帧** | host CPU 富余,上限在卡内资源 |
+| AX650 板端(8×A55) | 8路 18% / **16路 46%,全满帧** | 20 路起 VDEC 吞吐(~480fps@1080p)掉帧 |
+
+改 UI 不想重编:`--http_webroot <目录>` 磁盘优先加载。
 
 ### 2) 起网页事件中心
 ```bash

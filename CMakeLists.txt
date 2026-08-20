@@ -86,6 +86,9 @@ target_link_libraries(ax_pipeline_tracking PUBLIC ByteTrack)
 add_subdirectory(plugins)
 
 # ---- app ----
+option(AXP_ENABLE_WEBUI "Embed the web console page into ax_pipeline_app (GET /)" ON)
+option(AXP_ENABLE_PREVIEW "Enable snapshot/MJPEG preview endpoints (preview.jpg, stream.mjpeg)" ON)
+
 # Embed the web console into the app binary.
 set(AXP_WEBUI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/app/webui/index.html)
 set(AXP_WEBUI_GEN ${CMAKE_CURRENT_BINARY_DIR}/generated/webui_html.cpp)
@@ -97,7 +100,7 @@ add_custom_command(OUTPUT ${AXP_WEBUI_GEN}
 
 add_executable(ax_pipeline_app
     src/main.cpp
-    ${AXP_WEBUI_GEN}
+    $<$<BOOL:${AXP_ENABLE_WEBUI}>:${AXP_WEBUI_GEN}>
     src/ai/async_infer.cpp
     src/app/pipeline_instance.cpp
     src/app/pipeline_service.cpp
@@ -120,6 +123,12 @@ target_include_directories(ax_pipeline_app
 target_compile_options(ax_pipeline_app PRIVATE
     -Wall -Wextra -Wno-unused-parameter
 )
+if(AXP_ENABLE_WEBUI)
+    target_compile_definitions(ax_pipeline_app PRIVATE AXP_ENABLE_WEBUI=1)
+endif()
+if(AXP_ENABLE_PREVIEW)
+    target_compile_definitions(ax_pipeline_app PRIVATE AXP_ENABLE_PREVIEW=1)
+endif()
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(ax_pipeline_app PRIVATE dl)

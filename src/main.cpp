@@ -92,10 +92,12 @@ int main(int argc, char** argv) {
     }
 
     const int http_port = parser.get<int>("http_port");
+#if defined(AXP_ENABLE_PREVIEW)
     if (http_port > 0 && !cfg.system.enable_venc) {
         std::cerr << "[http] enabling VENC for preview.jpg\n";
         cfg.system.enable_venc = true;
     }
+#endif
 
     if (!axvsdk::common::InitializeSystem(cfg.system)) {
         std::cerr << "InitializeSystem failed\n";
