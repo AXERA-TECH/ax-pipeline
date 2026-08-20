@@ -162,7 +162,7 @@ const PRESETS={
   init:f=>({model_path:f.model||"/root/yolo11s.axmodel"})},
  yolo26:{label:"yolo26(写死头结构,给模型即可)",path:"plugins/yolo26/libax_plugin_yolo26.so",fields:["model"],
   init:f=>({model_path:f.model||"/root/yolo26n.axmodel"})},
- helmet:{label:"helmet — 头盔/电动车检测",path:"plugins/helmet/libax_plugin_helmet.so",fields:["model"],
+ helmet:{label:"helmet — 头盔/电动车检测(用 rgb_nhwc 版模型)",path:"plugins/helmet/libax_plugin_helmet.so",fields:["model"],
   init:f=>({model_path:f.model||"/root/helmet.axmodel"})},
 };
 (function(){const sel=$("f-preset");for(const k in PRESETS){const o=document.createElement("option");o.value=k;o.textContent=PRESETS[k].label;sel.appendChild(o);}sel.value="pcd_vlm";})();

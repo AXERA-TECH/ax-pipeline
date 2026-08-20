@@ -158,7 +158,8 @@ public:
             if (!GetOptString(s, "vnpu_mode", &cfg.vnpu_mode)) return false;
         }
 
-        if (!j.contains("pipelines") || !j["pipelines"].is_array() || j["pipelines"].empty()) {
+        // pipelines 可为空数组:配合 --http_port,app 可零 pipeline 启动、全部在网页控制台上配置
+        if (!j.contains("pipelines") || !j["pipelines"].is_array()) {
             if (error) *error = "missing pipelines[]";
             return false;
         }
