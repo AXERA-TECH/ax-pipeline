@@ -559,28 +559,34 @@ bool PipelineInstance::GetPreviewJpeg(const PreviewOptions& opt,
     }
 
     // Always generate NV12 preview for consistent drawer/JPEG encode behavior.
-    axvsdk::common::ImageDescriptor desc{};
-    desc.format = axvsdk::common::PixelFormat::kNv12;
-    desc.width = dst_w;
-    desc.height = dst_h;
-
-    axvsdk::common::ImageAllocationOptions alloc{};
-    alloc.memory_type = axvsdk::common::MemoryType::kCmm;
-    alloc.cache_mode = axvsdk::common::CacheMode::kNonCached;
-    alloc.token = "ax-pipeline-preview";
-    auto preview = axvsdk::common::AxImage::Create(desc, alloc);
+    // 嵌入式 CMM 不做按帧申请/释放(碎片化风险):buffer/processor 缓存复用,
+    // 仅在预览尺寸变化时重建;mutex 串行化并发预览请求(共享同一块缓存)。
+    std::lock_guard<std::mutex> preview_lock(preview_mutex_);
+    if (!preview_image_ || preview_image_->width() != dst_w || preview_image_->height() != dst_h) {
+        axvsdk::common::ImageDescriptor desc{};
+        desc.format = axvsdk::common::PixelFormat::kNv12;
+        desc.width = dst_w;
+        desc.height = dst_h;
+        axvsdk::common::ImageAllocationOptions alloc{};
+        alloc.memory_type = axvsdk::common::MemoryType::kCmm;
+        alloc.cache_mode = axvsdk::common::CacheMode::kNonCached;
+        alloc.token = "ax-pipeline-preview";
+        preview_image_ = axvsdk::common::AxImage::Create(desc, alloc);
+    }
+    auto& preview = preview_image_;
     if (!preview) {
         if (error) *error = "alloc preview image failed";
         return false;
     }
 
-    auto proc = axvsdk::common::CreateImageProcessor();
+    if (!preview_proc_) preview_proc_ = axvsdk::common::CreateImageProcessor();
+    auto& proc = preview_proc_;
     if (!proc) {
         if (error) *error = "CreateImageProcessor failed";
         return false;
     }
     axvsdk::common::ImageProcessRequest req{};
-    req.output_image = desc;
+    req.output_image = preview->descriptor();
     req.resize.mode = axvsdk::common::ResizeMode::kKeepAspectRatio;
     req.resize.background_color = 0;
     if (!proc->Process(*frame, req, *preview)) {
@@ -625,9 +631,9 @@ bool PipelineInstance::GetPreviewJpeg(const PreviewOptions& opt,
             }
 
             if (!osd.rects.empty()) {
-                auto drawer = axvsdk::common::CreateDrawer();
-                if (drawer) {
-                    (void)drawer->Draw(osd, *preview);
+                if (!preview_drawer_) preview_drawer_ = axvsdk::common::CreateDrawer();
+                if (preview_drawer_) {
+                    (void)preview_drawer_->Draw(osd, *preview);
                 }
             }
         }

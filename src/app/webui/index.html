@@ -291,12 +291,14 @@ async function editPipe(n){
   };
  }catch(e){toast("读取配置失败: "+e.message);}}
 window.addEventListener("error",e=>toast("页面脚本错误: "+e.message));
+let liveName=null;
 function openLive(n){
+ liveName=n;
  $("lv-name").textContent=n;
   $("lv-img").src=`/api/v1/pipelines/${n}/stream.mjpeg?fps=10&max_w=1280&with_boxes=1&ts=${Date.now()}`+(TOKEN?`&token=${TOKEN}`:"");
  $("livemask").classList.add("open");
 }
-function closeLive(){$("lv-img").src="";$("livemask").classList.remove("open");}
+function closeLive(){liveName=null;$("lv-img").src="";$("livemask").classList.remove("open");}
 let pvCache={};
 function renderPipes(arr){
  pipes=arr;const g=$("grid");
@@ -347,6 +349,7 @@ function renderPipes(arr){
 function refreshPreviews(){
  document.querySelectorAll("img[data-pv]").forEach(im=>{
   const n=im.dataset.pv;
+  if(n===liveName)return;   // 直播中的路暂停快照轮询,避免两种尺寸交替反复重建预览缓存
   const u=`/api/v1/pipelines/${n}/preview.jpg?with_boxes=1&max_w=640&ts=${Date.now()}`+(TOKEN?`&token=${TOKEN}`:"");
   const probe=new Image();
   probe.onload=()=>{pvCache[n]=probe.src;im.src=probe.src;im.style.display="";im.nextElementSibling.style.display="none";

@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "ai/async_infer.hpp"
+#include "common/ax_drawer.h"
+#include "common/ax_image_processor.h"
 #include "ai/ax_detection.hpp"
 #include "config_loader.hpp"
 #include "pipeline/ax_pipeline.h"
@@ -100,6 +102,13 @@ private:
 
     std::uint64_t last_det_seq_{0};
     std::vector<ai::Detection> last_dets_;
+
+    // 预览缓存:嵌入式 CMM 严禁按帧申请/释放(长期运行碎片化风险)。
+    // buffer/processor/drawer 首次使用创建、尺寸变化才重建;mutex 串行化并发预览请求。
+    std::mutex preview_mutex_;
+    axvsdk::common::AxImage::Ptr preview_image_;
+    std::unique_ptr<axvsdk::common::ImageProcessor> preview_proc_;
+    std::unique_ptr<axvsdk::common::AxDrawer> preview_drawer_;
 
     bool running_{false};
 };
