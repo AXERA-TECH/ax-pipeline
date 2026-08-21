@@ -17,6 +17,7 @@
 #include <deque>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -55,8 +56,9 @@ struct Event {
     float score{0};
     int   box[4]{0, 0, 0, 0};
     double ts{0};              // 墙钟 epoch 秒(主帧时刻)
-    std::string image_b64;     // 主帧 JPEG base64(VLM 用;不含 data: 前缀)
-    std::vector<std::string> replay;  // 轮播帧(约 T-2s..T+2s 每秒1帧,含主帧;motion_replay 开时为5帧)
+    // 二进制 JPEG(base64 延迟到 VLM 层发送时才做——事件是低频的,预缓存是每秒的)
+    std::vector<std::uint8_t> image_jpg;               // 主帧(VLM 用)
+    std::vector<std::vector<std::uint8_t>> replay;     // 轮播帧(±2s 每秒1帧,含主帧)
 };
 
 class EventGate {
@@ -76,7 +78,7 @@ public:
         // 轮播预缓存:每秒存一帧整帧 JPEG,只留最近 3 张(事件的"前2秒"只能来自这里——
         // 触发时刻之前的帧早已流走,必须持续缓存)
         if (cfg_.motion_replay && now - last_cache_ >= 1.0) {
-            std::string jpg = axvsdk::codec::EncodeJpegToBase64(frame, {(std::uint32_t)cfg_.jpeg_quality});
+            auto jpg = axvsdk::codec::EncodeJpegToMemory(frame, {(std::uint32_t)cfg_.jpeg_quality});
             if (!jpg.empty()) {
                 precache_.push_back(std::move(jpg));
                 while (precache_.size() > 3) precache_.pop_front();
@@ -88,7 +90,7 @@ public:
         if (pending_) {
             for (std::size_t i = 0; i < n; i++) Touch(dets[i].track_id, now);
             if (now >= pend_next_) {
-                std::string jpg = axvsdk::codec::EncodeJpegToBase64(frame, {(std::uint32_t)cfg_.jpeg_quality});
+                auto jpg = axvsdk::codec::EncodeJpegToMemory(frame, {(std::uint32_t)cfg_.jpeg_quality});
                 if (!jpg.empty()) {
                     pend_.replay.push_back(std::move(jpg));
                     pend_next_ = now + 1.0;
@@ -125,15 +127,16 @@ public:
         }
         if (!best) return false;
 
-        if (!Snapshot(frame, *best, &out->image_b64)) return false;
+        if (!Snapshot(frame, *best, &out->image_jpg)) return false;
 
         // 内容去重:与上次抓拍完全相同(短视频循环的唯一触发窗口)则丢弃
-        const std::size_t h = std::hash<std::string>{}(out->image_b64);
+        const std::size_t h = std::hash<std::string_view>{}(
+            std::string_view(reinterpret_cast<const char*>(out->image_jpg.data()), out->image_jpg.size()));
         if (h == last_img_hash_) return false;
         last_img_hash_ = h;
 
         Event ev;
-        ev.image_b64 = std::move(out->image_b64);
+        ev.image_jpg = std::move(out->image_jpg);
         ev.track_id = best->track_id;
         ev.cls = best->class_id;
         ev.score = best->score;
@@ -148,14 +151,14 @@ public:
         NextGap();
 
         if (!cfg_.motion_replay) {
-            ev.replay.push_back(ev.image_b64);
+            ev.replay.push_back(ev.image_jpg);
             *out = std::move(ev);
             return true;
         }
         // 轮播模式:前2帧取自预缓存,加上主帧;转入攒帧,等 T+1s / T+2s 再补2帧后产出
         for (std::size_t i = precache_.size() >= 2 ? precache_.size() - 2 : 0; i < precache_.size(); ++i)
             ev.replay.push_back(precache_[i]);
-        ev.replay.push_back(ev.image_b64);
+        ev.replay.push_back(ev.image_jpg);
         while ((int)ev.replay.size() > 3) ev.replay.erase(ev.replay.begin());
         pend_ = std::move(ev);
         pend_next_ = now + 1.0;
@@ -195,9 +198,10 @@ private:
     }
 
     // 抓拍(硬件 JPEG,支持 device 帧):整帧,或抠 ROI(可外扩)
-    bool Snapshot(const axvsdk::common::AxImage& frame, const ax_plugin_det_t& d, std::string* out) const {
+    bool Snapshot(const axvsdk::common::AxImage& frame, const ax_plugin_det_t& d,
+                  std::vector<std::uint8_t>* out) const {
         if (cfg_.crop_mode == "frame") {
-            *out = axvsdk::codec::EncodeJpegToBase64(frame, {(std::uint32_t)cfg_.jpeg_quality});
+            *out = axvsdk::codec::EncodeJpegToMemory(frame, {(std::uint32_t)cfg_.jpeg_quality});
             return !out->empty();
         }
         const float ex = std::max(0.0F, cfg_.roi_expand);
@@ -215,7 +219,7 @@ private:
         req.output_image.height = (std::uint32_t)h;
         auto roi = ip_->Process(frame, req);
         if (!roi) return false;
-        *out = axvsdk::codec::EncodeJpegToBase64(*roi, {(std::uint32_t)cfg_.jpeg_quality});
+        *out = axvsdk::codec::EncodeJpegToMemory(*roi, {(std::uint32_t)cfg_.jpeg_quality});
         return !out->empty();
     }
 
@@ -234,7 +238,7 @@ private:
     std::uint32_t jseed_{20260818U};
     std::size_t last_img_hash_{0};
     // 轮播帧状态
-    std::deque<std::string> precache_;  // 最近3秒、每秒1帧的整帧JPEG(b64)
+    std::deque<std::vector<std::uint8_t>> precache_;  // 最近3秒、每秒1帧的整帧JPEG(二进制)
     double last_cache_{0};
     bool pending_{false};               // 事件已触发,正在攒"事件后"帧
     Event pend_;

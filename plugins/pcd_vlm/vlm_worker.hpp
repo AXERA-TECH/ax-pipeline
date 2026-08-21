@@ -15,6 +15,8 @@
 #include <atomic>
 #include <condition_variable>
 #include <chrono>
+#include <cstdint>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -43,6 +45,27 @@ struct VlmCfg {
     int  queue_size{4};
     bool retry_once{false};
 };
+
+// base64 编码(事件层给的是二进制 JPEG,只在真正发送时才编码——事件低频,别在每秒的预缓存里做)
+inline std::string B64(const std::vector<std::uint8_t>& d) {
+    static const char* tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    out.reserve((d.size() + 2) / 3 * 4);
+    std::size_t i = 0;
+    for (; i + 2 < d.size(); i += 3) {
+        const std::uint32_t v = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+        out += tbl[(v >> 18) & 63]; out += tbl[(v >> 12) & 63];
+        out += tbl[(v >> 6) & 63];  out += tbl[v & 63];
+    }
+    if (i + 1 == d.size()) {
+        const std::uint32_t v = d[i] << 16;
+        out += tbl[(v >> 18) & 63]; out += tbl[(v >> 12) & 63]; out += "==";
+    } else if (i + 2 == d.size()) {
+        const std::uint32_t v = (d[i] << 16) | (d[i + 1] << 8);
+        out += tbl[(v >> 18) & 63]; out += tbl[(v >> 12) & 63]; out += tbl[(v >> 6) & 63]; out += '=';
+    }
+    return out;
+}
 
 // 极简 HTTP/1.0 POST(Connection: close)。仅支持 http://host[:port]/path。
 inline bool HttpPostJson(const std::string& url, const std::string& body,
@@ -145,10 +168,10 @@ private:
         if (clip) {
             for (const auto& f : e.replay)
                 content.push_back({{"type", "image_url"},
-                                   {"image_url", {{"url", "video:data:image/jpeg;base64," + f}}}});
+                                   {"image_url", {{"url", "video:data:image/jpeg;base64," + B64(f)}}}});
         } else {
             content.push_back({{"type", "image_url"},
-                               {"image_url", {{"url", "data:image/jpeg;base64," + e.image_b64}}}});
+                               {"image_url", {{"url", "data:image/jpeg;base64," + B64(e.image_jpg)}}}});
         }
         content.push_back({{"type", "text"}, {"text", cfg_.prompt}});
         json body = {
@@ -178,8 +201,12 @@ private:
         json item = {
             {"stream", cfg_.stream_name}, {"track_id", e.track_id}, {"cls", e.cls},
             {"score", e.score}, {"box", {e.box[0], e.box[1], e.box[2], e.box[3]}},
-            {"ts", e.ts}, {"desc", desc}, {"mode", cfg_.frame_mode}, {"latency_ms", latency_ms}, {"image", e.image_b64}};
-        if (e.replay.size() > 1) item["replay"] = e.replay;  // ±2s 轮播帧(网页详情页循环播放)
+            {"ts", e.ts}, {"desc", desc}, {"mode", cfg_.frame_mode}, {"latency_ms", latency_ms}, {"image", B64(e.image_jpg)}};
+        if (e.replay.size() > 1) {  // ±2s 轮播帧(网页详情页循环播放)
+            json rp = json::array();
+            for (const auto& f : e.replay) rp.push_back(B64(f));
+            item["replay"] = std::move(rp);
+        }
         std::string resp;
         HttpPostJson(cfg_.report_url, item.dump(), "", &resp, 15);
     }
