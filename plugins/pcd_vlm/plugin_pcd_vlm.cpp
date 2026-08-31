@@ -138,6 +138,8 @@ const char* ax_plugin_get_config_schema(void) {
   {"key":"vlm.model","label":"VLM 模型名(须与 /v1/models 一致)","type":"string"},
   {"key":"vlm.report_url","label":"事件中心地址","type":"string"},
   {"key":"vlm.frame_mode","label":"取帧模式","type":"select","options":["clip","single"]},
+  {"key":"vlm.system_prompt","label":"系统提示词(角色/输出规则)","type":"textarea"},
+  {"key":"vlm.prompt","label":"提问 prompt(每次事件问什么)","type":"textarea"},
   {"key":"vlm.rate.per_stream_interval_s","label":"事件间隔(秒/路)","type":"number"},
   {"key":"vlm.trigger.min_box_h","label":"最小框高(px)","type":"int"}]})AXSCHEMA";
 }
