@@ -192,7 +192,10 @@ private:
             auto& ct = j["choices"][0]["message"]["content"];
             *desc = ct.is_string() ? ct.get<std::string>() : ct.dump();
         } catch (...) { return false; }
-        return true;
+        // VLM 过载/异常时会秒回 200 + 空 content(如 ax-llm 单并发被挤),
+        // 空描述当失败处理,别让空事件进事件中心
+        while (!desc->empty() && (desc->back() == '\n' || desc->back() == ' ')) desc->pop_back();
+        return !desc->empty();
     }
 
     void Report(const Event& e, const std::string& desc, int latency_ms) const {
