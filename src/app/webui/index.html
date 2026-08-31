@@ -263,7 +263,12 @@ async function refresh(immediate){
    $("s-cmm-sub").textContent="device "+(s.cmm.device_id??"-")+" 剩余 "+(s.cmm.total_mb-s.cmm.used_mb).toFixed(0)+"M";
   }else{$("s-cmm").textContent="n/a";$("s-cmm-sub").textContent="本平台不可用";}
   $("s-pl").textContent=pipes.length+" 条";
-  $("s-up").textContent="app 已运行 "+fmtUp(s.uptime_s);
+  let up="app 已运行 "+fmtUp(s.uptime_s);
+  if(s.bsp&&(s.bsp.compiled||s.bsp.runtime)){
+   up+=" · BSP "+(s.bsp.runtime||"?");
+   if(!s.bsp.match)up+=" ⚠️编译版本 "+(s.bsp.compiled||"?");
+  }
+  $("s-up").textContent=up;
  }catch(e){}
 }
 function fmtUp(s){if(s==null)return"—";const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h+"h "+m+"m";}

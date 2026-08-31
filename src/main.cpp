@@ -14,6 +14,7 @@
 
 #include "app/http_api_server.hpp"
 #include "app/pipeline_service.hpp"
+#include "common/ax_version_check.h"
 #include "config_loader.hpp"
 
 #include "common/ax_system.h"
@@ -61,6 +62,36 @@ int main(int argc, char** argv) {
     if (!parser.parse(argc, argv)) {
         std::cerr << parser.usage();
         return 1;
+    }
+
+    // BSP 版本门禁:编译所用 SDK 与运行环境不一致时,板端会出各种不可控错误,
+    // 在做任何驱动初始化之前就拦下。确认过能跑的临近版本组合(如 3.10.2 配 3.16)
+    // 可用 AX_BSP_VERSION_CHECK_SKIP=1 跳过。
+    {
+        const auto bsp = axvsdk::common::CheckBspVersion();
+        if (!bsp.compiled.empty() || !bsp.runtime.empty()) {
+            std::cerr << "[bsp] compiled: " << (bsp.compiled.empty() ? "unknown" : bsp.compiled)
+                      << "  runtime: " << (bsp.runtime.empty() ? "unknown" : bsp.runtime) << "\n";
+        }
+        if (bsp.status == axvsdk::common::BspVersionStatus::kMismatch) {
+            const char* skip = std::getenv("AX_BSP_VERSION_CHECK_SKIP");
+            if (skip != nullptr && skip[0] == '1') {
+                std::cerr << "[bsp] WARNING: version mismatch (" << bsp.detail
+                          << "), skipped by AX_BSP_VERSION_CHECK_SKIP=1\n";
+            } else if (bsp.enforce) {
+                std::cerr << "[bsp] FATAL: BSP version mismatch: " << bsp.detail << "\n"
+                          << "[bsp] running on a mismatched BSP can cause undefined errors "
+                             "(garbled frames, driver hangs).\n"
+                          << "[bsp] fix: rebuild against the board's SDK, or update the board "
+                             "firmware to match.\n"
+                          << "[bsp] if this combination is known to work, bypass with: "
+                             "AX_BSP_VERSION_CHECK_SKIP=1 " << argv[0] << " ...\n";
+                return 4;
+            } else {
+                std::cerr << "[bsp] WARNING: version mismatch (" << bsp.detail
+                          << "); AXCL host runtime is a stable versioned ABI, continuing\n";
+            }
+        }
     }
 
     std::string err;

@@ -65,3 +65,18 @@ ssh root@<board_ip> 'mkdir -p /tmp/axp && tar -xzf /tmp/ax_pipeline_ax650.tar.gz
 # 运行时建议显式指定动态库搜索路径，避免误用板端旧库。
 ssh root@<board_ip> 'LD_LIBRARY_PATH=/tmp/axp/lib /tmp/axp/bin/ax_pipeline_app -c /tmp/axp/configs/<xxx>.json -t 0'
 ```
+
+## BSP 版本检查
+
+编译时会从所用 SDK 库中提取版本号(板端取 `libax_sys.so`,AXCL 取 `libaxcl_rt.so`)烧进二进制;启动时与运行环境版本对比(板端读 `/proc/ax_proc/version`,AXCL 调 `axclrtGetVersion`):
+
+- **板端(MSP)**:主版本不一致直接拒绝启动(exit 4)——BSP 固件与编译库不匹配会产生花屏、驱动 hang 等不可控错误,宁可拦在第一步。
+- **AXCL**:host runtime 是版本化稳定接口,跨小版本混用受支持,不一致仅打印告警。
+
+已确认可用的临近版本组合(如 3.10.2 配 3.16)可用环境变量跳过:
+
+```bash
+AX_BSP_VERSION_CHECK_SKIP=1 ./ax_pipeline_app -c xxx.json
+```
+
+当前版本也显示在控制台网页系统栏与 `GET /api/v1/system` 的 `bsp` 字段。

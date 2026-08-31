@@ -1,5 +1,7 @@
 #include "app/http_api_server.hpp"
 
+#include "common/ax_version_check.h"
+
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -227,6 +229,11 @@ json SystemStatsJson(PipelineService* service) {
         lp = p; lt = t; li = i;
     }
     j["cpu"] = {{"proc_pct", proc_pct}, {"sys_pct", sys_pct}};
+    // BSP 版本(进程生命周期内不变,查一次;板端回退路径要扫 so,不能每次轮询都做)
+    static const auto bsp = axvsdk::common::CheckBspVersion();
+    j["bsp"] = {{"compiled", bsp.compiled},
+                {"runtime", bsp.runtime},
+                {"match", bsp.status != axvsdk::common::BspVersionStatus::kMismatch}};
     // DDR
     std::string ms; long rss_kb = 0, tot_kb = 0, avail_kb = 0;
     if (ReadFileStr("/proc/self/status", &ms)) {
