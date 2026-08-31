@@ -129,39 +129,52 @@ json SnapshotToJson(const PipelineSnapshot& s) {
 }
 
 // ---------- 插件发现:扫 plugins/*/libax_plugin_*.so,取可选的 config schema ----------
+void ScanPluginFile(const std::string& dir, const std::string& fn, json* arr) {
+    if (fn.rfind("libax_plugin_", 0) != 0 || fn.size() < 17 ||
+        fn.substr(fn.size() - 3) != ".so") {
+        return;
+    }
+    const std::string path = dir + "/" + fn;
+    json item = {{"path", path},
+                 {"name", fn.substr(13, fn.size() - 16)}};  // libax_plugin_<name>.so
+    void* dl = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (dl) {
+        using SchemaFn = const char* (*)(void);
+        if (auto fp = reinterpret_cast<SchemaFn>(dlsym(dl, "ax_plugin_get_config_schema"))) {
+            try {
+                item["schema"] = json::parse(fp());
+            } catch (...) {}
+        }
+        dlclose(dl);
+    }
+    arr->push_back(std::move(item));
+}
+
 json ScanPlugins() {
     json arr = json::array();
-    DIR* root = opendir("plugins");
-    if (!root) return arr;
-    dirent* e;
-    while ((e = readdir(root)) != nullptr) {
-        if (e->d_name[0] == '.') continue;
-        const std::string sub = std::string("plugins/") + e->d_name;
-        DIR* d = opendir(sub.c_str());
-        if (!d) continue;
-        dirent* f;
-        while ((f = readdir(d)) != nullptr) {
-            const std::string fn = f->d_name;
-            if (fn.rfind("libax_plugin_", 0) != 0 || fn.size() < 3 ||
-                fn.substr(fn.size() - 3) != ".so") continue;
-            const std::string path = sub + "/" + fn;
-            json item = {{"path", path},
-                         {"name", fn.substr(13, fn.size() - 16)}};  // libax_plugin_<name>.so
-            void* dl = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-            if (dl) {
-                using SchemaFn = const char* (*)(void);
-                if (auto fp = reinterpret_cast<SchemaFn>(dlsym(dl, "ax_plugin_get_config_schema"))) {
-                    try {
-                        item["schema"] = json::parse(fp());
-                    } catch (...) {}
-                }
-                dlclose(dl);
+    // 两种布局都支持:源码树的 plugins/<name>/libax_plugin_*.so,
+    // 以及交付包的平铺 lib/plugins/libax_plugin_*.so(so 直接在根下)。
+    for (const char* base : {"plugins", "lib/plugins"}) {
+        DIR* root = opendir(base);
+        if (!root) continue;
+        dirent* e;
+        while ((e = readdir(root)) != nullptr) {
+            if (e->d_name[0] == '.') continue;
+            const std::string sub = std::string(base) + "/" + e->d_name;
+            DIR* d = opendir(sub.c_str());
+            if (!d) {
+                ScanPluginFile(base, e->d_name, &arr);
+                continue;
             }
-            arr.push_back(std::move(item));
+            dirent* f;
+            while ((f = readdir(d)) != nullptr) {
+                ScanPluginFile(sub, f->d_name, &arr);
+            }
+            closedir(d);
         }
-        closedir(d);
+        closedir(root);
+        if (!arr.empty()) break;  // 命中一种布局就不再扫另一种,避免重复项
     }
-    closedir(root);
     return arr;
 }
 
