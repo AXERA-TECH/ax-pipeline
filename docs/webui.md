@@ -69,7 +69,14 @@ const char* ax_plugin_get_config_schema(void);
 
 ![编辑配置](images/webui/07_edit.png)
 
-> 注意:网页上的增删改都作用于**运行中的 app**,不会写回启动用的 `-c` 配置文件。重启 app 后恢复为配置文件内容;想固化,把弹窗底部的 JSON 抄进配置文件的 `pipelines[]` 即可(两者格式一致)。
+## 导出 / 加载配置
+
+网页上的增删改都作用于**运行中的 app**,不会写回启动用的 `-c` 配置文件。在网页上配好一套后,点头部的「**⬇ 导出配置**」即可把当前整套配置(`system` + 全部 `pipelines`)下载为一个完整 JSON,之后两种用法:
+
+- **命令行直接启动**:`./ax_pipeline_app -c ax_pipeline_config.json -t 0 --http_port 8901`——导出文件就是标准配置格式,开机即恢复整套 pipeline;
+- **网页上加载**:点「**⬆ 加载配置**」选择该文件,逐路立即生效——同名 pipeline 替换、新名字添加(`system` 段只在 `-c` 启动时生效,运行时加载会忽略它)。
+
+对应的 HTTP 接口:`GET /api/v1/config/export` / `POST /api/v1/config/import`,可用于脚本化备份与批量下发。
 
 ## 插件 so 的放置
 

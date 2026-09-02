@@ -18,6 +18,8 @@ struct HttpServerOptions {
     // system.device_id:HTTP 动态添加/修改的 pipeline 未显式写 device_id 时继承它,
     // 与 config 文件加载路径的行为一致(否则插件落到卡0,多卡下跨卡读数据、检测恒为0)。
     int default_device_id{-1};
+    // 启动配置的 system 段(JSON 文本),/api/v1/config/export 原样带出
+    std::string system_config_json{"{}"};
 };
 
 class HttpApiServer {

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <set>
 #include <sstream>
 #include <thread>
 #include <dirent.h>
@@ -102,6 +103,57 @@ bool AuthOk(const httplib::Request& req, const std::string& token) {
     if (auth.rfind(prefix, 0) != 0) return false;
     const std::string got = auth.substr(prefix.size());
     return got == token;
+}
+
+// 单路 pipeline 的运行配置 → config 文件格式 JSON(GET 单路 与 /config/export 共用)
+json PipelineConfigJson(const ConfigLoader::PipelineCfg& cfg) {
+    json out;
+    out["name"] = cfg.name;
+    out["device_id"] = cfg.device_id;
+    out["uri"] = cfg.sdk.input.uri;
+    out["realtime_playback"] = cfg.sdk.input.realtime_playback;
+    out["loop_playback"] = cfg.sdk.input.loop_playback;
+    out["npu_max_fps"] = cfg.npu_max_fps;
+    out["log_every_n_frames"] = cfg.log_every_n_frames;
+
+    json npu;
+    npu["enable"] = cfg.npu.enable;
+    npu["enable_osd"] = cfg.npu.enable_osd;
+    npu["enable_tracking"] = cfg.npu.enable_tracking;
+    npu["track_buffer"] = cfg.npu.track_buffer;
+    npu["kalman_smooth"] = cfg.npu.kalman_smooth;
+    npu["ax_plugin_path"] = cfg.npu.ax_plugin_path;
+    npu["ax_plugin_isolation"] = cfg.npu.ax_plugin_isolation;
+    if (!cfg.npu.ax_plugin_init_json.empty()) {
+        try {
+            npu["ax_plugin_init_info"] = json::parse(cfg.npu.ax_plugin_init_json);
+        } catch (...) {
+            npu["ax_plugin_init_info"] = json::object();
+        }
+    }
+    out["npu"] = std::move(npu);
+
+    json outputs = json::array();
+    for (const auto& o : cfg.sdk.outputs) {
+        json oo;
+        oo["codec"] = (o.codec == axvsdk::codec::VideoCodecType::kH265) ? "h265" : "h264";
+        oo["width"] = o.width;
+        oo["height"] = o.height;
+        oo["frame_rate"] = o.frame_rate;
+        oo["bitrate_kbps"] = o.bitrate_kbps;
+        oo["gop"] = o.gop;
+        oo["input_queue_depth"] = o.input_queue_depth;
+        oo["overflow_policy"] = (o.overflow_policy == axvsdk::codec::QueueOverflowPolicy::kDropNewest)
+                                    ? "drop_newest"
+                                : (o.overflow_policy == axvsdk::codec::QueueOverflowPolicy::kBlock) ? "block"
+                                                                                                  : "drop_oldest";
+        json uris = json::array();
+        for (const auto& u : o.uris) uris.push_back(u);
+        oo["uris"] = std::move(uris);
+        outputs.push_back(std::move(oo));
+    }
+    out["outputs"] = std::move(outputs);
+    return out;
 }
 
 json SnapshotToJson(const PipelineSnapshot& s) {
@@ -357,6 +409,81 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
         ReplyJson(res, 200, json{{"ok", true}, {"plugins", cache}});
     });
 
+    // 导出当前整套运行配置(system + 全部 pipelines),可直接存成 -c 启动用的配置文件
+    svr.Get("/api/v1/config/export", [&](const httplib::Request& req, httplib::Response& res) {
+        if (!AuthOk(req, impl_->opt.bearer_token)) {
+            ReplyError(res, 401, "unauthorized");
+            return;
+        }
+        json j;
+        try {
+            j["system"] = json::parse(impl_->opt.system_config_json);
+        } catch (...) {
+            j["system"] = json::object();
+        }
+        json arr = json::array();
+        for (const auto& snap : service_->ListSnapshots()) {
+            ConfigLoader::PipelineCfg cfg{};
+            std::string err;
+            if (service_->GetPipelineConfig(snap.name, &cfg, &err)) {
+                arr.push_back(PipelineConfigJson(cfg));
+            }
+        }
+        j["pipelines"] = std::move(arr);
+        res.status = 200;
+        res.set_header("Cache-Control", "no-store");
+        res.set_header("Content-Disposition", "attachment; filename=ax_pipeline_config.json");
+        res.set_content(j.dump(2) + "\n", "application/json; charset=utf-8");
+    });
+
+    // 加载(导入)整套配置:pipelines[] 逐路应用——同名替换、新名添加,立即生效。
+    // system 段运行时不可改(vdec pool 等启动时已定),仅在 -c 启动时生效,这里忽略。
+    svr.Post("/api/v1/config/import", [&](const httplib::Request& req, httplib::Response& res) {
+        if (!AuthOk(req, impl_->opt.bearer_token)) {
+            ReplyError(res, 401, "unauthorized");
+            return;
+        }
+        json body;
+        try {
+            body = json::parse(req.body);
+        } catch (const std::exception& e) {
+            ReplyError(res, 400, std::string("json parse failed: ") + e.what());
+            return;
+        }
+        if (!body.contains("pipelines") || !body["pipelines"].is_array()) {
+            ReplyError(res, 400, "missing pipelines[]");
+            return;
+        }
+        std::set<std::string> existing;
+        for (const auto& snap : service_->ListSnapshots()) existing.insert(snap.name);
+        int added = 0, replaced = 0;
+        json failed = json::array();
+        std::size_t idx = 0;
+        for (const auto& pj : body["pipelines"]) {
+            ConfigLoader::PipelineCfg cfg{};
+            std::string err;
+            if (!ConfigLoader::LoadPipelineFromJson(pj, idx++, &cfg, &err)) {
+                failed.push_back(json{{"name", pj.value("name", "?")}, {"error", err}});
+                continue;
+            }
+            if (cfg.device_id < 0 && impl_->opt.default_device_id >= 0) {
+                cfg.device_id = impl_->opt.default_device_id;
+                cfg.sdk.device_id = impl_->opt.default_device_id;
+            }
+            const bool exists = existing.count(cfg.name) != 0;
+            const bool ok = exists ? service_->ReplacePipeline(cfg, true, &err)
+                                   : service_->AddPipeline(cfg, true, &err);
+            if (ok) {
+                exists ? ++replaced : ++added;
+                existing.insert(cfg.name);
+            } else {
+                failed.push_back(json{{"name", cfg.name}, {"error", err}});
+            }
+        }
+        ReplyJson(res, 200, json{{"ok", true}, {"added", added}, {"replaced", replaced},
+                                 {"failed", std::move(failed)}});
+    });
+
     svr.Get("/api/v1/pipelines", [&](const httplib::Request& req, httplib::Response& res) {
         if (!AuthOk(req, impl_->opt.bearer_token)) {
             ReplyError(res, 401, "unauthorized");
@@ -385,54 +512,7 @@ bool HttpApiServer::Start(const HttpServerOptions& opt, std::string* error) {
             return;
         }
 
-        json out;
-        out["name"] = cfg.name;
-        out["device_id"] = cfg.device_id;
-        out["uri"] = cfg.sdk.input.uri;
-        out["realtime_playback"] = cfg.sdk.input.realtime_playback;
-        out["loop_playback"] = cfg.sdk.input.loop_playback;
-        out["npu_max_fps"] = cfg.npu_max_fps;
-        out["log_every_n_frames"] = cfg.log_every_n_frames;
-
-        json npu;
-        npu["enable"] = cfg.npu.enable;
-        npu["enable_osd"] = cfg.npu.enable_osd;
-        npu["enable_tracking"] = cfg.npu.enable_tracking;
-        npu["track_buffer"] = cfg.npu.track_buffer;
-        npu["kalman_smooth"] = cfg.npu.kalman_smooth;
-        npu["ax_plugin_path"] = cfg.npu.ax_plugin_path;
-        npu["ax_plugin_isolation"] = cfg.npu.ax_plugin_isolation;
-        if (!cfg.npu.ax_plugin_init_json.empty()) {
-            try {
-                npu["ax_plugin_init_info"] = json::parse(cfg.npu.ax_plugin_init_json);
-            } catch (...) {
-                npu["ax_plugin_init_info"] = json::object();
-            }
-        }
-        out["npu"] = std::move(npu);
-
-        json outputs = json::array();
-        for (const auto& o : cfg.sdk.outputs) {
-            json oo;
-            oo["codec"] = (o.codec == axvsdk::codec::VideoCodecType::kH265) ? "h265" : "h264";
-            oo["width"] = o.width;
-            oo["height"] = o.height;
-            oo["frame_rate"] = o.frame_rate;
-            oo["bitrate_kbps"] = o.bitrate_kbps;
-            oo["gop"] = o.gop;
-            oo["input_queue_depth"] = o.input_queue_depth;
-            oo["overflow_policy"] = (o.overflow_policy == axvsdk::codec::QueueOverflowPolicy::kDropNewest)
-                                        ? "drop_newest"
-                                    : (o.overflow_policy == axvsdk::codec::QueueOverflowPolicy::kBlock) ? "block"
-                                                                                                      : "drop_oldest";
-            json uris = json::array();
-            for (const auto& u : o.uris) uris.push_back(u);
-            oo["uris"] = std::move(uris);
-            outputs.push_back(std::move(oo));
-        }
-        out["outputs"] = std::move(outputs);
-
-        ReplyJson(res, 200, json{{"ok", true}, {"pipeline", std::move(out)}});
+        ReplyJson(res, 200, json{{"ok", true}, {"pipeline", PipelineConfigJson(cfg)}});
     });
 
     svr.Post("/api/v1/pipelines", [&](const httplib::Request& req, httplib::Response& res) {

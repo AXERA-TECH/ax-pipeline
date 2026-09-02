@@ -88,7 +88,10 @@ footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-si
    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="19" cy="16.5" r="2.5"/></svg></div>
    <div><h1>ax-pipeline 控制台</h1><p class="sub" id="sub">加载中…</p></div>
   </div>
-  <button class="btn primary" onclick="openNew()">＋ 新建 Pipeline</button>
+  <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importFile(event)">
+  <button class="btn" onclick="$('imp-file').click()" title="选择之前导出的配置 JSON:同名 pipeline 替换、新名添加,立即生效">⬆ 加载配置</button>
+  <button class="btn" onclick="exportCfg()" title="导出当前整套配置为 JSON,可直接作为 -c 启动配置">⬇ 导出配置</button>
+ <button class="btn primary" onclick="openNew()">＋ 新建 Pipeline</button>
  </header>
 
  <section class="sys">
@@ -147,6 +150,28 @@ const TOKEN=new URLSearchParams(location.search).get("token")||"";
 const H=TOKEN?{"Authorization":"Bearer "+TOKEN}:{};
 const $=id=>document.getElementById(id);
 function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2600);}
+async function importFile(ev){
+ const f=ev.target.files[0]; if(!f)return; ev.target.value="";
+ try{
+  const cfg=JSON.parse(await f.text());
+  const r=await api("/api/v1/config/import",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+  let m="已加载: 新增 "+r.added+" 路, 替换 "+r.replaced+" 路";
+  if(r.failed&&r.failed.length)m+=", 失败 "+r.failed.length+" 路("+r.failed[0].name+": "+r.failed[0].error+")";
+  toast(m); refresh(true);
+ }catch(e){toast("加载失败: "+e.message);}
+}
+async function exportCfg(){
+ try{
+  const r=await fetch("/api/v1/config/export",{headers:H});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const t=await r.text();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));
+  a.download="ax_pipeline_config.json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+ }catch(e){toast("导出失败: "+e.message);}
+}
 async function api(path,opt={}){opt.headers=Object.assign({},H,opt.headers||{});
  const r=await fetch(path,opt);
  if(!r.ok){let m="";try{m=(await r.json()).error||r.statusText}catch(e){m=r.statusText}throw new Error(m||("HTTP "+r.status));}

@@ -153,6 +153,7 @@ int main(int argc, char** argv) {
         hopts.bearer_token = parser.get<std::string>("http_token");
         hopts.webroot = parser.get<std::string>("http_webroot");
         hopts.default_device_id = cfg.system.device_id;
+        hopts.system_config_json = axpipeline::ConfigLoader::DumpSystemJsonText(cfg);
         if (!http.Start(hopts, &err)) {
             std::cerr << "HTTP server start failed: " << err << "\n";
             service.StopAll();

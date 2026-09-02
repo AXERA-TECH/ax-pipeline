@@ -58,6 +58,19 @@ public:
         std::vector<PipelineCfg> pipelines;
     };
 
+    // system 段 → config 文件格式 JSON 文本(网页「导出配置」用,字段与 Load 的解析一一对应)
+    static std::string DumpSystemJsonText(const AppCfg& cfg) {
+        nlohmann::json s;
+        s["device_id"] = cfg.system.device_id;
+        s["enable_vdec"] = cfg.system.enable_vdec;
+        s["enable_venc"] = cfg.system.enable_venc;
+        s["enable_ivps"] = cfg.system.enable_ivps;
+        s["vdec_max_group_count"] = cfg.system.vdec_max_group_count;
+        s["venc_total_thread_num"] = cfg.system.venc_total_thread_num;
+        if (!cfg.vnpu_mode.empty()) s["vnpu_mode"] = cfg.vnpu_mode;
+        return s.dump();
+    }
+
     // Parse a single pipeline object (same schema as pipelines[] entries in the config file).
     // For HTTP/API usage: relative paths are kept as-is; callers may resolve them if needed.
     static bool LoadPipelineFromJsonText(const std::string& text, PipelineCfg* out, std::string* error) {
