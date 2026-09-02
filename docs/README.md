@@ -10,6 +10,7 @@
 
 - 构建与部署: [build.md](build.md)
 - 配置格式(JSON): [config.md](config.md)
+- **内嵌控制台(网页配置/监控/直播)**: [webui.md](webui.md)
 - RTSP 预览与排障: [rtsp.md](rtsp.md)
 - HTTP API（动态编辑）: [http_api.md](http_api.md)
 - 性能压测记录: [bench.md](bench.md)

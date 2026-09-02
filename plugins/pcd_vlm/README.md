@@ -52,8 +52,18 @@ AXLLM_DEVICES=7 axllm serve <Qwen3-VL-2B模型目录> --port 8014
 
 ### 1.5) 内嵌控制台(app 自带,推荐先打开)
 
-![控制台截图](docs/webui.png)
-> 截图占位:跑起来后浏览器随手截一张放到 `plugins/pcd_vlm/docs/webui.png` 即可。
+在控制台新建 pipeline、选择 `pcd_vlm` 插件后,表单会自动列出 VLM 服务地址、模型名、
+事件中心地址、取帧模式,以及**两个提示词输入框**(系统提示词 / 每次事件的提问),
+播报的语气和内容直接在网页上改,不用碰配置文件:
+
+![控制台配置 pcd_vlm](docs/console_form.png)
+
+事件产出后,事件中心网页(:8900)实时滚动播报——左侧事件流(缩略图会循环播放 ±2s
+轮播帧),右侧详情大图 + track/置信度/目标框/VLM 延迟:
+
+![事件中心](docs/webui.jpg)
+
+控制台的通用用法(新建/监控/直播/编辑)见 `docs/webui.md`(仓库根目录 docs)。
 
 `ax_pipeline_app` 编译时把一个 **web 控制台嵌进二进制**(HTML 是独立源文件
 `src/app/webui/index.html`,CMake 构建时转成字节数组链入),加参数即可启用:
