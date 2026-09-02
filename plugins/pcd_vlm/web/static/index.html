@@ -11,6 +11,13 @@
 @media(prefers-color-scheme:light){:root{--bg:#eef1f5;--panel:#fff;--panel2:#f6f8fb;--sunk:#eaeef3;--line:#dde2ea;--line2:#c9d1dc;
  --text:#191e28;--muted:#5c6675;--faint:#8b95a5;--accent:#c67a12;--accent-soft:#f6e2c2;--accent-ink:#2a1a02;
  --person:#d6483f;--vehicle:#2f74c0;--twowheel:#1f9e6f;}}
+/* 手动切换(🌓按钮)优先于系统偏好:data-theme 属性覆盖上面两套 token,两个方向都要能赢 */
+:root[data-theme="dark"]{--bg:#0e1118;--panel:#161b24;--panel2:#1b212c;--sunk:#11151d;--line:#28303c;--line2:#333d4b;
+ --text:#e7ebf2;--muted:#939daf;--faint:#6b7688;--accent:#f2a53c;--accent-soft:#3a2c12;--accent-ink:#1a1204;
+ --person:#e8695c;--vehicle:#5b9bd5;--twowheel:#4bbd8c;}
+:root[data-theme="light"]{--bg:#eef1f5;--panel:#fff;--panel2:#f6f8fb;--sunk:#eaeef3;--line:#dde2ea;--line2:#c9d1dc;
+ --text:#191e28;--muted:#5c6675;--faint:#8b95a5;--accent:#c67a12;--accent-soft:#f6e2c2;--accent-ink:#2a1a02;
+ --person:#d6483f;--vehicle:#2f74c0;--twowheel:#1f9e6f;}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.5}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
@@ -214,7 +221,8 @@ const es=new EventSource("/stream");es.onmessage=m=>{try{onEvent(JSON.parse(m.da
 document.querySelectorAll(".chipbtn").forEach(b=>b.onclick=()=>{document.querySelectorAll(".chipbtn").forEach(x=>x.setAttribute("aria-pressed","false"));
  b.setAttribute("aria-pressed","true");fCls=+b.dataset.cls;renderStream();});
 $("chsel").onchange=()=>{fCh=$("chsel").value;renderStream();};
-$("theme").onclick=()=>{const r=document.documentElement,cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");r.setAttribute("data-theme",cur==="dark"?"light":"dark");};
+$("theme").onclick=()=>{const r=document.documentElement,cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");const next=cur==="dark"?"light":"dark";r.setAttribute("data-theme",next);try{localStorage.setItem("pcdvlm-theme",next)}catch(e){}};
+try{const t=localStorage.getItem("pcdvlm-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}
 loadStats();loadEvents();setInterval(loadStats,4000);setInterval(()=>renderStream(),15000);
 </script>
 </body></html>
