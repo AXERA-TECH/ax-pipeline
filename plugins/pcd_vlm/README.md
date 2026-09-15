@@ -3,11 +3,29 @@
 在 ax-pipeline 里,用便宜的检测器(默认 pcd 人车非)当"触发器",只在出现值得关注的目标时,
 把那一刻的抓拍异步送给 **VLM**(视觉大模型)生成一句中文描述,汇总到网页事件中心实时展示 / 留档。
 
-```
- 检测端: ax-pipeline + pcd_vlm 插件            VLM 服务(可换)            web 事件中心(Python)
-  解码 → 检测/跟踪 → 事件层(选帧/节流)   ──►  ax-llm / vLLM / 云API  ──►  /ingest 接收
-        └─ 抓拍(硬件JPEG) → VLM层异步调用      OpenAI 兼容 /v1/chat        SQLite + 抓拍图落盘
-        └─ 描述+抓拍 POST 给 web ────────────────────────────────────►     SSE 实时推送 + 网页展示
+```mermaid
+flowchart LR
+    subgraph DET["检测端 · ax-pipeline + pcd_vlm 插件"]
+        direction TB
+        DEC["解码<br/>VDEC 硬件"] --> TRK["检测 + 跟踪<br/>内层 pcd 插件 · NPU"]
+        TRK --> GATE["事件层<br/>触发筛选 · 选帧 · 节流去重"]
+        GATE --> SNAP["抓拍 · 硬件 JPEG<br/>±2s 轮播帧"]
+        SNAP --> VLMW["VLM 层<br/>异步 worker,不阻塞主链路"]
+    end
+
+    subgraph SRV["VLM 服务(可换)"]
+        API["OpenAI 兼容 /v1/chat/completions<br/>ax-llm · vLLM · 云端 API"]
+    end
+
+    subgraph WEB["Web 事件中心(Python)"]
+        direction TB
+        ING["/ingest 接收"] --> DB[("SQLite<br/>+ 抓拍图落盘")]
+        ING --> SSE["SSE 实时推送<br/>网页滚动播报"]
+    end
+
+    VLMW -- "抓拍(单帧 / 5 帧视频)" --> API
+    API -- "一句话中文描述" --> VLMW
+    VLMW -- "描述 + 抓拍 + 元数据" --> ING
 ```
 
 - **检测归检测,VLM 走异步旁路**:VLM 再慢也不阻塞解码/编码/OSD(infer 只做判定+入队,满即丢)。
