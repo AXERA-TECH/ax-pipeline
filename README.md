@@ -79,7 +79,7 @@ git submodule update --init --recursive
 
 `-t 0` 表示一直运行直到 `Ctrl+C`。
 
-`configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的 `mp4` 文件路径或 `rtsp://` 地址。
+`configs/example.json` 中的 `uri` 默认是占位路径，需要你改成真实的本地视频文件路径(`.mp4` / `.mov`，含 iPhone 实拍 HEVC)或 `rtsp://` 地址。
 
 ### HTTP API（动态编辑 pipelines，可选）
 
@@ -188,7 +188,7 @@ flowchart LR
     {
       "name": "p0",
       "device_id": -1,
-      "uri": "xxx.mp4 或 rtsp://...",
+      "uri": "xxx.mp4 / xxx.mov 或 rtsp://...",
       "realtime_playback": false,
       "loop_playback": false,
       "frame_output": {

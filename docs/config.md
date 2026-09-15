@@ -50,7 +50,7 @@
 {
   "name": "p0",
   "device_id": -1,
-  "uri": "xxx.mp4 或 rtsp://...",
+  "uri": "xxx.mp4 / xxx.mov 或 rtsp://...",
   "realtime_playback": true,
   "loop_playback": false,
 
