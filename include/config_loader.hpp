@@ -463,6 +463,18 @@ private:
             if (!ParseResizeOptions(o["resize"], &oc.resize)) return false;
         }
 
+        // 目标区域差异化量化:码率花在检测到的目标上,背景粗编。
+        if (o.contains("qpmap")) {
+            const auto& q = o["qpmap"];
+            if (!q.is_object()) return false;
+            if (!GetOptBool(q, "enable", &oc.qpmap.enable) ||
+                !GetOptI32(q, "i_qp", &oc.qpmap.i_qp) ||
+                !GetOptI32(q, "p_qp", &oc.qpmap.p_qp) ||
+                !GetOptI32(q, "roi_qp_delta", &oc.qpmap.roi_qp_delta)) {
+                return false;
+            }
+        }
+
         if (o.contains("uris")) {
             if (!o["uris"].is_array()) return false;
             for (const auto& u : o["uris"]) {

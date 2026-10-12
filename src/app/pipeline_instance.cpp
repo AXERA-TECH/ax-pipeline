@@ -209,6 +209,28 @@ void PipelineInstance::StartNpuIfEnabled() {
                 // 结果本身也是新的——否则"这一路暂时没目标"会被误计成"结果过期"。
                 if (pipe_ptr) pipe_ptr->SetDetectionSourceSeq(seq);
 
+                // 把检测框作为 ROI 下发给编码器(仅对开了 qpmap 的输出分支生效)。
+                // 坐标用解码原图坐标系,pipeline 负责缩放到各分支的编码尺寸。
+                // TODO: 按 det_lag × 目标速度外扩,补偿异步检测的滞后。
+                if (pipe_ptr && sw != 0 && sh != 0) {
+                    std::vector<axvsdk::codec::QpRoiRect> rois;
+                    rois.reserve(dets.size());
+                    for (const auto& d : dets) {
+                        const auto x0 = std::max(0.0F, std::min(d.x0, d.x1));
+                        const auto y0 = std::max(0.0F, std::min(d.y0, d.y1));
+                        const auto x1 = std::min(static_cast<float>(sw), std::max(d.x0, d.x1));
+                        const auto y1 = std::min(static_cast<float>(sh), std::max(d.y0, d.y1));
+                        if (x1 - x0 < 1.0F || y1 - y0 < 1.0F) continue;
+                        axvsdk::codec::QpRoiRect r{};
+                        r.x = static_cast<std::int32_t>(x0);
+                        r.y = static_cast<std::int32_t>(y0);
+                        r.width = static_cast<std::uint32_t>(x1 - x0);
+                        r.height = static_cast<std::uint32_t>(y1 - y0);
+                        rois.push_back(r);
+                    }
+                    pipe_ptr->SetQpRoi(rois);
+                }
+
                 if (enable_osd && pipe_ptr) {
                     axvsdk::common::DrawFrame osd{};
                     osd.hold_frames = 10;

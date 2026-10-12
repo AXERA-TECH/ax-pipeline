@@ -141,6 +141,29 @@
 - `overflow_policy`（可选，string）：编码输入队列满时的策略
   - 可选值：`"drop_oldest"`（默认）/ `"drop_newest"` / `"block"`
 - `resize`（可选，object）：输出分支 resize 策略（字段同 `frame_output.resize`）
+- `qpmap`（可选，object）：目标区域差异化量化，把码率花在检测到的目标上、背景粗编
+  - `enable`（bool，默认 `false`）：开启后码控从 CBR 切到 ABS QPMAP 模式，
+    `bitrate_kbps` 不再直接决定码率，实际码率由下面的 QP 决定
+  - `i_qp`（int，默认 38）：I 帧 QP
+  - `p_qp`（int，默认 40）：P/B 帧背景 QP
+  - `roi_qp_delta`（int，默认 -4）：目标区域相对背景的 QP 偏移，负值更清晰；
+    实际为 `clamp(p_qp + roi_qp_delta, 0, 51)`
+  - ROI 来自 NPU 检测框，自动下发到开启了 `qpmap` 的分支（需要 `npu.enable`）；
+    输出被缩放时 ROI 坐标会自动换算
+  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR
+
+  ```json
+  { "codec": "h264", "uris": ["/tmp/out.mp4"],
+    "qpmap": { "enable": true, "i_qp": 38, "p_qp": 40, "roi_qp_delta": -10 } }
+  ```
+
+  实测(AXCL,1080p 路口场景,pcd 人车非检测,1781 帧):相同配置下
+  `roi_qp_delta` 从 0 改为 -10,文件从 16.5MB 增至 23.1MB,车流区 PSNR +0.74 dB
+  而空旷区 +0.01 dB —— 多出的码率精确落在目标上。
+
+  注意:检测是异步的,检测框相对正在编码的帧存在滞后(见 `GET /api/v1/pipelines`
+  的 `det_lag`,16 路满载实测均值 2.5 帧、峰值 8 帧)。当前版本直接使用原始框,
+  快速移动的目标会有部分区域落在 ROI 之外。
 
 ### 不配置 `outputs`（仅解码/AI）
 

@@ -150,6 +150,12 @@ json PipelineConfigJson(const ConfigLoader::PipelineCfg& cfg) {
         json uris = json::array();
         for (const auto& u : o.uris) uris.push_back(u);
         oo["uris"] = std::move(uris);
+        if (o.qpmap.enable) {
+            oo["qpmap"] = {{"enable", true},
+                           {"i_qp", o.qpmap.i_qp},
+                           {"p_qp", o.qpmap.p_qp},
+                           {"roi_qp_delta", o.qpmap.roi_qp_delta}};
+        }
         outputs.push_back(std::move(oo));
     }
     out["outputs"] = std::move(outputs);
