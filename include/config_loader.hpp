@@ -381,7 +381,8 @@ private:
                 !GetOptU32(m, "grid_rows", &mr.grid_rows) ||
                 !GetOptU32(m, "sensitivity", &mr.sensitivity) ||
                 !GetOptU32(m, "hold_frames", &mr.hold_frames) ||
-                !GetOptU32(m, "detect_interval", &mr.detect_interval)) {
+                !GetOptU32(m, "detect_interval", &mr.detect_interval) ||
+                !GetOptU32(m, "max_coverage_percent", &mr.max_coverage_percent)) {
                 return false;
             }
         }
@@ -484,10 +485,16 @@ private:
             if (!GetOptBool(q, "enable", &oc.qpmap.enable) ||
                 !GetOptI32(q, "i_qp", &oc.qpmap.i_qp) ||
                 !GetOptI32(q, "p_qp", &oc.qpmap.p_qp) ||
-                !GetOptI32(q, "roi_qp_delta", &oc.qpmap.roi_qp_delta)) {
+                !GetOptI32(q, "roi_qp_delta", &oc.qpmap.roi_qp_delta) ||
+                !GetOptU32(q, "target_bitrate_kbps", &oc.qpmap.target_bitrate_kbps) ||
+                !GetOptI32(q, "min_qp", &oc.qpmap.min_qp) ||
+                !GetOptI32(q, "max_qp", &oc.qpmap.max_qp)) {
                 return false;
             }
         }
+
+        // 码率目标按压缩倍率给:4.0 = 压到输入码流的 1/4。
+        if (!GetOptDouble(o, "compression_ratio", &oc.compression_ratio)) return false;
 
         if (o.contains("uris")) {
             if (!o["uris"].is_array()) return false;

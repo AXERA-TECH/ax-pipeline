@@ -211,7 +211,11 @@ void PipelineInstance::StartNpuIfEnabled() {
 
                 // 把检测框作为 ROI 下发给编码器(仅对开了 qpmap 的输出分支生效)。
                 // 坐标用解码原图坐标系,pipeline 负责缩放到各分支的编码尺寸。
-                // TODO: 按 det_lag × 目标速度外扩,补偿异步检测的滞后。
+                // 检测相对正在编码的帧天然滞后(16 路 / npu_max_fps=10 实测均值 2.5、
+                // 峰值 8 帧),但不需要按滞后量外扩:实测把滞后峰值从 1 放大到 6 帧,
+                // 整帧 PSNR 只差 0.013~0.019dB,只裁车流区看也只有 0.056dB。
+                // 原因是检测框远大于帧间位移、QPMAP 单元 16px 吸收了亚单元位移,
+                // 而动得快的目标帧差大、必然已被运动 ROI 覆盖。
                 if (pipe_ptr && sw != 0 && sh != 0) {
                     std::vector<axvsdk::codec::QpRoiRect> rois;
                     rois.reserve(dets.size());

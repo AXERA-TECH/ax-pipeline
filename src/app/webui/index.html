@@ -53,6 +53,7 @@ h1{font-size:15.5px;margin:0}.sub{margin:2px 0 0;font-size:11px;color:var(--mute
 .fps .v{font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
 .fps .v.bad{color:var(--err)}
 .fps .k{font-size:10px;color:var(--faint)}
+.encinfo{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.4}
 .acts{display:flex;gap:6px;margin-top:auto}
 .acts .spacer{flex:1}
 /* modal */
@@ -351,6 +352,7 @@ function renderPipes(arr){
       <div><div class="v f-ai">—</div><div class="k f-ai-k">AI fps</div></div>
       <div><div class="v f-err">0</div><div class="k">AI错误</div></div>
      </div>
+     <div class="encinfo" style="display:none"></div>
      <div class="acts"></div>
     </div>`;
    const im=d.querySelector("img[data-pv]");
@@ -370,6 +372,15 @@ function renderPipes(arr){
   // 检测滞后:异步推理下结果天然落后当前画面若干帧,按位置使用检测框(ROI 编码等)时要据此补偿
   d.querySelector(".f-ai-k").textContent=s.det_lag>0?("AI fps · 滞后"+s.det_lag+"帧"):"AI fps";
   const fe=d.querySelector(".f-err");fe.textContent=s.npu_err;fe.className="v f-err"+(s.npu_err>0?" bad":"");
+  // 智能编码的实时状态:输入→输出码率、实得压缩倍率、闭环背景 QP、运动 ROI 覆盖
+  const ei=d.querySelector(".encinfo"),o0=s.outputs&&s.outputs[0];
+  if(o0&&(s.in_kbps>0||o0.out_kbps>0)){
+   let t=(s.in_kbps||0)+"→"+(o0.out_kbps||0)+" kbps";
+   if(s.in_kbps>0&&o0.out_kbps>0)t+="  压 "+(s.in_kbps/o0.out_kbps).toFixed(1)+"×";
+   if(o0.base_qp>0)t+="  背景QP "+o0.base_qp;
+   if(s.motion_cover>0)t+="  运动 "+s.motion_cover+"%";
+   ei.textContent=t;ei.style.display="";
+  }else ei.style.display="none";
   if(d.dataset.running!==String(s.running)){
    d.dataset.running=String(s.running);
    d.querySelector(".acts").innerHTML=`

@@ -154,8 +154,12 @@ json PipelineConfigJson(const ConfigLoader::PipelineCfg& cfg) {
             oo["qpmap"] = {{"enable", true},
                            {"i_qp", o.qpmap.i_qp},
                            {"p_qp", o.qpmap.p_qp},
-                           {"roi_qp_delta", o.qpmap.roi_qp_delta}};
+                           {"roi_qp_delta", o.qpmap.roi_qp_delta},
+                           {"target_bitrate_kbps", o.qpmap.target_bitrate_kbps},
+                           {"min_qp", o.qpmap.min_qp},
+                           {"max_qp", o.qpmap.max_qp}};
         }
+        if (o.compression_ratio > 0.0) oo["compression_ratio"] = o.compression_ratio;
         outputs.push_back(std::move(oo));
     }
     out["outputs"] = std::move(outputs);
@@ -171,6 +175,8 @@ json SnapshotToJson(const PipelineSnapshot& s) {
     j["submit_fail"] = s.stats.branch_submit_failures;
     j["det_lag"] = s.stats.det_lag_frames;
     j["det_lag_max"] = s.stats.det_lag_frames_max;
+    j["in_kbps"] = s.stats.input_bitrate_kbps;
+    j["motion_cover"] = s.stats.motion_coverage_percent;
     j["npu_ok"] = s.npu_ok;
     j["npu_err"] = s.npu_err;
     json outs = json::array();
@@ -184,6 +190,8 @@ json SnapshotToJson(const PipelineSnapshot& s) {
             {"key_pkts", o.key_packets},
             {"queue_depth", o.current_queue_depth},
             {"queue_capacity", o.queue_capacity},
+            {"out_kbps", o.measured_bitrate_kbps},
+            {"base_qp", o.qpmap_base_qp},
         });
     }
     j["outputs"] = std::move(outs);

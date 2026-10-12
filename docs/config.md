@@ -116,6 +116,11 @@
 - MP4: 直接填写文件路径
   - `realtime_playback=true`: 按源 fps 节奏读取(播放器语义)
   - `realtime_playback=false`: 尽快读(离线转码)
+    - 注意:此时 demux 不受节奏限制,编码器跟不上就按 `overflow_policy` 丢帧 ——
+      1080p30 单路默认配置实测丢掉 407/998 帧。**离线转码要一帧不丢,把
+      `outputs[].input_queue_depth` 加大**(实测 64 即可,998 帧全编、`dropped=0`)。
+      别用 `"overflow_policy": "block"`:背压会让编码器一直持有解码帧、把解码池耗尽,
+      实测解码停在 ~590 帧不再推进(已知限制)
   - `loop_playback=true`: 循环播放
 - RTSP: `rtsp://...` 拉流
 
@@ -141,29 +146,88 @@
 - `overflow_policy`（可选，string）：编码输入队列满时的策略
   - 可选值：`"drop_oldest"`（默认）/ `"drop_newest"` / `"block"`
 - `resize`（可选，object）：输出分支 resize 策略（字段同 `frame_output.resize`）
-- `qpmap`（可选，object）：目标区域差异化量化，把码率花在检测到的目标上、背景粗编
+- `qpmap`（可选，object）：QP 图码控。两件事：**按目标码率闭环调 QP**，以及**目标区域差异化量化**
   - `enable`（bool，默认 `false`）：开启后码控从 CBR 切到 ABS QPMAP 模式，
     `bitrate_kbps` 不再直接决定码率，实际码率由下面的 QP 决定
   - `i_qp`（int，默认 38）：I 帧 QP
   - `p_qp`（int，默认 40）：P/B 帧背景 QP
   - `roi_qp_delta`（int，默认 -4）：目标区域相对背景的 QP 偏移，负值更清晰；
-    实际为 `clamp(p_qp + roi_qp_delta, 0, 51)`
+    实际为 `clamp(p_qp + roi_qp_delta, 0, 51)`。**它是质量再分配，不是省码率手段**，
+    代价见下面的实测；开启闭环后背景封顶时这个 delta 会被自动收窄
+  - `target_bitrate_kbps`（int，默认 0）：**码率闭环**。非 0 时不再用固定 QP，而是
+    按实测输出码率自动调整背景 QP 去逼近这个目标；`i_qp` / `p_qp` 退化成闭环起点，
+    两者的差值保持不变。ROI 始终按 `roi_qp_delta` 相对背景加细，所以"目标清晰、
+    背景够用"的结构不变
+  - `min_qp` / `max_qp`（int，默认 24 / 46）：闭环允许的背景 QP 范围。下界防止码率
+    目标过宽时白花码率，上界兜住画质底线（超过 46 的背景已经明显糊）
   - ROI 来自 NPU 检测框，自动下发到开启了 `qpmap` 的分支（需要 `npu.enable`）；
     输出被缩放时 ROI 坐标会自动换算
-  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR
+  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR（回退时 `target_bitrate_kbps`
+    会作为 CBR 码率生效）
 
   ```json
   { "codec": "h264", "uris": ["/tmp/out.mp4"],
     "qpmap": { "enable": true, "i_qp": 38, "p_qp": 40, "roi_qp_delta": -10 } }
   ```
 
-  实测(AXCL,1080p 路口场景,pcd 人车非检测,1781 帧):相同配置下
-  `roi_qp_delta` 从 0 改为 -10,文件从 16.5MB 增至 23.1MB,车流区 PSNR +0.74 dB
-  而空旷区 +0.01 dB —— 多出的码率精确落在目标上。
+  **差异化 QP 的真实代价(务必先读)**。把码率目标固定、只改 `roi_qp_delta`,
+  在 AXCL 上做了四组同码率对比(1080p,ffmpeg PSNR 按帧序配对,画面切 3x3 分块):
 
-  注意:检测是异步的,检测框相对正在编码的帧存在滞后(见 `GET /api/v1/pipelines`
-  的 `det_lag`,16 路满载实测均值 2.5 帧、峰值 8 帧)。当前版本直接使用原始框,
-  快速移动的目标会有部分区域落在 ROI 之外。
+  | 场景 | 配置 | 码率 | 目标最密集区 | 其余区块 |
+  | --- | --- | --- | --- | --- |
+  | 静态背景(行人街道,998 帧) | 运动 ROI,delta -10 vs 0 | +4.6% | −0.65 dB | −0.29 ~ −1.52 dB |
+  | 繁忙路口(1781 帧) | 检测框 ROI,delta -10 vs 0 | +5.7% | −0.03 dB | −0.16 ~ −1.46 dB |
+  | 繁忙路口,极低码率 | 背景 QP51 / ROI QP41 vs 均匀 QP45 | −7% | −0.01 dB | −0.17 ~ −2.44 dB |
+  | 繁忙路口 | `max_coverage_percent` 57%→20% | −2% | — | — |
+
+  也就是说:**同码率下差异化 QP 在 PSNR 意义上全面不如均匀 QP**,连 ROI 区自己都不赢。
+  原因是 H.264/265 的运动补偿已经天然把码率花在变化的地方了 —— 静止背景在 P 帧里
+  残差接近 0、本来就几乎免费,提高它的 QP 省不下码率;而给 ROI 降 QP 是实打实地花钱。
+  人为再叠一层 QP 差异,只是把码率从编码器的最优分配上挪走。
+  同理 `max_coverage_percent` 收紧覆盖面也省不下码率(被裁掉的格子帧差最小、本就不耗码率)。
+
+  所以:**想省码率就用闭环 + `roi_qp_delta: 0`**(见 `compression_ratio`)。
+  `roi_qp_delta < 0` 只在"目标区域的保真度比整帧均匀性更重要"时才值得开 ——
+  下游是车牌/人脸二次识别,或者人眼只盯目标、背景糊无妨。那种价值 PSNR 测不出来,
+  要用下游任务的指标验证,别拿整帧 PSNR 当依据。
+
+  检测是异步的,检测框相对正在编码的帧存在滞后(见 `GET /api/v1/pipelines` 的
+  `det_lag`,16 路满载实测均值 2.5 帧、峰值 8 帧),但**不需要按滞后量外扩 ROI**:
+  实测把滞后峰值从 1 帧放大到 6 帧,整帧 PSNR 只差 0.013~0.019 dB,只裁车流密集区
+  看也只有 0.056 dB。检测框本身远大于帧间位移,QPMAP 的 16px 单元又吸收了亚单元
+  位移,而动得快的目标帧差大、必然已被 `motion_roi` 覆盖。
+
+- `compression_ratio`（可选，double，默认 0 = 不启用）：码率目标按**相对输入码流压缩
+  多少倍**给，例如 `4.0` = 输出压到输入码率的 1/4。需要 `qpmap.enable`，非 0 时覆盖
+  `qpmap.target_bitrate_kbps`，并随实测输入码率滚动更新（RTSP 源的码率本身是变的）。
+  部署现场关心的是"能不能省下 3/4 的带宽和存储"，不是 QP 取多少。
+
+  ```json
+  { "codec": "h264", "uris": ["rtsp://0.0.0.0:8554/live"],
+    "compression_ratio": 4.0,
+    "qpmap": { "enable": true, "roi_qp_delta": -10, "min_qp": 26, "max_qp": 44 } }
+  ```
+
+  起步第一秒还没有输入码率样本，此时按 `i_qp` / `p_qp` 的固定值编码，之后每秒结一次账。
+  闭环按"QP 每 +6 码率减半"换算需要的步长，再限幅 ±2 / 窗口并加 0.6 阻尼 ——
+  一个窗口只有 1 秒码流、样本噪声大，走快了画质抖动肉眼可见。码率按**帧数**算而不是
+  墙上时钟，所以离线超实时转码和实时推流算出来的是同一个数。实际码率和当前背景 QP
+  都在 `GET /api/v1/pipelines` 里（`in_kbps` / `outputs[].out_kbps` / `outputs[].base_qp`），
+  控制台 `[stats]` 行同样打印。
+
+  实测（AXCL，`pedestrian_street` 1080p30，输入约 4.6 Mbps，纯运动 ROI）：
+
+  | 要求 | 实得 | 稳态背景 QP | 收敛 |
+  | --- | --- | --- | --- |
+  | 2× | 2.26× | 34 | 3~4 秒 |
+  | 4× | 4.28× | 40 → 48 | 3~4 秒 |
+  | 8× | 7.31× | 48 | 3~4 秒 |
+
+  **和 `roi_qp_delta` 的互动**：闭环只能调背景 QP，背景撞到 `max_qp` 之后还压不到目标时，
+  多出来的压力会自动**收窄 `roi_qp_delta`**（向 0 靠），必要时一路退化成均匀 QP ——
+  码率目标优先于 ROI 优待。不这么做的后果实测过：繁忙路口 `delta: -10` + 覆盖 40% 时，
+  背景封顶在 QP50，码率卡在目标的 1.4 倍下不来，闭环形同失效。
+  如果反过来希望"宁可超码率也保住目标清晰"，就别用闭环，用固定 `p_qp` + `roi_qp_delta`。
 
 ### `motion_roi`（pipeline 级，配合 `qpmap` 使用）
 
@@ -172,15 +236,25 @@ QPMAP 只保护检测器**认识**的目标。画面里检测器不认识但在�
 最终 `ROI = 检测框 ∪ 运动区域`。
 
 ```json
-"motion_roi": { "enable": true, "sensitivity": 12, "hold_frames": 15, "detect_interval": 3 }
+"motion_roi": { "enable": true, "sensitivity": 12, "hold_frames": 15,
+                "detect_interval": 3, "max_coverage_percent": 40 }
 ```
 
 - `enable`（bool，默认 `false`）
 - `sensitivity`（int，默认 12）：格子亮度差超过它算运动（0~255），越小越灵敏
 - `hold_frames`（int，默认 15）：命中后保持多少帧，防闪烁，同时覆盖目标去向
 - `detect_interval`（int，默认 3）：每隔几帧算一次；运动区域变化慢，不必逐帧
+- `max_coverage_percent`（int，默认 40，0 = 不限）：运动 ROI 面积占画面的**硬上限**。
+  超出时只保留帧差最大的那些格子，其余退回背景 QP。实现是对最终结果直接做预算裁剪
+  （取第 N 大的帧差当门槛），立刻生效，不像"自动调灵敏度"那样要等几帧收敛、还会震荡。
+  **注意它约束的是面积语义，不是码率**：繁忙路口实测把峰值覆盖从 57% 收到 20%，
+  输出只小了 2% —— 被裁掉的格子帧差最小、本来就不怎么耗码率。想控码率用
+  `compression_ratio`
 - `grid_cols` / `grid_rows`（int，默认 0 = 自动取原图 1/8）
   - **会被钳到不低于 1/8**：IVPS 单次缩放到 1/16 会失败、1/32 会卡死硬件
+
+当前覆盖率在 `GET /api/v1/pipelines` 的 `motion_cover` 里（百分比），控制台
+`[stats]` 行也会打印 `motion=NN%`。
 
 原理是把整帧用 IVPS 缩成小灰度网格做帧差，读回只有几十 KB。实测 8 路 1080p
 开启后整机 CPU 从 3% 升到 4%（`detect_interval: 3`）。若 IVPS 连续失败会自动
@@ -195,8 +269,16 @@ QPMAP 只保护检测器**认识**的目标。画面里检测器不认识但在�
 | 检测框 + 运动区域 | 30.6 MB | 28.49 dB |
 
 注意这是**繁忙路口**场景，几乎所有内容都在动，所以运动区域覆盖很广、压缩收益被摊薄。
-背景以静止为主的场景（周界、仓库、停车场）收益会明显更好；覆盖面可用
-`sensitivity` 和 `hold_frames` 调。
+静态背景场景（周界、仓库、停车场、楼道）才是这套方案的主战场 —— 同参数下
+`pedestrian_street`（998 帧，行人为主）只要 2.45 KB/帧，而路口要 9.3 KB/帧：
+
+| ROI 来源 | 输出大小 | PSNR |
+| --- | --- | --- |
+| 无 ROI（全图 QP40） | 2.4 MB | 33.11 dB |
+| 仅检测框 | 4.5 MB | 33.41 dB |
+| 检测框 + 运动区域 | 5.4 MB | 33.65 dB |
+
+覆盖面可用 `sensitivity`、`hold_frames` 调，上限用 `max_coverage_percent` 兜。
 
 ### 不配置 `outputs`（仅解码/AI）
 

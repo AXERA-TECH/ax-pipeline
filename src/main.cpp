@@ -175,7 +175,11 @@ int main(int argc, char** argv) {
                 std::cout << "[stats name=" << s.name << " dev=" << s.device_id << "] decoded=" << s.stats.decoded_frames
                           << " submit_fail=" << s.stats.branch_submit_failures
                           << " npu_ok=" << s.npu_ok
-                          << " npu_err=" << s.npu_err;
+                          << " npu_err=" << s.npu_err
+                          << " in=" << s.stats.input_bitrate_kbps << "kbps";
+                if (s.stats.motion_coverage_percent > 0) {
+                    std::cout << " motion=" << s.stats.motion_coverage_percent << "%";
+                }
                 for (std::size_t j = 0; j < s.stats.output_stats.size(); ++j) {
                     const auto& o = s.stats.output_stats[j];
                     std::cout << " out" << j << "{"
@@ -185,7 +189,9 @@ int main(int argc, char** argv) {
                               << "key_pkts=" << o.key_packets
                               << "q=" << o.current_queue_depth
                               << "/" << o.queue_capacity
-                              << "}";
+                              << " " << o.measured_bitrate_kbps << "kbps";
+                    if (o.qpmap_base_qp > 0) std::cout << " qp=" << o.qpmap_base_qp;
+                    std::cout << "}";
                 }
                 std::cout << "\n";
             }
