@@ -116,13 +116,17 @@
 - MP4: 直接填写文件路径
   - `realtime_playback=true`: 按源 fps 节奏读取(播放器语义)
   - `realtime_playback=false`: 尽快读(离线转码)
-    - 注意:此时 demux 不受节奏限制,编码器跟不上就按 `overflow_policy` 丢帧 ——
-      1080p30 单路默认配置实测丢掉 407/998 帧。**离线转码要一帧不丢,把
-      `outputs[].input_queue_depth` 加大**(实测 64 即可,998 帧全编、`dropped=0`)。
-      别用 `"overflow_policy": "block"`:背压会让编码器一直持有解码帧、把解码池耗尽,
-      实测解码停在 ~590 帧不再推进(已知限制)
+    - 离线文件输入是**无损**的:解码回调满了会让解码等着、背压一路传到 demux;没显式写
+      `overflow_policy` 的输出默认 `block`。1080p30 实测 998/998 帧全编,约 250 fps
+      (开 NPU + OSD + QPMAP + 运动 ROI 时 1781 帧 13 秒)。
+    - 显式写了 `"overflow_policy": "drop_oldest"` 就按你的选择在编码器跟不上时丢帧,
+      丢多少记在 `outputs[].dropped`
   - `loop_playback=true`: 循环播放
 - RTSP: `rtsp://...` 拉流
+
+实时源(RTSP、`realtime_playback=true` 的文件)不做背压 —— 那会堵到网络收包或播放节奏上。
+下游跟不上时解码回调丢最旧的帧,计数在 `GET /api/v1/pipelines` 的 `decode_dropped`
+(控制台 `dec_drop=`)。非 0 说明处理能力不够,该减路数或降 `npu_max_fps`。
 
 ### 输出 `outputs[].uris`
 
@@ -162,9 +166,9 @@
     目标过宽时白花码率，上界兜住画质底线（超过 46 的背景已经明显糊）
   - ROI 来自 NPU 检测框，自动下发到开启了 `qpmap` 的分支（需要 `npu.enable`）；
     输出被缩放时 ROI 坐标会自动换算
-  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR。回退时 `target_bitrate_kbps`
-    会作为 CBR 码率生效，但 `compression_ratio` 不生效 —— 它的目标值是跑起来才算出来的，
-    而 CBR 码率只在 Open 时下发
+  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR，`target_bitrate_kbps` /
+    `compression_ratio` 改成直接调硬件 CBR 码率（运行时用 `AX_VENC_SetRcParam` 更新，
+    变化不到 5% 不下发）。没有 ROI 差异化，只有码率目标
 
   ```json
   { "codec": "h264", "uris": ["/tmp/out.mp4"],

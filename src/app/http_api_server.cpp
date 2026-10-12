@@ -183,6 +183,7 @@ json SnapshotToJson(const PipelineSnapshot& s) {
     j["device_id"] = s.device_id;
     j["running"] = s.running;
     j["decoded"] = s.stats.decoded_frames;
+    j["decode_dropped"] = s.stats.decode_dropped_frames;
     j["submit_fail"] = s.stats.branch_submit_failures;
     j["det_lag"] = s.stats.det_lag_frames;
     j["det_lag_max"] = s.stats.det_lag_frames_max;

@@ -299,6 +299,10 @@ if(DEFINED AXSDK_CHIP_TYPE)
     string(TOLOWER "${AXSDK_CHIP_TYPE}" AXP_CHIP_TEST_PLATFORM)
     if(AXP_CHIP_TEST_PLATFORM STREQUAL "axcl")
         target_link_libraries(ax_plugin_client_test PRIVATE axcl_rt)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        # MSP cross builds: same as ax_pipeline_app / ax_plugin_host -- libax_video_sdk.so's
+        # MSP symbols are resolved by the board's runtime libs, not at cross-link time.
+        target_link_options(ax_plugin_client_test PRIVATE -Wl,--allow-shlib-undefined)
     endif()
 endif()
 

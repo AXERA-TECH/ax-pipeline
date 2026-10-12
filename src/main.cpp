@@ -173,6 +173,7 @@ int main(int argc, char** argv) {
             const auto snaps = service.ListSnapshots();
             for (const auto& s : snaps) {
                 std::cout << "[stats name=" << s.name << " dev=" << s.device_id << "] decoded=" << s.stats.decoded_frames
+                          << " dec_drop=" << s.stats.decode_dropped_frames
                           << " submit_fail=" << s.stats.branch_submit_failures
                           << " npu_ok=" << s.npu_ok
                           << " npu_err=" << s.npu_err

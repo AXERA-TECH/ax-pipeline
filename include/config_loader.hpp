@@ -436,12 +436,22 @@ private:
         // frame_output is always honored. When NPU input differs from the decoder source space,
         // ax-pipeline should map detections back to source coordinates before OSD/tracking.
 
+        // 离线转码(文件 + 不按节奏播放)要一帧不丢:没显式写 overflow_policy 的输出默认 block。
+        // SDK 那边对这种输入已经让解码回调走无损投递,这里补上编码队列这一环;
+        // 否则默认的 drop_oldest 会在编码器跟不上时丢帧(1080p30 实测丢 407/998)。
+        const auto& in_uri = out->sdk.input.uri;
+        const bool offline_file = !out->sdk.input.realtime_playback && in_uri.rfind("rtsp://", 0) != 0 &&
+                                  in_uri.rfind("rtsps://", 0) != 0;
+
         out->sdk.outputs.clear();
         if (j.contains("outputs")) {
             if (!j["outputs"].is_array()) return false;
             for (const auto& o : j["outputs"]) {
                 axvsdk::pipeline::PipelineOutputConfig oc{};
                 if (!ParseOutput(o, &oc)) return false;
+                if (offline_file && !o.contains("overflow_policy")) {
+                    oc.overflow_policy = axvsdk::codec::QueueOverflowPolicy::kBlock;
+                }
                 out->sdk.outputs.push_back(std::move(oc));
             }
         }
