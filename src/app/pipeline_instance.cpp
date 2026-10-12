@@ -121,7 +121,10 @@ void PipelineInstance::BuildFrameCallback() {
         }
 
         if (npu_worker) {
-            npu_worker->Submit(std::move(frame), n);
+            // 用 pipeline 盖在帧上的序号作为身份,这样推理结果回来时
+            // 编码侧能算出它相对当前画面滞后了几帧(frame->seq() 为 0 时回退到本地计数)。
+            const auto frame_seq = frame->seq();
+            npu_worker->Submit(std::move(frame), frame_seq != 0 ? frame_seq : n);
         }
     });
 }
@@ -201,6 +204,10 @@ void PipelineInstance::StartNpuIfEnabled() {
                     const auto map = ai::ComputeInferToSourceMap(sw, sh, iw, ih, resize_opts);
                     ai::MapDetectionsInferToSource(map, sw, sh, &dets);
                 }
+
+                // 先记新鲜度:这组结果基于第 seq 帧算出。即使本帧没检出任何目标,
+                // 结果本身也是新的——否则"这一路暂时没目标"会被误计成"结果过期"。
+                if (pipe_ptr) pipe_ptr->SetDetectionSourceSeq(seq);
 
                 if (enable_osd && pipe_ptr) {
                     axvsdk::common::DrawFrame osd{};

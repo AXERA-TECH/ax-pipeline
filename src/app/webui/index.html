@@ -348,7 +348,7 @@ function renderPipes(arr){
      <div class="fps">
       <div><div class="v f-dec">—</div><div class="k">解码fps</div></div>
       <div><div class="v f-enc">—</div><div class="k">编码fps</div></div>
-      <div><div class="v f-ai">—</div><div class="k">AI fps</div></div>
+      <div><div class="v f-ai">—</div><div class="k f-ai-k">AI fps</div></div>
       <div><div class="v f-err">0</div><div class="k">AI错误</div></div>
      </div>
      <div class="acts"></div>
@@ -367,6 +367,8 @@ function renderPipes(arr){
   d.querySelector(".f-dec").textContent=fpsOf(s.name,s.decoded,"decoded");
   d.querySelector(".f-enc").textContent=(s.outputs&&s.outputs[0])?fpsOf(s.name,s.outputs[0].encoded_pkts,"enc"):"—";
   d.querySelector(".f-ai").textContent=fpsOf(s.name,s.npu_ok,"npu_ok");
+  // 检测滞后:异步推理下结果天然落后当前画面若干帧,按位置使用检测框(ROI 编码等)时要据此补偿
+  d.querySelector(".f-ai-k").textContent=s.det_lag>0?("AI fps · 滞后"+s.det_lag+"帧"):"AI fps";
   const fe=d.querySelector(".f-err");fe.textContent=s.npu_err;fe.className="v f-err"+(s.npu_err>0?" bad":"");
   if(d.dataset.running!==String(s.running)){
    d.dataset.running=String(s.running);
