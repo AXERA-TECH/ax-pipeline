@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <utility>
 
@@ -16,6 +17,28 @@
 namespace axpipeline::app {
 
 namespace {
+
+// 评估用的检测结果落盘(AXP_DET_DUMP)。只在推理回调线程里调用,单线程。
+void DumpDetections(const char* path, std::uint64_t seq, const std::vector<ai::Detection>& dets) {
+    static std::ofstream out;
+    static std::string opened;
+    if (opened != path) {
+        out.close();
+        out.clear();
+        out.open(path, std::ios::out | std::ios::trunc);
+        opened = path;
+    }
+    if (!out) return;
+    out << "{\"seq\":" << seq << ",\"dets\":[";
+    for (std::size_t i = 0; i < dets.size(); ++i) {
+        const auto& d = dets[i];
+        if (i != 0) out << ',';
+        out << '[' << d.x0 << ',' << d.y0 << ',' << d.x1 << ',' << d.y1 << ',' << d.class_id << ','
+            << d.score << ']';
+    }
+    out << "]}\n";
+    out.flush();
+}
 
 bool EnvFlagEnabled(const char* name) {
     const char* v = std::getenv(name);
@@ -203,6 +226,13 @@ void PipelineInstance::StartNpuIfEnabled() {
                 if (sw != 0 && sh != 0 && iw != 0 && ih != 0) {
                     const auto map = ai::ComputeInferToSourceMap(sw, sh, iw, ih, resize_opts);
                     ai::MapDetectionsInferToSource(map, sw, sh, &dets);
+                }
+
+                // AXP_DET_DUMP=<path>:把每帧检测框(源图坐标)写成 JSONL。
+                // 评估用:同一段素材编码成不同码率后各跑一遍,拿源视频的结果当基准,
+                // 就能衡量"压缩对下游检测的影响"——这是整帧 PSNR 测不出来的东西。
+                if (const char* dump = std::getenv("AXP_DET_DUMP"); dump != nullptr && dump[0] != '\0') {
+                    DumpDetections(dump, seq, dets);
                 }
 
                 // 先记新鲜度:这组结果基于第 seq 帧算出。即使本帧没检出任何目标,

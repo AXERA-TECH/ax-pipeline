@@ -191,6 +191,7 @@ int main(int argc, char** argv) {
                               << "/" << o.queue_capacity
                               << " " << o.measured_bitrate_kbps << "kbps";
                     if (o.qpmap_base_qp > 0) std::cout << " qp=" << o.qpmap_base_qp;
+                    if (o.rate_target_unreachable) std::cout << " RATE-UNREACHABLE";
                     std::cout << "}";
                 }
                 std::cout << "\n";

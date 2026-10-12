@@ -378,6 +378,7 @@ function renderPipes(arr){
    let t=(s.in_kbps||0)+"→"+(o0.out_kbps||0)+" kbps";
    if(s.in_kbps>0&&o0.out_kbps>0)t+="  压 "+(s.in_kbps/o0.out_kbps).toFixed(1)+"×";
    if(o0.base_qp>0)t+="  背景QP "+o0.base_qp;
+   if(o0.rate_unreachable)t+="  ⚠ 压不到目标";
    if(s.motion_cover>0)t+="  运动 "+s.motion_cover+"%";
    ei.textContent=t;ei.style.display="";
   }else ei.style.display="none";

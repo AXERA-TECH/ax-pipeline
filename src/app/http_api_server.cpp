@@ -203,6 +203,7 @@ json SnapshotToJson(const PipelineSnapshot& s) {
             {"queue_capacity", o.queue_capacity},
             {"out_kbps", o.measured_bitrate_kbps},
             {"base_qp", o.qpmap_base_qp},
+            {"rate_unreachable", o.rate_target_unreachable},
         });
     }
     j["outputs"] = std::move(outs);
