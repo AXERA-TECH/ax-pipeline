@@ -133,6 +133,17 @@ json PipelineConfigJson(const ConfigLoader::PipelineCfg& cfg) {
     }
     out["npu"] = std::move(npu);
 
+    if (cfg.sdk.motion_roi.enable) {
+        const auto& m = cfg.sdk.motion_roi;
+        out["motion_roi"] = {{"enable", true},
+                             {"grid_cols", m.grid_cols},
+                             {"grid_rows", m.grid_rows},
+                             {"sensitivity", m.sensitivity},
+                             {"hold_frames", m.hold_frames},
+                             {"detect_interval", m.detect_interval},
+                             {"max_coverage_percent", m.max_coverage_percent}};
+    }
+
     json outputs = json::array();
     for (const auto& o : cfg.sdk.outputs) {
         json oo;
