@@ -372,6 +372,20 @@ private:
 
         if (!GetOptU32(j, "log_every_n_frames", &out->log_every_n_frames)) return false;
 
+        if (j.contains("motion_roi")) {
+            const auto& m = j["motion_roi"];
+            if (!m.is_object()) return false;
+            auto& mr = out->sdk.motion_roi;
+            if (!GetOptBool(m, "enable", &mr.enable) ||
+                !GetOptU32(m, "grid_cols", &mr.grid_cols) ||
+                !GetOptU32(m, "grid_rows", &mr.grid_rows) ||
+                !GetOptU32(m, "sensitivity", &mr.sensitivity) ||
+                !GetOptU32(m, "hold_frames", &mr.hold_frames) ||
+                !GetOptU32(m, "detect_interval", &mr.detect_interval)) {
+                return false;
+            }
+        }
+
         if (j.contains("npu")) {
             const auto& n = j["npu"];
             if (!n.is_object()) return false;

@@ -165,6 +165,39 @@
   的 `det_lag`,16 路满载实测均值 2.5 帧、峰值 8 帧)。当前版本直接使用原始框,
   快速移动的目标会有部分区域落在 ROI 之外。
 
+### `motion_roi`（pipeline 级，配合 `qpmap` 使用）
+
+QPMAP 只保护检测器**认识**的目标。画面里检测器不认识但在动的东西（动物、落物、
+推车、晃动的招牌…）会落进背景，被高 QP 糊掉。`motion_roi` 把运动区域也并入 ROI，
+最终 `ROI = 检测框 ∪ 运动区域`。
+
+```json
+"motion_roi": { "enable": true, "sensitivity": 12, "hold_frames": 15, "detect_interval": 3 }
+```
+
+- `enable`（bool，默认 `false`）
+- `sensitivity`（int，默认 12）：格子亮度差超过它算运动（0~255），越小越灵敏
+- `hold_frames`（int，默认 15）：命中后保持多少帧，防闪烁，同时覆盖目标去向
+- `detect_interval`（int，默认 3）：每隔几帧算一次；运动区域变化慢，不必逐帧
+- `grid_cols` / `grid_rows`（int，默认 0 = 自动取原图 1/8）
+  - **会被钳到不低于 1/8**：IVPS 单次缩放到 1/16 会失败、1/32 会卡死硬件
+
+原理是把整帧用 IVPS 缩成小灰度网格做帧差，读回只有几十 KB。实测 8 路 1080p
+开启后整机 CPU 从 3% 升到 4%（`detect_interval: 3`）。若 IVPS 连续失败会自动
+关闭该功能并打印告警，不会静默失效。
+
+实测（AXCL，1080p 路口场景，`p_qp: 40`，`roi_qp_delta: -10`，1781 帧）：
+
+| ROI 来源 | 输出大小 | PSNR |
+| --- | --- | --- |
+| 无 ROI（全图 QP40） | 16.5 MB | — |
+| 仅检测框 | 22.5 MB | 27.94 dB |
+| 检测框 + 运动区域 | 30.6 MB | 28.49 dB |
+
+注意这是**繁忙路口**场景，几乎所有内容都在动，所以运动区域覆盖很广、压缩收益被摊薄。
+背景以静止为主的场景（周界、仓库、停车场）收益会明显更好；覆盖面可用
+`sensitivity` 和 `hold_frames` 调。
+
 ### 不配置 `outputs`（仅解码/AI）
 
 `outputs` 字段可以省略或配置为空数组 `[]`。此时 pipeline 只会做 `demux -> decode -> (可选 npu)`：
