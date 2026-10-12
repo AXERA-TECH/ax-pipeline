@@ -162,8 +162,9 @@
     目标过宽时白花码率，上界兜住画质底线（超过 46 的背景已经明显糊）
   - ROI 来自 NPU 检测框，自动下发到开启了 `qpmap` 的分支（需要 `npu.enable`）；
     输出被缩放时 ROI 坐标会自动换算
-  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR（回退时 `target_bitrate_kbps`
-    会作为 CBR 码率生效）
+  - 仅 AX650 / AXCL 支持；AX620E 系列会打印告警并回退 CBR。回退时 `target_bitrate_kbps`
+    会作为 CBR 码率生效，但 `compression_ratio` 不生效 —— 它的目标值是跑起来才算出来的，
+    而 CBR 码率只在 Open 时下发
 
   ```json
   { "codec": "h264", "uris": ["/tmp/out.mp4"],
